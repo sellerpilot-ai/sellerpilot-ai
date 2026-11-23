@@ -1,0 +1,39 @@
+/* SellerPilot v13 visual refresh. Add before the existing closing </style> tag. */
+:root{font-family:Inter,ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif;color:#19233d;background:#f5f6fc}
+body{background:radial-gradient(ellipse 70% 25% at 85% 0%,#eae6ff,transparent 85%),#f5f6fc;line-height:1.55}
+header{position:sticky;top:0;z-index:20;padding:17px clamp(18px,4vw,56px);background:linear-gradient(110deg,#111b38,#18244c 70%,#29235d);border-bottom:1px solid #ffffff22;box-shadow:0 8px 28px #101a3820}
+header b{font-size:23px;letter-spacing:-.7px;white-space:nowrap}
+header select{min-width:190px;max-width:48%;background:#ffffff16;border:1px solid #ffffff3c;color:#fff;border-radius:13px;padding:11px 15px}
+header select option{color:#17233a;background:#fff}
+main{max-width:1200px;padding:clamp(18px,3vw,36px)}
+h1{font-size:clamp(28px,4vw,38px);letter-spacing:-1.1px;line-height:1.2;margin:8px 0 17px;font-weight:800}
+h2{font-size:19px;letter-spacing:-.45px;margin:0 0 18px;font-weight:780}
+.panel{border:1px solid #e8eaf4;border-radius:21px;background:#fff;box-shadow:0 12px 35px #1d275c0b,0 2px 6px #1d275c05;padding:clamp(18px,2.5vw,28px);margin:18px 0}
+.panel:hover{border-color:#dadcf0}
+.grid{gap:16px}
+#dashboard>.grid .panel{margin:0;min-height:125px;position:relative;overflow:hidden}
+#dashboard>.grid .panel:before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(#635bff,#b39aff)}
+.stat{font-size:36px;letter-spacing:-1.5px;margin-top:8px;color:#1c2450}
+small,.muted{color:#778198}
+.ok{background:#e9f8f1;color:#147b56;font-size:12px;font-weight:750;padding:9px 14px}
+.notice{background:#f1f0ff;border:1px solid #dedaff;color:#48416f;padding:16px 19px;border-radius:16px;font-size:13px}
+label{color:#3d4562;font-size:12px;letter-spacing:.15px;margin:16px 0 7px}
+input,textarea,select{background:#fbfcff;border:1px solid #dfe3f0;border-radius:12px;padding:13px 14px;color:#1a2440;transition:border-color .2s,box-shadow .2s}
+input:focus,textarea:focus,select:focus{outline:none;border-color:#756af5;box-shadow:0 0 0 4px #7066f51b;background:#fff}
+textarea{min-height:130px;resize:vertical}
+button{background:linear-gradient(125deg,#5c50ed,#7658ed);border-radius:11px;padding:12px 17px;box-shadow:0 5px 13px #5b50e626;cursor:pointer;transition:transform .15s,filter .15s}
+button:hover{filter:brightness(1.06);transform:translateY(-1px)}
+button:active{transform:translateY(0)}
+button.secondary{background:#f0efff;color:#5147c5;box-shadow:none}
+button.danger{background:#fff0f1;color:#ad3449;box-shadow:none}
+.result{background:#f7f8fe;border:1px solid #eef0f8;border-radius:15px;padding:18px}
+.score{font-size:48px;letter-spacing:-1.5px;color:#242d59}
+.bar{height:10px;background:#e9e9f5}
+.bar>div{background:linear-gradient(90deg,#6557f5,#8c6aff)}
+table{min-width:480px}th{font-size:12px;color:#75809a;text-transform:uppercase;letter-spacing:.6px}td{font-size:13px}tr:hover td{background:#fafaff}
+footer{text-align:center;color:#8a92a5}
+#studio>.two>.panel{align-self:start}
+#studio>.two>.panel:nth-child(2){background:linear-gradient(160deg,#fff 75%,#f9f7ff)}
+@media(min-width:900px){.two{grid-template-columns:1.07fr .93fr;gap:22px}}
+@media(max-width:600px){header{padding:14px 15px;gap:10px}header b{font-size:18px}header select{min-width:0;max-width:51%;font-size:13px;padding:11px 7px}main{padding:18px 13px}.panel{padding:18px;border-radius:18px}h1{font-size:29px}.stat{font-size:31px}button{padding:11px 13px;font-size:13px}#dashboard>.grid .panel{min-height:116px}table{min-width:450px}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
