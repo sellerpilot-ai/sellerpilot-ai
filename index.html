@@ -7,8 +7,415 @@
 <section id="bulk" class="page hidden"><div class="heading"><div><div class="eyebrow">CATALOGUE QUALITY</div><h1>Bulk Audit</h1><p>Identify drafts that need more information.</p></div><button class="btn" id="downloadAudit">Download audit CSV</button></div><div class="card"><div class="section-title"><h2>Listing health overview</h2><span class="muted" id="bulkCount"></span></div><div class="tablewrap"><table><thead><tr><th>Product</th><th>Score</th><th>Priority improvement</th></tr></thead><tbody id="bulkRows"></tbody></table></div></div></section>
 <section id="settings" class="page hidden"><div class="heading"><div><div class="eyebrow">WORKSPACE</div><h1>Settings & Backup</h1><p>Protect your drafts and understand the preview limitations.</p></div></div><div class="two"><div class="card"><h2>Local data</h2><p class="mini">Products are saved in this browser on this device. Clearing browser storage may delete them. Back up regularly.</p><div class="actions"><button class="btn" id="backup">Download JSON backup</button><label class="btn secondary filelabel" style="margin:4px 0">Restore backup <input id="restore" type="file" accept=".json,application/json"></label></div><button class="btn danger" id="reset">Delete all local products</button></div><div class="card"><h2>Connection status</h2><div class="step">Etsy API <span class="muted">— Not connected</span></div><div class="step">Amazon SP-API <span class="muted">— Not connected</span></div><div class="step">eBay Sell API <span class="muted">— Not connected</span></div><div class="step">Shopify Admin API <span class="muted">— Not connected</span></div><div class="step">AI API <span class="muted">— Not connected</span></div><p class="mini">Secure accounts, server-side credentials, merchant authorisation and platform approvals are required before live connections can be enabled.</p></div></div></section>
 <div class="footer">SellerPilot AI · Version 14 design preview · Independent prototype, not affiliated with Etsy, Amazon, eBay or Shopify.<br>Do not enter real customer information. No live integrations, payments or AI API requests.</div></main></div></div><script>
-'use strict';const $=id=>document.getElementById(id);const KEY='sellerpilot_demo_v1';let products=[];let editing=null;const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));function load(){try{const p=JSON.parse(localStorage.getItem(KEY)||'[]');products=Array.isArray(p)?p.filter(x=>x&&typeof x.title==='string').slice(0,5000):[]}catch{products=[]}}function persist(){try{localStorage.setItem(KEY,JSON.stringify(products))}catch{alert('Browser storage unavailable. Please export a backup.')}}function tags(p){return String(p.tags||'').split(',').map(s=>s.trim()).filter(Boolean)}function audit(p,market='Etsy'){const title=String(p.title||'').trim(),desc=String(p.description||'').trim(),ts=tags(p),issues=[],passed=[];let score=0;const limit=market==='Etsy'?140:market==='eBay'?80:200;if(title.length>=20&&title.length<=limit){score+=25;passed.push('Title has useful length and is within the guidance limit.')}else issues.push(title.length>limit?`Shorten the title to ${limit} characters or fewer.`:'Add a descriptive title (ideally at least 20 characters).');if(desc.length>=120){score+=25;passed.push('Description includes substantial information.')}else if(desc.length>=55){score+=12;issues.push('Add verified materials, size, care and delivery details.')}else issues.push('Expand the description with verified product details.');if(ts.length>=5&&ts.length<=13){score+=20;passed.push('Keyword/tag count is within basic Etsy-style guidance.')}else if(ts.length>=1&&ts.length<=13){score+=8;issues.push('Consider additional distinct, relevant buyer-intent keywords.')}else issues.push('Add relevant keywords; Etsy supports up to 13 tags.');if(ts.some(t=>t.length>20)&&market==='Etsy')issues.push('Etsy tags must not exceed 20 characters each.');else score+=10;if(Number(p.price)>0){score+=10;passed.push('A positive price is provided.')}else issues.push('Enter a valid positive price.');if(desc.length>=200)score+=10;else issues.push('Include verified dimensions, options or care information where relevant.');if(ts.length>13&&market==='Etsy'){issues.push('Reduce Etsy tags to no more than 13.');score=Math.min(score,65)}return{score:Math.min(100,score),issues,passed}}function navigate(page){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==page));document.querySelectorAll('[data-page]').forEach(x=>x.classList.toggle('active',x.dataset.page===page));$('mobileNav').value=page;$('crumb').textContent={dashboard:'Overview',products:'Products',studio:'Listing Studio',bulk:'Bulk Audit',settings:'Settings & Backup'}[page];window.scrollTo(0,0);render()}document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.page)));document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.go)));$('mobileNav').onchange=e=>navigate(e.target.value);function readForm(){return{title:$('title').value.trim(),description:$('description').value.trim(),tags:$('tags').value.trim(),price:Number($('price').value),sku:$('sku').value.trim()}}function clearForm(){editing=null;['title','description','tags','sku'].forEach(id=>$(id).value='');$('price').value='19.99';$('editState').textContent='New draft';$('auditOutput').innerHTML='<div class="empty">Enter product details and select <b>Analyse listing</b> to see recommendations.</div>';countTitle()}function countTitle(){$('titleCount').textContent=`${$('title').value.length} characters · Etsy limit 140 / eBay limit 80`}$('title').oninput=countTitle;$('clear').onclick=clearForm;$('save').onclick=()=>{const p=readForm();if(!p.title){alert('Please enter a product title.');return}if(!Number.isFinite(p.price)||p.price<=0){alert('Enter a valid price.');return}if(editing){const i=products.findIndex(x=>x.id===editing);if(i>=0)products[i]={...products[i],...p}}else{p.id='p'+Date.now()+Math.random().toString(36).slice(2);products.push(p);editing=p.id}$('editState').textContent='Saved draft';persist();render();alert('Product saved in this browser.')} ;$('analyse').onclick=()=>{const p=readForm(),market=$('market').value,r=audit(p,market);$('auditOutput').innerHTML=`<div class="bigscore">${r.score}<span class="muted" style="font-size:18px"> / 100</span></div><div class="bar"><div style="width:${r.score}%"></div></div><div class="mini">${safe(market)}-oriented completeness guidance. Not a search-ranking prediction.</div><div class="audit"><b>Recommended actions</b>${r.issues.length?`<ul>${r.issues.map(x=>`<li>${safe(x)}</li>`).join('')}</ul>`:'<p class="mini">No basic gaps detected. Human review is still necessary.</p>'}</div><div class="audit"><b>Checks passed</b><ul>${r.passed.map(x=>`<li>${safe(x)}</li>`).join('')||'<li>Complete more fields to pass checks.</li>'}</ul></div>`};$('duplicate').onclick=()=>{editing=null;$('editState').textContent='Unsaved duplicate';alert('Draft duplicated in the editor. Select Save product to add it as a new product.')};function edit(id){const p=products.find(x=>x.id===id);if(!p)return;editing=id;['title','description','tags','sku'].forEach(k=>$(k).value=p[k]||'');$('price').value=p.price;$('editState').textContent='Editing product';$('auditOutput').innerHTML='<div class="empty">Select Analyse listing to review this draft.</div>';countTitle();navigate('studio')}function remove(id){if(!confirm('Delete this product draft?'))return;products=products.filter(x=>x.id!==id);if(editing===id)clearForm();persist();render()}function render(){const scores=products.map(p=>audit(p).score);$('statProducts').textContent=products.length;$('statScore').textContent=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length)+'/100':'—';const recent=products.slice(-4).reverse();$('recentRows').innerHTML=recent.map(p=>`<tr><td>${safe(p.title)}</td><td>£${Number(p.price||0).toFixed(2)}</td><td><span class="scorebadge ${audit(p).score<70?'low':''}">${audit(p).score}/100</span></td></tr>`).join('')||'<tr><td colspan="3" class="empty">No drafts yet. Create your first listing.</td></tr>';const q=$('search').value.toLowerCase();const found=products.filter(p=>p.title.toLowerCase().includes(q));$('productRows').innerHTML=found.map(p=>`<tr><td>${safe(p.title)}</td><td>£${Number(p.price||0).toFixed(2)}</td><td>${tags(p).length}</td><td><span class="scorebadge ${audit(p).score<70?'low':''}">${audit(p).score}/100</span></td><td><button class="btn secondary" data-edit="${safe(p.id)}">Edit</button> <button class="btn danger" data-remove="${safe(p.id)}">Delete</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">No matching products.</td></tr>';$('bulkCount').textContent=products.length+' products';$('bulkRows').innerHTML=products.map(p=>{const r=audit(p);return`<tr><td>${safe(p.title)}</td><td><span class="scorebadge ${r.score<70?'low':''}">${r.score}/100</span></td><td>${safe(r.issues[0]||'No basic gaps detected')}</td></tr>`}).join('')||'<tr><td colspan="3" class="empty">Add products to see bulk audit results.</td></tr>'}document.addEventListener('click',e=>{const editButton=e.target.closest('[data-edit]'),removeButton=e.target.closest('[data-remove]');if(editButton)edit(editButton.dataset.edit);if(removeButton)remove(removeButton.dataset.remove)});$('search').oninput=render;function csvCell(v){return '"'+String(v??'').replaceAll('"','""')+'"'}function download(name,content,type){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([content],{type}));a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}function csvExport(name,headers,rows){download(name,[headers,...rows].map(row=>row.map(csvCell).join(',')).join('\r\n'),'text/csv;charset=utf-8')} $('exportCsv').onclick=()=>csvExport('sellerpilot-products.csv',['title','description','tags','price'],products.map(p=>[p.title,p.description,tags(p).join('|'),p.price]));$('downloadAudit').onclick=()=>csvExport('sellerpilot-audit.csv',['title','score','recommendations'],products.map(p=>[p.title,audit(p).score,audit(p).issues.join('; ')]));function parseCsv(t){let rows=[],row=[],cell='',quoted=false;for(let i=0;i<t.length;i++){const c=t[i];if(c==='"'){if(quoted&&t[i+1]==='"'){cell+='"';i++}else quoted=!quoted}else if(c===','&&!quoted){row.push(cell);cell=''}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&t[i+1]==='\n')i++;row.push(cell);if(row.some(v=>v!==''))rows.push(row);row=[];cell=''}else cell+=c}if(quoted)throw Error('Invalid CSV quoting');row.push(cell);if(row.some(v=>v!==''))rows.push(row);return rows}$('importCsv').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const rows=parseCsv(await f.text());if(rows.length>1001)throw Error('Maximum 1000 rows per import');const cols=rows.shift().map(x=>x.trim().toLowerCase());if(!['title','description','tags','price'].every(x=>cols.includes(x)))throw Error('Required headers: title,description,tags,price');let count=0;for(const row of rows){const p=Object.fromEntries(cols.map((c,i)=>[c,row[i]||'']));const price=Number(p.price);if(!p.title||!Number.isFinite(price)||price<=0)continue;products.push({id:'p'+Date.now()+Math.random().toString(36).slice(2),title:p.title.slice(0,250),description:p.description.slice(0,10000),tags:p.tags.replaceAll('|',','),price,sku:''});count++}persist();render();alert('Imported '+count+' products')}catch(err){alert(err.message)}e.target.value=''};$('backup').onclick=()=>download('sellerpilot-backup.json',JSON.stringify({format:'sellerpilot-backup',version:14,products},null,2),'application/json');$('restore').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const o=JSON.parse(await f.text());if(o.format!=='sellerpilot-backup'||!Array.isArray(o.products)||o.products.length>5000)throw Error('Invalid SellerPilot backup');if(!confirm('Replace your current browser products with this backup?'))return;products=o.products.filter(p=>p&&typeof p.title==='string'&&typeof p.description==='string'&&typeof p.tags==='string'&&Number.isFinite(Number(p.price))).map(p=>({...p,id:String(p.id||'p'+Math.random()),price:Number(p.price)}));persist();render();alert('Restored '+products.length+' products')}catch(err){alert(err.message)}e.target.value=''};$('reset').onclick=()=>{if(!confirm('Permanently delete all local product drafts? Export a backup first.'))return;products=[];persist();clearForm();render()};load();render();countTitle();
+'use strict';const $=id=>document.getElementById(id);const KEY='sellerpilot_demo_v1';let products=[];let editing=null;const safe=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));function load(){try{const p=JSON.parse(localStorage.getItem(KEY)||'[]');products=Array.isArray(p)?p.filter(x=>x&&typeof x.title==='string').slice(0,5000):[]}catch{products=[]}}function persist(){try{localStorage.setItem(KEY,JSON.stringify(products))}catch{alert('Browser storage unavailable. Please export a backup.')}}function tags(p){return String(p.tags||'').split(',').map(s=>s.trim()).filter(Boolean)}function audit(p,market='Etsy'){const title=String(p.title||'').trim(),desc=String(p.description||'').trim(),ts=tags(p),issues=[],passed=[];let score=0;const limit=market==='Etsy'?140:market==='eBay'?80:200;if(title.length>=20&&title.length<=limit){score+=25;passed.push('Title has useful length and is within the guidance limit.')}else issues.push(title.length>limit?`Shorten the title to ${limit} characters or fewer.`:'Add a descriptive title (ideally at least 20 characters).');if(desc.length>=120){score+=25;passed.push('Description includes substantial information.')}else if(desc.length>=55){score+=12;issues.push('Add verified materials, size, care and delivery details.')}else issues.push('Expand the description with verified product details.');if(ts.length>=5&&ts.length<=13){score+=20;passed.push('Keyword/tag count is within basic Etsy-style guidance.')}else if(ts.length>=1&&ts.length<=13){score+=8;issues.push('Consider additional distinct, relevant buyer-intent keywords.')}else issues.push('Add relevant keywords; Etsy supports up to 13 tags.');if(ts.some(t=>t.length>20)&&market==='Etsy')issues.push('Etsy tags must not exceed 20 characters each.');else score+=10;if(Number(p.price)>0){score+=10;passed.push('A positive price is provided.')}else issues.push('Enter a valid positive price.');if(desc.length>=200)score+=10;else issues.push('Include verified dimensions, options or care information where relevant.');if(ts.length>13&&market==='Etsy'){issues.push('Reduce Etsy tags to no more than 13.');score=Math.min(score,65)}return{score:Math.min(100,score),issues,passed}}function navigate(page){document.querySelectorAll('.page').forEach(x=>x.classList.toggle('hidden',x.id!==page));document.querySelectorAll('[data-page]').forEach(x=>x.classList.toggle('active',x.dataset.page===page));$('mobileNav').value=page;$('crumb').textContent={dashboard:'Overview',products:'Products',studio:'Listing Studio',bulk:'Bulk Audit',settings:'Settings & Backup'}[page];window.scrollTo(0,0);render()}document.querySelectorAll('[data-page]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.page)));document.querySelectorAll('[data-go]').forEach(b=>b.addEventListener('click',()=>navigate(b.dataset.go)));$('mobileNav').onchange=e=>navigate(e.target.value);function readForm(){return{title:$('title').value.trim(),description:$('description').value.trim(),tags:$('tags').value.trim(),price:Number($('price').value),sku:$('sku').value.trim()}}function clearForm(){editing=null;['title','description','tags','sku'].forEach(id=>$(id).value='');$('price').value='19.99';$('editState').textContent='New draft';$('auditOutput').innerHTML='<div class="empty">Enter product details and select <b>Analyse listing</b> to see recommendations.</div>';countTitle()}function countTitle(){$('titleCount').textContent=`${$('title').value.length} characters · Etsy limit 140 / eBay limit 80`}$('title').oninput=countTitle;$('clear').onclick=clearForm;$('save').onclick=()=>{const p=readForm();if(!p.title){alert('Please enter a product title.');return}if(!Number.isFinite(p.price)||p.price<=0){alert('Enter a valid price.');return}if(editing){const i=products.findIndex(x=>x.id===editing);if(i>=0)products[i]={...products[i],...p}}else{p.id='p'+Date.now()+Math.random().toString(36).slice(2);products.push(p);editing=p.id}$('editState').textContent='Saved draft';persist();render();alert('Product saved in this browser.')} ;$('analyse').onclick=()=>{const p=readForm(),market=$('market').value,r=audit(p,market);$('auditOutput').innerHTML=`<div class="bigscore">${r.score}<span class="muted" style="font-size:18px"> / 100</span></div><div class="bar"><div style="width:${r.score}%"></div></div><div class="mini">${safe(market)}-oriented completeness guidance. Not a search-ranking prediction.</div><div class="audit"><b>Recommended actions</b>${r.issues.length?`<ul>${r.issues.map(x=>`<li>${safe(x)}</li>`).join('')}</ul>`:'<p class="mini">No basic gaps detected. Human review is still necessary.</p>'}</div><div class="audit"><b>Checks passed</b><ul>${r.passed.map(x=>`<li>${safe(x)}</li>`).join('')||'<li>Complete more fields to pass checks.</li>'}</ul></div>`};$('duplicate').onclick=()=>{editing=null;$('editState').textContent='Unsaved duplicate';alert('Draft duplicated in the editor. Select Save product to add it as a new product.')};function edit(id){const p=products.find(x=>x.id===id);if(!p)return;editing=id;['title','description','tags','sku'].forEach(k=>$(k).value=p[k]||'');$('price').value=p.price;$('editState').textContent='Editing product';$('auditOutput').innerHTML='<div class="empty">Select Analyse listing to review this draft.</div>';countTitle();navigate('studio')}function remove(id){if(!confirm('Delete this product draft?'))return;products=products.filter(x=>x.id!==id);if(editing===id)clearForm();persist();render()}function render(){const scores=products.map(p=>audit(p).score);$('statProducts').textContent=products.length;$('statScore').textContent=scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length)+'/100':'—';const recent=products.slice(-4).reverse();$('recentRows').innerHTML=recent.map(p=>`<tr><td>${safe(p.title)}</td><td>£${Number(p.price||0).toFixed(2)}</td><td><span class="scorebadge ${audit(p).score<70?'low':''}">${audit(p).score}/100</span></td></tr>`).join('')||'<tr><td colspan="3" class="empty">No drafts yet. Create your first listing.</td></tr>';const q=$('search').value.toLowerCase();const found=products.filter(p=>p.title.toLowerCase().includes(q));$('productRows').innerHTML=found.map(p=>`<tr><td>${safe(p.title)}</td><td>£${Number(p.price||0).toFixed(2)}</td><td>${tags(p).length}</td><td><span class="scorebadge ${audit(p).score<70?'low':''}">${audit(p).score}/100</span></td><td><button class="btn secondary" data-edit="${safe(p.id)}">Edit</button> <button class="btn danger" data-remove="${safe(p.id)}">Delete</button></td></tr>`).join('')||'<tr><td colspan="5" class="empty">No matching products.</td></tr>';$('bulkCount').textContent=products.length+' products';$('bulkRows').innerHTML=products.map(p=>{const r=audit(p);return`<tr><td>${safe(p.title)}</td><td><span class="scorebadge ${r.score<70?'low':''}">${r.score}/100</span></td><td>${safe(r.issues[0]||'No basic gaps detected')}</td></tr>`}).join('')||'<tr><td colspan="3" class="empty">Add products to see bulk audit results.</td></tr>'}document.addEventListener('click',e=>{const editButton=e.target.closest('[data-edit]'),removeButton=e.target.closest('[data-remove]');if(editButton)edit(editButton.dataset.edit);if(removeButton)remove(removeButton.dataset.remove)});$('search').oninput=render;function csvCell(v){return '"'+String(v??'').replaceAll('"','""')+'"'}function download(name,content,type){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([content],{type}));a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}function csvExport(name,headers,rows){download(name,[headers,...rows].map(row=>row.map(csvCell).join(',')).join('\r\n'),'text/csv;charset=utf-8')} $('exportCsv').onclick=()=>csvExport('sellerpilot-products.csv',['title','description','tags','price'],products.map(p=>[p.title,p.description,tags(p).join('|'),p.price]));$('downloadAudit').onclick=()=>csvExport('sellerpilot-audit.csv',['title','score','recommendations'],products.map(p=>[p.title,audit(p).score,audit(p).issues.join('; ')]));function parseCsv(t){let rows=[],row=[],cell='',quoted=false;for(let i=0;i<t.length;i++){const c=t[i];if(c==='"'){if(quoted&&t[i+1]==='"'){cell+='"';i++}else quoted=!quoted}else if(c===','&&!quoted){row.push(cell);cell=''}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&t[i+1]==='\n')i++;row.push(cell);if(row.some(v=>v!==''))rows.push(row);row=[];cell=''}else cell+=c}if(quoted)throw Error('Invalid CSV quoting');row.push(cell);if(row.some(v=>v!==''))rows.push(row);return rows}$('importCsv').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const rows=parseCsv(await f.text());if(rows.length>1001)throw Error('Maximum 1000 rows per import');const cols=rows.shift().map(x=>x.trim().toLowerCase());if(!['title','description','tags','price'].every(x=>cols.includes(x)))throw Error('Required headers: title,description,tags,price');let count=0;for(const row of rows){const p=Object.fromEntries(cols.map((c,i)=>[c,row[i]||'']));const price=Number(p.price);if(!p.title||!Number.isFinite(price)||price<=0)continue;products.push({id:'p'+Date.now()+Math.random().toString(36).slice(2),title:p.title.slice(0,250),description:p.description.slice(0,10000),tags:p.tags.replaceAll('|',','),price,sku:''});count++}persist();render();alert('Imported '+count+' products')}catch(err){alert(err.message)}e.target.value=''};$('backup').onclick=()=>download('sellerpilot-backup.json',JSON.stringify({format:'sellerpilot-backup',version:14,products},null,2),'application/json');$('restore').onchange=async e=>{const f=e.target.files[0];if(!f)return;try{const o=JSON.parse(await f.text());if(o.format!=='sellerpilot-backup'||!Array.isArray(o.products)||o.products.length>5000)throw Error('Invalid SellerPilot backup');if(!confirm('Replace your current browser products with this backup?'))return;products=o.products.filter(p=>p&&typeof p.title==='string'&&typeof p.description==='string'&&typeof p.tags==='string'&&Number.isFinite(Number(p.price))).map(p=>({...p,id:String(p.id||'p'+Math.random()),price:Number(p.price)}));persist();render();alert('Restored '+products.length+' products')}catch(err){alert(err.message)}e.target.value=''};$('reset').onclick=()=>{if(!confirm('Permanently delete all local product drafts? Export a backup first.'))return;products=[];persist();clearForm();render()};/* v17 cloud-first: do not load legacy local products by default. */ render();countTitle();
 </script>
 <script src="v15.js"></script>
-<script src="v16.js"></script>
+<script>
+/* SellerPilot AI v17 — Cloud-first authenticated workspace beta.
+ * Upgrade: upload v17.js and change index.html's v16.js script to v17.js.
+ * Only Supabase project URL and its PUBLIC publishable key are embedded.
+ * No service_role, secret, database password, or AI key belongs in browser JS.
+ * Local v14 drafts remain stored under sellerpilot_demo_v1 for rollback;
+ * they are NEVER automatically displayed or uploaded in v17.
+ */
+(async () => {
+  'use strict';
+
+  const PROJECT_URL = 'https://aczqdgjyeztaexsxmdww.supabase.co';
+  const PUBLISHABLE_KEY = 'sb_publishable_wH2kvU7SEKsC6-z6X0DLYw_-X2NZ93q';
+  const REDIRECT_URL = 'https://sellerpilot-ai.github.io/sellerpilot-ai/';
+  const byId = id => document.getElementById(id);
+  const settings = byId('settings');
+  if (!settings || !byId('save') || !byId('productRows')) return;
+
+  // v14 declares products/editing/render/clearForm/readForm/parseCsv in a classic script.
+  // They are shared lexical bindings here, not window properties. Remove locally
+  // loaded data from the visible workspace, without changing browser storage.
+  products = [];
+  editing = null;
+  clearForm();
+  render();
+
+  const state = { uid: null, ready: false, busy: false, serial: 0 };
+  let editVersion = null; // Snapshot timestamp captured when an editor is opened.
+  let client = null;
+  const style = document.createElement('style');
+  style.textContent = `
+    .v17-card{background:#fff;border:1px solid #e5e8f3;border-radius:20px;padding:24px;margin:20px 0;box-shadow:0 8px 28px #252a4b0a}
+    .v17-head{display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between}
+    .v17-head h2{margin:0;font-size:20px;color:#202849;letter-spacing:-.4px}
+    .v17-pill{font-size:11px;font-weight:800;color:#5544cd;background:#efedff;padding:7px 11px;border-radius:30px}
+    .v17-desc{color:#65728d;font-size:13px;line-height:1.65}
+    .v17-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+    .v17-fields label{display:block;margin:7px 0;color:#34415e;font-size:12px;font-weight:750}
+    .v17-fields input{width:100%;border:1px solid #dfe3f0;border-radius:12px;padding:12px 13px;color:#16213e;background:#fbfcff}
+    .v17-fields input:focus{outline:3px solid #e4e0ff;border-color:#7965ec}
+    .v17-buttons{display:flex;flex-wrap:wrap;gap:9px;margin:14px 0}
+    .v17-buttons button{border:0;background:#5e50e9;color:white;border-radius:11px;padding:12px 15px;font-weight:750;font-size:13px;cursor:pointer}
+    .v17-buttons button.alt{background:#f0efff;color:#5144b9}
+    .v17-buttons button.warn{background:#fff0f1;color:#a4334d}
+    .v17-buttons button:disabled{opacity:.55;cursor:wait}
+    .v17-note{background:#fff9e9;color:#6c5828;border:1px solid #f0e3b9;border-radius:12px;padding:13px 15px;font-size:12px;line-height:1.6;margin:12px 0}
+    .v17-message{background:#f4f5fb;color:#40506c;border:1px solid #e2e6f3;border-radius:11px;padding:12px 14px;font-size:13px;line-height:1.5;white-space:pre-wrap}
+    .v17-message[data-kind=success]{background:#eaf8f0;border-color:#cdeada;color:#176746}
+    .v17-message[data-kind=error]{background:#fff1ee;border-color:#f1cec9;color:#92302c}
+    .v17-hidden{display:none!important}
+    .v17-banner{margin:0 0 16px;padding:11px 15px;border-radius:13px;background:#eef0ff;color:#403596;font-size:12px;font-weight:700;border:1px solid #e0dcff}
+    .v17-banner[data-kind=error]{background:#fff1ee;color:#943b32;border-color:#f2cfc7}
+    .v17-banner[data-kind=success]{background:#eaf8f0;color:#186748;border-color:#cfe9d9}
+    .v17-list{padding-left:22px;color:#46516c;font-size:12px;line-height:1.8}
+    .v17-identity{font-weight:800;color:#147a55;overflow-wrap:anywhere}
+    @media(max-width:650px){.v17-fields{grid-template-columns:1fr}.v17-card{padding:17px}}
+  `;
+  document.head.appendChild(style);
+
+  const statusBar = document.createElement('div');
+  statusBar.className = 'v17-banner';
+  statusBar.id = 'v17-workspace-status';
+  statusBar.setAttribute('role','status');
+  statusBar.textContent = 'Cloud workspace · Sign in to view and edit your private products';
+  const main = document.querySelector('main.main');
+  if(main) main.insertBefore(statusBar, main.firstChild);
+
+  const panel = document.createElement('div');
+  panel.className='v17-card';
+  panel.id='v17-account-panel';
+  panel.innerHTML = `
+    <div class="v17-head"><h2>🔐 Customer Account & Cloud</h2><span class="v17-pill">Version 17 · Cloud-first beta</span></div>
+    <p class="v17-desc">Sign in to access your private product library. New saves, edits and individual deletions go directly to Supabase. This remains a development preview.</p>
+    <div id="v17-guest">
+      <div class="v17-fields">
+        <div><label for="v17-email">Email address</label><input type="email" id="v17-email" autocomplete="email" placeholder="you@example.com" maxlength="254"></div>
+        <div><label for="v17-password">Password (at least 8 characters)</label><input type="password" id="v17-password" minlength="8" autocomplete="current-password"></div>
+      </div>
+      <div class="v17-buttons">
+        <button type="button" id="v17-signin">Sign in</button>
+        <button type="button" class="alt" id="v17-signup">Create account</button>
+        <button type="button" class="alt" id="v17-forgot">Forgot password?</button>
+      </div>
+      <p class="v17-desc">New accounts must verify their email. Your older browser drafts remain untouched but are not shown in this cloud-first workspace.</p>
+    </div>
+    <div id="v17-user" class="v17-hidden">
+      <p class="v17-desc">Signed in as <span id="v17-user-email" class="v17-identity"></span></p>
+      <div class="v17-buttons">
+        <button type="button" class="alt" id="v17-refresh">Refresh cloud products</button>
+        <button type="button" class="alt" id="v17-export">Download cloud JSON backup</button>
+        <button type="button" class="warn" id="v17-signout">Sign out</button>
+      </div>
+      <p class="v17-desc"><strong id="v17-count">0</strong> cloud product drafts in your private library.</p>
+      <ul id="v17-preview" class="v17-list"></ul>
+    </div>
+    <div id="v17-recover" class="v17-hidden">
+      <div class="v17-fields"><div><label for="v17-new-password">New password</label><input id="v17-new-password" type="password" minlength="8" autocomplete="new-password"></div></div>
+      <div class="v17-buttons"><button type="button" id="v17-update-password">Update password</button></div>
+    </div>
+    <div id="v17-auth-status" class="v17-message" role="status" aria-live="polite">Connecting to Supabase…</div>
+    <p class="v17-note"><strong>Beta only.</strong> Previous offline drafts stay in the browser for rollback, but v17 never automatically displays, imports or uploads them. Do not use on a shared device with real customer information. AI generation, payments and marketplace connections are not active.</p>
+  `;
+  settings.insertBefore(panel, settings.firstChild);
+
+  // Correct the previous preview text without removing the underlying local backup.
+  const settingsCards = settings.querySelectorAll('.two .card');
+  if (settingsCards.length) {
+    const first = settingsCards[0];
+    const h = first.querySelector('h2'); if(h) h.textContent='Cloud backups';
+    const p = first.querySelector('p'); if(p) p.textContent='Sign in to back up your cloud products. Old offline drafts remain preserved separately in this browser.';
+    const b=byId('backup'); if(b) b.textContent='Download cloud JSON backup';
+    const restore = byId('restore'); if(restore?.closest('label')) restore.closest('label').style.display='none';
+    const reset = byId('reset'); if(reset) reset.style.display='none';
+  }
+  for (const e of settings.querySelectorAll('.v15-panel')) {
+    if (/Cloud migration readiness/i.test(e.textContent)) e.style.display='none';
+  }
+  const footer = document.querySelector('.footer');
+  if (footer) footer.textContent='SellerPilot AI · Version 17 cloud-first beta · Independent prototype. Marketplace integrations, AI generation and billing are not enabled. Do not enter real customer data.';
+  const sideBottom = document.querySelector('.side-bottom');
+  if(sideBottom) sideBottom.textContent='✦ Cloud-first beta. Products are private to a signed-in account. Real AI and marketplace integrations are not connected.';
+  const notice = byId('products')?.querySelector('.notice');
+  if (notice) notice.textContent='Cloud-first: save and edit directly in your private account. CSV import adds new cloud drafts (maximum 200 per import); it does not replace existing products. CSV headers: title,description,tags,price.';
+
+  const setStatus = (message, kind='info') => { byId('v17-auth-status').textContent=message; byId('v17-auth-status').dataset.kind=kind; };
+  const setBanner = (message, kind='info') => { statusBar.textContent=message; statusBar.dataset.kind=kind; };
+  const wait = () => state.ready && state.uid && !state.busy && client;
+  const clearVisible = () => {
+    products=[]; editing=null; editVersion=null; clearForm(); render();
+    byId('v17-count').textContent='0';
+    byId('v17-preview').replaceChildren();
+  };
+  const showAccount = user => {
+    const signed=Boolean(user?.id);
+    byId('v17-guest').classList.toggle('v17-hidden',signed);
+    byId('v17-user').classList.toggle('v17-hidden',!signed);
+    byId('v17-user-email').textContent=signed?(user.email||'Authenticated account'):'';
+    const pill=document.querySelector('.top-right .pill');
+    if(pill) pill.textContent=signed?'● Cloud workspace':'● Sign in required';
+    const status=byId('v15-account');if(status)status.value=signed?'Cloud-first account connected':'Sign in required for cloud products';
+  };
+  const updateIdentity = user => {
+    const uid=user?.id||null;
+    showAccount(user);
+    if (uid===state.uid) {
+      if(!uid){setStatus('Sign in to access your private cloud products.');setBanner('Cloud workspace · Sign in to view and edit products');}
+      return;
+    }
+    state.serial++;
+    state.uid=uid;
+    state.ready=false;
+    clearVisible();
+    if(uid){setStatus('Account connected. Loading your private cloud products…');setBanner('Loading your private cloud product library…');setTimeout(() => { void refreshCloud(); },0);}
+    else {setStatus('Sign in to access your private cloud products.');setBanner('Cloud workspace · Sign in to view and edit products');}
+  };
+
+  // Display no old data until authentication is actually verified by the server.
+  const ensureUser = async expected => {
+    const {data,error}=await client.auth.getUser();
+    if(error || !data?.user?.id || data.user.id!==state.uid || (expected && expected!==data.user.id)) throw new Error('Account session changed or expired. Sign in again.');
+    return data.user;
+  };
+  const readCloud = async expected => {
+    await ensureUser(expected);
+    const all=[];
+    for(let from=0;from<5000;from+=250){
+      const {data,error}=await client.from('products')
+        .select('id,user_id,title,description,tags,price,sku,attributes,created_at,updated_at')
+        .order('created_at',{ascending:false}).range(from,from+249);
+      if(error)throw error;
+      all.push(...(data||[]));
+      if(!data || data.length<250)break;
+      if(all.length>=5000)throw new Error('Cloud library exceeds the 5000-record beta limit. Contact support before making changes.');
+    }
+    if(all.some(row=>row.user_id!==expected)) throw new Error('Account isolation check failed. Do not continue.');
+    return all;
+  };
+  const showCloudRows = rows => {
+    byId('v17-count').textContent=String(rows.length);
+    const preview=byId('v17-preview');preview.replaceChildren();
+    rows.slice(0,6).forEach(row=>{const li=document.createElement('li');li.textContent=row.title;preview.appendChild(li);});
+    if(rows.length>6){const li=document.createElement('li');li.textContent=`…and ${rows.length-6} more`;preview.appendChild(li);}
+  };
+  const refreshCloud = async () => {
+    const owner=state.uid,serial=state.serial;
+    if(!owner || !client)return;
+    state.ready=false;
+    setBanner('Loading private cloud products…');
+    try {
+      const rows=await readCloud(owner);
+      if(state.uid!==owner || state.serial!==serial)return;
+      products=rows.map(row=>({
+        id:row.id, cloud_id:row.id, title:row.title,
+        description:row.description||'', tags:row.tags||'',
+        price:Number(row.price), sku:row.sku||'', updated_at:row.updated_at
+      }));
+      state.ready=true;
+      render();
+      showCloudRows(rows);
+      setBanner(`Cloud synced · ${rows.length} private drafts`, 'success');
+      setStatus('Your cloud library is ready. Changes saved here go directly to Supabase.','success');
+    } catch(e) {
+      if(state.uid!==owner || state.serial!==serial)return;
+      clearVisible();state.ready=false;
+      setBanner('Cloud unavailable · No browser drafts are displayed', 'error');
+      setStatus('Could not load private cloud products: '+(e?.message||'Unknown error'),'error');
+    }
+  };
+
+  const runMutation = async (task) => {
+    if(state.busy)return;
+    if(!wait()) {setStatus('Sign in and wait for your private cloud library to finish loading before editing.','error');return;}
+    const originalUid=state.uid;
+    state.busy=true;
+    panel.querySelectorAll('button').forEach(b=>b.disabled=true);
+    byId('save').disabled=true;
+    try{
+      await ensureUser(originalUid);
+      await task(originalUid);
+    }catch(e){setStatus(e?.message||'Cloud operation failed. Your previous cloud data is unchanged.','error');setBanner('Cloud operation failed — see Settings & Backup','error');}
+    finally{state.busy=false;panel.querySelectorAll('button').forEach(b=>b.disabled=false);byId('save').disabled=false;}
+  };
+
+  const normalizedProduct = () => {
+    const form=readForm();
+    if(!form.title || form.title.length>250)throw new Error('Enter a title between 1 and 250 characters.');
+    if(!Number.isFinite(form.price) || form.price<=0 || form.price>9999999999)throw new Error('Enter a valid positive price.');
+    return {title:form.title,description:form.description.slice(0,10000),tags:form.tags.slice(0,6000),price:form.price,sku:form.sku.slice(0,200),updated_at:new Date().toISOString()};
+  };
+  const saveCloud = () => runMutation(async uid => {
+    const fields=normalizedProduct();
+    let savedId;
+    if(editing){
+      const existing=products.find(p=>p.id===editing);
+      if(!existing)throw new Error('That product is not in the current cloud library. Refresh and retry.');
+      const {data,error}=await client.from('products').update(fields)
+        .eq('user_id',uid).eq('id',existing.id).eq('updated_at',editVersion||existing.updated_at)
+        .select('id').maybeSingle();
+      if(error)throw error;
+      if(!data?.id)throw new Error('This product changed in another browser, or no longer exists. Refresh before editing again.');
+      savedId=data.id;
+    }else{
+      const {data,error}=await client.from('products').insert({user_id:uid,...fields})
+        .select('id').single();
+      if(error)throw error;
+      savedId=data.id;
+    }
+    if(state.uid!==uid)throw new Error('Account changed during save. Refresh to check cloud status.');
+    const wasEditing=Boolean(editing);
+    editing=savedId;
+    await refreshCloud();
+    if(state.ready){
+      editVersion=products.find(row=>row.id===savedId)?.updated_at||null;
+      byId('editState').textContent='Saved in cloud';
+      setStatus(wasEditing?'Cloud product updated.':'New product saved to your cloud account.','success');
+    }
+  });
+
+  const removeCloud = id => runMutation(async uid=>{
+    const row=products.find(p=>p.id===id);
+    if(!row)throw new Error('Product not found in your current cloud library.');
+    if(!confirm(`Delete "${row.title}" from your CLOUD account? This cannot be undone.`))return;
+    const {data,error}=await client.from('products').delete()
+      .eq('id',row.id).eq('user_id',uid).eq('updated_at',row.updated_at)
+      .select('id').maybeSingle();
+    if(error)throw error;
+    if(!data?.id)throw new Error('Product changed elsewhere or was already deleted. Refresh first.');
+    if(editing===id)clearForm();
+    await refreshCloud();
+    if(state.ready)setStatus('Product deleted from your cloud account.','success');
+  });
+
+  // Intercept v14's local-storage handlers BEFORE they run.
+  const intercept=(el,event,callback)=>el?.addEventListener(event,e=>{
+    e.preventDefault();e.stopImmediatePropagation();
+    void callback(e);
+  },true);
+  intercept(byId('save'),'click',saveCloud);
+  document.addEventListener('click',e=>{
+    const button=e.target.closest('[data-remove]');
+    if(button){e.preventDefault();e.stopImmediatePropagation();void removeCloud(button.dataset.remove);return;}
+    const editingButton=e.target.closest('[data-edit]');
+    if(state.busy && editingButton){e.preventDefault();e.stopImmediatePropagation();return;}
+    if(editingButton)editVersion=products.find(row=>row.id===editingButton.dataset.edit)?.updated_at||null;
+    if(e.target.closest('#clear,#duplicate'))editVersion=null;
+  },true);
+
+  intercept(byId('importCsv'),'change',async e=>{
+    const file=e.target.files?.[0];e.target.value='';
+    if(!file)return;
+    await runMutation(async uid=>{
+      const rows=parseCsv(await file.text());
+      if(rows.length<2)throw new Error('CSV contains no product rows.');
+      if(rows.length>201)throw new Error('Maximum 200 product rows per cloud CSV import.');
+      const headers=rows.shift().map(x=>x.trim().toLowerCase());
+      if(!['title','description','tags','price'].every(x=>headers.includes(x)))throw new Error('CSV must contain title,description,tags,price headers.');
+      const mapped=rows.map(row=>Object.fromEntries(headers.map((h,i)=>[h,row[i]??''])));
+      const entries=mapped.map(p=>({
+        title:String(p.title||'').trim(),description:String(p.description||'').slice(0,10000),
+        tags:String(p.tags||'').replaceAll('|',',').slice(0,6000),
+        price:Number(p.price),sku:String(p.sku||'').slice(0,200),user_id:uid,
+        updated_at:new Date().toISOString()
+      }));
+      if(entries.some(p=>!p.title || p.title.length>250 || !Number.isFinite(p.price) || p.price<=0))throw new Error('Invalid CSV: each row needs a valid title and positive price. Nothing imported.');
+      if(!confirm(`Create ${entries.length} NEW cloud products? Duplicates may be created. Existing products will not be replaced.`))return;
+      let inserted=0;
+      try {
+        for(let n=0;n<entries.length;n+=50){
+          await ensureUser(uid);
+          const {error}=await client.from('products').insert(entries.slice(n,n+50));
+          if(error)throw error;
+          inserted+=Math.min(50,entries.length-n);
+        }
+      } catch(error){await refreshCloud();throw new Error(`Imported ${inserted} products before an error. ${error?.message||''}`);}
+      await refreshCloud();
+      if(state.ready)setStatus(`Imported ${inserted} new cloud drafts. Check for duplicates before further imports.`,'success');
+    });
+  });
+  const downloadBackup=()=>{
+    if(!state.ready){setStatus('Sign in and load the cloud library before downloading a backup.','error');return;}
+    const exportRows=products.map(p=>({id:p.id,title:p.title,description:p.description,tags:p.tags,price:p.price,sku:p.sku}));
+    const content=JSON.stringify({format:'sellerpilot-backup',version:17,exported_at:new Date().toISOString(),products:exportRows},null,2);
+    const blob=new Blob([content],{type:'application/json;charset=utf-8'});
+    const url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download='sellerpilot-cloud-backup-v17.json';document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),3000);
+    setStatus(`Cloud backup download requested (${exportRows.length} products).`,'success');
+  };
+  intercept(byId('backup'),'click',downloadBackup);
+  intercept(byId('restore'),'change',e=>{
+    e.target.value='';
+    setStatus('Automatic JSON restore is disabled in the cloud-first beta to prevent accidental overwrites. Use supported cloud CSV import, or retain your JSON backup.','error');
+  });
+  intercept(byId('reset'),'click',()=>setStatus('Bulk deletion is disabled. Remove products individually from the cloud Products list.','error'));
+
+  // Supabase client is loaded only once, with the existing V16 session storage.
+  try {
+    const sdk=await import('https://esm.sh/@supabase/supabase-js@2.119.2');
+    if(typeof sdk.createClient!=='function')throw new Error('Client library unavailable.');
+    client=sdk.createClient(PROJECT_URL,PUBLISHABLE_KEY,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,flowType:'implicit'}});
+  }catch(err){setStatus('Cannot load Supabase. Check your internet and refresh. '+(err?.message||''),'error');setBanner('Cannot connect to authentication','error');return;}
+
+  const credentials=()=>{
+    const email=byId('v17-email').value.trim(),password=byId('v17-password').value;
+    if(!email.includes('@')||!email.includes('.'))throw new Error('Enter a valid email address.');
+    if(password.length<8)throw new Error('Password must contain at least 8 characters.');
+    return {email,password};
+  };
+  const authOperation=async fn=>{
+    if(state.busy)return;
+    panel.querySelectorAll('button').forEach(b=>b.disabled=true);
+    try{await fn();}catch(e){setStatus(e?.message||'Authentication error','error');}
+    finally{panel.querySelectorAll('button').forEach(b=>b.disabled=false);}
+  };
+  byId('v17-signin').onclick=()=>authOperation(async()=>{
+    const {email,password}=credentials();
+    const {data,error}=await client.auth.signInWithPassword({email,password});
+    if(error)throw error;
+    byId('v17-password').value='';
+    updateIdentity(data.user);
+    setStatus('Sign-in successful. Loading your private cloud library…','success');
+  });
+  byId('v17-signup').onclick=()=>authOperation(async()=>{
+    const {email,password}=credentials();
+    const {data,error}=await client.auth.signUp({email,password,options:{emailRedirectTo:REDIRECT_URL}});
+    if(error)throw error;
+    byId('v17-password').value='';
+    setStatus(data?.session?'Account created. Loading cloud workspace.':'If registration is available for this email, check your inbox for the verification link.','success');
+  });
+  byId('v17-forgot').onclick=()=>authOperation(async()=>{
+    const email=byId('v17-email').value.trim();
+    if(!email.includes('@'))throw new Error('Enter your email address first.');
+    const {error}=await client.auth.resetPasswordForEmail(email,{redirectTo:REDIRECT_URL});
+    if(error)throw error;
+    setStatus('If an account exists for this address, a recovery link has been requested.','success');
+  });
+  byId('v17-update-password').onclick=()=>authOperation(async()=>{
+    const password=byId('v17-new-password').value;
+    if(password.length<8)throw new Error('New password must be at least 8 characters.');
+    const {error}=await client.auth.updateUser({password});
+    if(error)throw error;
+    byId('v17-new-password').value='';
+    byId('v17-recover').classList.add('v17-hidden');
+    setStatus('Password updated.','success');
+  });
+  byId('v17-signout').onclick=()=>authOperation(async()=>{
+    const {error}=await client.auth.signOut();
+    if(error)throw error;
+    updateIdentity(null);
+    setStatus('Signed out. No account products are displayed.','success');
+  });
+  byId('v17-refresh').onclick=()=>{if(state.busy)return;void refreshCloud();};
+  byId('v17-export').onclick=downloadBackup;
+
+  client.auth.onAuthStateChange((event,session)=>{
+    // Supabase says avoid awaiting other client calls inside this callback.
+    updateIdentity(session?.user||null);
+    if(event==='PASSWORD_RECOVERY'){
+      byId('v17-recover').classList.remove('v17-hidden');
+      setStatus('Password recovery verified. Enter a new password.','success');
+    }
+  });
+  const {data,error}=await client.auth.getSession();
+  if(error){setStatus(error.message,'error');setBanner('Unable to restore session','error');}
+  else updateIdentity(data?.session?.user||null);
+})();
+
+</script>
 </body></html>
