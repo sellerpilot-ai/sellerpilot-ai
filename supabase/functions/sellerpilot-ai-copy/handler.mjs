@@ -62,6 +62,12 @@ export function createHandler(env,fetcher){
    let raw;try{raw=await readBounded(req,1420000)}catch{return fail(413,"Request too large.")}
    let body;try{body=JSON.parse(raw)}catch{return fail(400,"Invalid JSON.")}
    if(body?.action==="status")return reply(200,{ok:true,enabled});
+   if(body?.action==="allowance"){
+    if(!enabled)return reply(200,{ok:true,enabled:false});
+    const a=await fetchJson(url+"/rest/v1/rpc/sellerpilot_ai_allowance",{method:"POST",headers:adminHeaders(service),body:JSON.stringify({p_user_id:user.id,p_daily_cap:daily,p_monthly_cap:monthly,p_user_cap:perUser})});
+    if(!a||!Number.isInteger(a.personal_daily_limit)||a.personal_daily_limit!==perUser||!Number.isInteger(a.personal_daily_remaining)||a.personal_daily_remaining<0||a.personal_daily_remaining>perUser||!Number.isInteger(a.available_requests)||a.available_requests<0||a.available_requests>a.personal_daily_remaining||typeof a.monthly_exhausted!=="boolean"||!/^\d{4}-\d{2}-\d{2}T00:00:00Z$/.test(a.daily_reset_utc)||!/^\d{4}-\d{2}-\d{2}T00:00:00Z$/.test(a.monthly_reset_utc))return fail(503,"AI allowance could not be verified.");
+    return reply(200,{ok:true,enabled:true,allowance:{personal_daily_limit:a.personal_daily_limit,personal_daily_remaining:a.personal_daily_remaining,available_requests:a.available_requests,daily_reset_utc:a.daily_reset_utc,monthly_reset_utc:a.monthly_reset_utc,monthly_exhausted:a.monthly_exhausted}});
+   }
    const imageEnabled=enabled&&models.has(imageModel)&&env("SELLERPILOT_AI_IMAGE_ENABLED")==="true";
    if(body?.action==="image_status")return reply(200,{ok:true,enabled:imageEnabled});
    if(body?.action==="image_analyse"){
