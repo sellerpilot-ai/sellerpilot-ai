@@ -42,7 +42,7 @@ try {
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v38/);await open();
+ await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v39/);await open();
  assert.equal(await page.locator('#edit-market option:not([hidden])').allTextContents().then(x=>x.join(',')),'Etsy');
  await page.locator('[data-view="settings"]:visible').first().click();
  await page.locator('#v25-legacy').check();
@@ -118,6 +118,9 @@ try {
  await page.locator('#v32-notes').fill('Example test only');await page.locator('#v32-clear').click();assert.equal(await page.locator('#v32-notes').inputValue(),'');
  await page.locator('#v32-notes').fill('Example test only');const downloadEvent=page.waitForEvent('download');await page.locator('#v32-download').click();assert.equal((await downloadEvent).suggestedFilename(),'sellerpilot-beta-feedback.txt');
  await open();assert.equal(await page.locator('#edit-currency').inputValue(),'GBP');await page.locator('#edit-currency').selectOption('USD');await page.locator('#save-product').click();await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-fixture')||'{}').attributes?.sellerpilot?.currency==='USD'&&document.querySelector('#editor-state')?.textContent==='Saved in cloud');await page.reload();await ready();await page.locator('[data-view="products"]:visible').first().click();assert.match(await page.locator('#product-mobile').innerText(),/US\$18\.50/);await open();assert.equal(await page.locator('#edit-currency').inputValue(),'USD');
+ assert.equal(await page.locator('#auth-signup').isDisabled(),true);
+ await page.evaluate(async()=>{const {clearWorkspace}=await import('./js/ui.js');const {state}=await import('./js/core.js');document.querySelector('#ai-output').value='Private prior brief';document.querySelector('#ai-audience').value='Private audience';document.querySelector('#ai-facts').value='Private facts';state.shortlist=['private phrase'];clearWorkspace()});
+ assert.equal(await page.locator('#ai-output').inputValue(),'');assert.equal(await page.locator('#ai-audience').inputValue(),'');assert.equal(await page.locator('#ai-facts').inputValue(),'');assert.equal(await page.locator('#v19-content-reports').innerText(),'');assert.equal(await page.locator('#auth-signup').isDisabled(),true);
  await page.goto(origin+'/demo.html');await page.locator('#demo-fix').waitFor({state:'visible'});assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.locator('#demo-fix').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/62\/100/);await page.locator('#demo-reset').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.goto(origin+'/home.html');assert.match(await page.locator('h1').innerText(),/Find listing problems/);
