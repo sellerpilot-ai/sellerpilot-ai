@@ -1,4 +1,4 @@
-import { v44Reset } from './stripe-portal.js';
+import { v44Reset } from './stripe-portal.js?v=50';
 import { v41Reset } from './stripe-checkout.js?v=49';
 import { v40Reset } from './stripe-test.js';
 import { v37Reset } from './privacy-controls.js';
