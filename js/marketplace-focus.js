@@ -22,7 +22,7 @@ export function v25Init(){
  const toggle=document.getElementById('v25-legacy');
  toggle?.addEventListener('change',()=>{try{localStorage.setItem(KEY,toggle.checked?'1':'0')}catch{}v25Refresh()});
  document.addEventListener('change',e=>{if(e.target.matches?.(SELECTORS))v25Refresh()});
- document.addEventListener('click',()=>queueMicrotask(v25Refresh));
+ document.addEventListener('click',e=>{if(!e.target.closest?.('.v25-toggle'))queueMicrotask(v25Refresh)});
  // Watch dynamically rendered workspace screens, not attributes or text mutations.
  const observer=new MutationObserver(records=>{
   if(records.some(r=>[...r.addedNodes].some(n=>n.nodeType===1&&(n.matches?.(SELECTORS)||n.querySelector?.(SELECTORS)))))v25Refresh();
