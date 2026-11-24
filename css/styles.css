@@ -160,3 +160,6 @@ body{background:#f7faf9} .content-main{max-width:1410px}
 
 /* V27: reviewable AI copy, with before/after comparison. */
 .v27-ai-card{margin-top:18px}.v27-pair{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:14px 0}.v27-pair>div{padding:12px;background:#f5f8f7;border:1px solid #d5e5df;border-radius:10px;min-width:0}.v27-pair>div:nth-child(2){background:#f0edff;border-color:#d8d1fb}.v27-pair p{white-space:pre-wrap;overflow-wrap:anywhere;margin-bottom:0}.v27-ai-card #v27-ai-result{border-top:1px solid #e6eae7;margin-top:16px;padding-top:16px}@media(max-width:700px){.v27-pair{grid-template-columns:1fr}}
+
+/* V28: local image preview and review findings */
+.v28-preview{border:1px solid #d5e5df;background:#f5f8f7;border-radius:12px;padding:10px;margin:12px 0}.v28-preview img{display:block;width:100%;max-height:360px;object-fit:contain;border-radius:8px}.v28-preview p{margin:8px 0 0}.v28-finding{margin:10px 0}.v28-finding p{margin:6px 0 0}#v28-result h3{margin-top:18px}

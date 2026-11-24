@@ -9,6 +9,8 @@ import { v25Init } from './marketplace-focus.js';
 
 import { v27Init } from './ai-optimiser.js';
 
+import { v28Init } from './image-intelligence.js';
+
 v20Init();
 v21Init();
 v22Init();
@@ -17,4 +19,5 @@ v19Init();
 v22PostInit();
 v25Init();
 v27Init();
+v28Init();
 init();
