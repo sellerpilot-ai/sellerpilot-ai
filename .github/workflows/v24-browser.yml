@@ -7,6 +7,7 @@ on:
       - 'js/**'
       - 'css/**'
       - 'tests/**'
+      - 'supabase/**'
       - '.github/workflows/v24-browser.yml'
 permissions:
   contents: read
@@ -20,5 +21,7 @@ jobs:
         run: |
           npm install --no-save --no-package-lock --ignore-scripts playwright@1.51.1
           npx --no-install playwright install --with-deps chromium
+      - name: Test isolated AI handler with mock network
+        run: node tests/v27-ai-handler.mjs
       - name: Run browser regression using only mock data
         run: node tests/v24-browser.mjs

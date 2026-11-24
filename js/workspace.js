@@ -60,7 +60,7 @@ export function v19Init(){
  const linkbar=`<div class="v19-links"><div class="mini" style="font-weight:800;margin-bottom:9px">RESEARCH & OPERATIONS</div><div class="v19-actions">${[['research','Research Hub'],['competitors','Competitors'],['ranks','Rank & Trends'],['profits','Profit Planner'],['tasks','Review Tasks'],['reports','Reports'],['advanced','Advanced Controls']].map(([id,t])=>`<button data-go="${id}" class="button secondary sm">${t}</button>`).join('')}</div></div>`;
  $('view-overview').insertAdjacentHTML('beforeend',linkbar);
  $('view-settings').insertAdjacentHTML('beforeend',linkbar);
- document.querySelector('.sidebar-foot').innerHTML=document.querySelector('.sidebar-foot').innerHTML.replace('v18 · Listing intelligence beta','v26 · Shop import &amp; demo');
+ document.querySelector('.sidebar-foot').innerHTML=document.querySelector('.sidebar-foot').innerHTML.replace('v18 · Listing intelligence beta','v27 · AI listing studio');
  document.addEventListener('click',v19Click);
  document.addEventListener('input',e=>{if(e.target.closest('#v19-profit-calc'))v19Calc()});
  v19Reset();

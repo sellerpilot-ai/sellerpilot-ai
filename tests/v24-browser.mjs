@@ -19,6 +19,7 @@ const user={id:'mock-user',email:'fixture@example.invalid'};
 const initial={id:'fixture-product',user_id:user.id,title:'Minimalist Gold Tone Bracelet',description:'Simple bracelet for everyday wear.',tags:'bracelet,gold jewellery,bracelet',price:18.5,sku:'',attributes:{},created_at:'2026-01-01T00:00:00Z',updated_at:'2026-01-01T00:00:00Z'};
 const get=()=>JSON.parse(localStorage.getItem('test-fixture')||JSON.stringify(initial));
 export function createClient(){return{
+ functions:{async invoke(name,{body}){if(name!=='sellerpilot-ai-copy')return {error:{message:'Mock provider unavailable'}};if(body.action==='status')return {data:{ok:true,enabled:true}};return {data:{ok:true,updated_at:get().updated_at,draft:{title:'Gold tone bracelet for everyday wear',description:'Simple bracelet for everyday wear.',tags:['bracelet','gold jewellery'],explanations:['Removed repeated tags.'],missing_facts:['Confirm dimensions.']}}}}},
  auth:{onAuthStateChange(){},async getSession(){return{data:{session:{user}},error:null}},async getUser(){return{data:{user},error:null}}},
  from(table){let update=null;const q={select(){return q},order(){return q},eq(){return q},update(v){update=v;return q},
  async range(){if(table!=='products')throw Error('unexpected range');return{data:[get()],error:null}},
@@ -41,7 +42,7 @@ try {
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v26/);await open();
+ await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v27/);await open();
  assert.equal(await page.locator('#edit-market option:not([hidden])').allTextContents().then(x=>x.join(',')),'Etsy');
  await page.locator('[data-view="settings"]:visible').first().click();
  await page.locator('#v25-legacy').check();
@@ -69,6 +70,20 @@ try {
  await page.locator('[data-view="products"]:visible').first().click();
  await page.locator('#csv-input').setInputFiles({name:'etsy.csv',mimeType:'text/csv',buffer:Buffer.from('TITLE,DESCRIPTION,TAGS,PRICE,CURRENCY_CODE,SKU\nGift mug,Description,mug,12.50,GBP,M1')});
  await page.locator('.v26-import-dialog').waitFor({state:'visible'});assert.match(await page.locator('.v26-import-dialog').innerText(),/1 ready/);await page.locator('[data-cancel]').click();await page.locator('.v26-import-dialog').waitFor({state:'detached'});
+ await page.locator('[data-view="ai"]:visible').first().click();
+ await page.locator('#ai-product').selectOption('fixture-product');
+ await page.locator('#v27-status-check').click();
+ await page.waitForFunction(()=>document.querySelector('#v27-ai-status')?.textContent.includes('available'));
+ await page.locator('#v27-consent').check();
+ await page.locator('#v27-generate').click();
+ await page.locator('#v27-ai-result').waitFor({state:'visible'});
+ assert.match(await page.locator('#v27-ai-result').innerText(),/Gold tone bracelet for everyday wear/);
+ assert.equal(await page.locator('#v27-apply').isDisabled(),true);
+ await page.locator('#v27-review').check();
+ page.once('dialog',d=>d.accept());
+ await page.locator('#v27-apply').click();
+ assert.equal(await page.locator('#edit-title').inputValue(),'Gold tone bracelet for everyday wear');
+ assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-fixture')).title),'Minimalist Gold Tone Bracelet');
  await page.goto(origin+'/demo.html');await page.locator('#demo-fix').waitFor({state:'visible'});assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.locator('#demo-fix').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/62\/100/);await page.locator('#demo-reset').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  assert.deepEqual(errors,[]);
