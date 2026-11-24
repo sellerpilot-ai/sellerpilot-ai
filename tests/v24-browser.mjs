@@ -42,7 +42,7 @@ try {
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v55/);
+ await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v56/);
  await page.waitForFunction(()=>document.querySelector('#v55-home-status')?.textContent.includes('Starter'));
  assert.match(await page.locator('#v55-home-status').innerText(),/0 \/ 5 daily · 25 \/ 30 monthly remaining/);
  assert.match(await page.locator('#v55-home-reset').innerText(),/25 Nov 2026 at 00:00 UTC/);
@@ -123,7 +123,7 @@ try {
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.weekly[0].source),'auto');
  await page.reload();await ready();assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.weekly.length),2);
  await page.locator('[data-view="settings"]:visible').first().click();await page.locator('#view-settings [data-go="reports"]').click();await page.locator('[data-v19-action="toggle-monitoring"]').click();await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.monitoring?.enabled===false);await page.waitForFunction(()=>!document.querySelector('[data-v19-action="toggle-monitoring"]').disabled);assert.equal(await page.locator('#v31-start').isDisabled(),true);
- await page.locator('[data-view="shop"]:visible').first().click();await page.locator('#v31-check').click();await page.waitForFunction(()=>document.querySelector('#v31-status')?.textContent.includes('unavailable'));assert.equal(await page.locator('#v31-start').isDisabled(),true);
+ await page.locator('[data-view="shop"]:visible').first().click();await page.locator('#v31-check').click();await page.waitForFunction(()=>document.querySelector('#v31-status')?.textContent.includes('unavailable'));assert.equal(await page.locator('#v31-start').isDisabled(),true);assert.equal(await page.locator('#v31-consent').isDisabled(),true);assert.equal(await page.locator('#v31-finish').isDisabled(),true);assert.match(await page.locator('#v31-status').innerText(),/CSV import remains available/);await page.locator('#view-shop [data-go="products"]:visible').first().click();assert.equal(await page.locator('#view-products.active').isVisible(),true);await page.locator('[data-view="shop"]:visible').first().click();
  await page.locator('[data-view="settings"]:visible').first().click();assert.match(await page.locator('#v32-beta').innerText(),/Paid subscriptions are not available/);assert.match(await page.locator('#v32-beta').innerText(),/Paid checkout is disabled/);assert.equal(await page.locator('#v32-beta input[type="credit-card"]').count(),0);
  await page.locator('#v40-stripe-check').click();await page.waitForFunction(()=>document.querySelector('#v40-stripe-status').textContent.includes('Sandbox verified'));assert.match(await page.locator('#v40-stripe-status').innerText(),/Checkout remains disabled/);
  await page.locator('#v41-status-check').click();await page.waitForFunction(()=>document.querySelector('#v41-status').textContent.includes('remains disabled'));assert.equal(await page.locator('#v41-start').isDisabled(),true);
