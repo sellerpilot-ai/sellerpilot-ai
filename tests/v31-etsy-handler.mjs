@@ -3,7 +3,7 @@ import {createHandler} from '../supabase/functions/sellerpilot-etsy-preview/hand
 const id='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222';
 const env={SUPABASE_URL:'https://mock.invalid',SUPABASE_ANON_KEY:'anon',SUPABASE_SERVICE_ROLE_KEY:'service',SELLERPILOT_ETSY_KEYSTRING:'fixture-key',SELLERPILOT_ETSY_SHARED_SECRET:'fixture-secret',SELLERPILOT_ETSY_PREVIEW_ENABLED:'false'};
 const json=x=>new Response(JSON.stringify(x),{status:200});
-let pending=null,uid=id,calls=[],quota=true,wrongOwner=false;
+let pending=null,uid=id,calls=[],quota=true,wrongOwner=false,badListing=false;
 const fetcher=async(url,opts)=>{
  calls.push(url);
  if(url.endsWith('/auth/v1/user'))return json({id:uid,email_confirmed_at:'2026-01-01'});
@@ -11,7 +11,7 @@ const fetcher=async(url,opts)=>{
  if(url.endsWith('/rpc/sellerpilot_etsy_consume')){const p=JSON.parse(opts.body);if(!pending||p.p_user_id!==pending.p_user_id||p.p_state_hash!==pending.p_state_hash)return json(null);const v=pending.p_verifier;pending=null;return json(v)}
  if(url.endsWith('/oauth/token')){assert.equal(opts.body.get('grant_type'),'authorization_code');assert.equal(opts.headers['x-api-key'],'fixture-key:fixture-secret');return json({access_token:'123.fake-token',refresh_token:'never-return',token_type:'Bearer',scope:'listings_r'})}
  if(url.endsWith('/users/123/shops'))return json({shop_id:456,user_id:wrongOwner?789:123,shop_name:'Sample Shop'});
- if(url.includes('/shops/456/listings?')){assert.equal(opts.headers.Authorization,'Bearer 123.fake-token');return json({count:1,results:[{listing_id:99,shop_id:456,user_id:123,title:'Sample bracelet',state:'active',description:'Not retained'}]})}
+ if(url.includes('/shops/456/listings?')){assert.equal(opts.headers.Authorization,'Bearer 123.fake-token');const q=new URL(url).searchParams;assert.equal(q.get('sort_on'),'created');assert.equal(q.get('sort_order'),'desc');assert.equal(q.get('limit'),'50');return json({count:1,results:[{listing_id:99,shop_id:456,user_id:123,title:'Sample bracelet',state:badListing?'draft':'active',description:'Not retained'}]})}
  throw Error('Unexpected request');
 };
 const h=createHandler(k=>env[k]||'',fetcher),call=(body,auth=true)=>h(new Request('https://mock.invalid/function',{method:'POST',headers:{origin:'https://sellerpilot-ai.github.io',...(auth?{authorization:'Bearer fixture'}:{})},body:JSON.stringify(body)}));
@@ -30,4 +30,5 @@ const response=await call({action:'finish',state,code:'sample'});assert.equal(re
 const out=await response.json();assert.equal(out.shop_name,'Sample Shop');assert.equal(out.listings[0].title,'Sample bracelet');assert.ok(!JSON.stringify(out).includes('fake-token'));assert.ok(!JSON.stringify(out).includes('never-return'));assert.ok(!JSON.stringify(out).includes('Not retained'));
 assert.equal((await call({action:'finish',state,code:'sample'})).status,400);
 state=await begin();wrongOwner=true;assert.equal((await call({action:'finish',state,code:'sample'})).status,403);
+wrongOwner=false;badListing=true;state=await begin();assert.equal((await call({action:'finish',state,code:'sample'})).status,502);
 console.log('PASS: disabled gate, consent, quota, read-only PKCE, user-bound single-use state, verified shop and minimal response.');
