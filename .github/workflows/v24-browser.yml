@@ -45,5 +45,7 @@ jobs:
         run: node tests/v46-checkout-page.mjs
       - name: Test dedicated sandbox access page with mock network
         run: node tests/v52-access-page.mjs
+      - name: Test local keyword discovery engine
+        run: node tests/v57-keyword-discovery.mjs
       - name: Run browser regression using only mock data
         run: node tests/v24-browser.mjs
