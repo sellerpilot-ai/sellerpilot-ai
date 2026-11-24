@@ -68,7 +68,7 @@ try {
  assert.equal(preview[0].error,'');assert.equal(preview[1].duplicate,true);assert.match(preview[2].error,/Unsupported currency USD/);
  await page.locator('[data-view="products"]:visible').first().click();
  await page.locator('#csv-input').setInputFiles({name:'etsy.csv',mimeType:'text/csv',buffer:Buffer.from('TITLE,DESCRIPTION,TAGS,PRICE,CURRENCY_CODE,SKU\nGift mug,Description,mug,12.50,GBP,M1')});
- await page.locator('.v26-import-dialog').waitFor({state:'visible'});assert.match(await page.locator('.v26-import-dialog').innerText(),/1 ready/);await page.locator('[data-cancel]').click();assert.equal(await page.locator('.v26-import-dialog').count(),0);
+ await page.locator('.v26-import-dialog').waitFor({state:'visible'});assert.match(await page.locator('.v26-import-dialog').innerText(),/1 ready/);await page.locator('[data-cancel]').click();await page.locator('.v26-import-dialog').waitFor({state:'detached'});
  await page.goto(origin+'/demo.html');await page.locator('#demo-fix').waitFor({state:'visible'});assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.locator('#demo-fix').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/62\/100/);await page.locator('#demo-reset').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  assert.deepEqual(errors,[]);
