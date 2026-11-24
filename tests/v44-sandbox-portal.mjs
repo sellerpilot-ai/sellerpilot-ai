@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {createHandler,safePortalURL,safeConfig} from '../supabase/functions/sellerpilot-stripe-portal/handler.mjs';
 const uid='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222',customer='cus_fixture123',sid='sub_fixture123',cid='bpc_fixture123',price='price_fixtureStarter',url='https://billing.stripe.com/p/session/test_fixture123456789',ret='https://sellerpilot-ai.github.io/sellerpilot-ai/?v=44&billing=portal-return';
-const cfg={SUPABASE_URL:'https://example.invalid',SUPABASE_ANON_KEY:'fixture',SUPABASE_SERVICE_ROLE_KEY:'fixture_service',SELLERPILOT_AI_BETA_USER_IDS:uid,SELLERPILOT_STRIPE_PORTAL_ENABLED:'true',SELLERPILOT_STRIPE_PORTAL_CONFIG:cid,SELLERPILOT_STRIPE_TEST_KEY:'sk_test_fixture_not_real',SELLERPILOT_STRIPE_STARTER_PRICE:price,SELLERPILOT_STRIPE_PRO_PRICE:'price_fixtureProfessional'};
+const cfg={SUPABASE_URL:'https://example.invalid',SUPABASE_ANON_KEY:'fixture',SUPABASE_SERVICE_ROLE_KEY:'fixture_service',SELLERPILOT_STRIPE_BETA_USER_IDS:uid,SELLERPILOT_STRIPE_PORTAL_ENABLED:'true',SELLERPILOT_STRIPE_PORTAL_CONFIG:cid,SELLERPILOT_STRIPE_TEST_KEY:'sk_test_fixture_not_real',SELLERPILOT_STRIPE_STARTER_PRICE:price,SELLERPILOT_STRIPE_PRO_PRICE:'price_fixtureProfessional'};
 const sub={object:'subscription',id:sid,customer,livemode:false,status:'past_due',metadata:{sellerpilot_mode:'sandbox',sellerpilot_user_id:uid,sellerpilot_plan:'starter'},items:{has_more:false,data:[{quantity:1,price:{id:price,livemode:false,currency:'gbp',unit_amount:999,recurring:{interval:'month',interval_count:1}}}]}};
 const config={object:'billing_portal.configuration',id:cid,livemode:false,active:true,login_page:{enabled:false},features:{invoice_history:{enabled:true},payment_method_update:{enabled:true},subscription_cancel:{enabled:true,mode:'at_period_end',proration_behavior:'none'},subscription_update:{enabled:false},customer_update:{enabled:false}}};
 const session={object:'billing_portal.session',customer,configuration:cid,livemode:false,return_url:ret,url};
@@ -20,6 +20,8 @@ for(const bad of [{...list,has_more:true},{...list,data:[]},{...list,data:[sub,{
 for(const bad of [{...config,livemode:true},{...config,login_page:{enabled:true}},{...config,features:{...config.features,subscription_update:{enabled:true}}},{...config,features:{...config.features,subscription_cancel:{enabled:true,mode:'immediately',proration_behavior:'none'}}}]){conf=bad;assert.equal((await call(open)).status,409)}conf=config;
 for(const bad of [{...session,livemode:true},{...session,customer:'cus_wrong'},{...session,url:'https://billing.stripe.com.evil.invalid/p/session/test_fixture123456789'},{...session,url:'https://billing.stripe.com/p/session/live_fixture123456789'}]){response=bad;assert.equal((await call(open)).status,502)}response=session;
 assert.equal(safePortalURL('https://billing.stripe.com@evil.invalid/p/session/test_fixture123456789'),false);assert.equal(safeConfig(config,cid),true);
+
+{const config={...cfg,SELLERPILOT_STRIPE_BETA_USER_IDS:'',SELLERPILOT_AI_BETA_USER_IDS:uid};calls=[];assert.equal((await call(open,config)).status,403);assert.equal(calls.length,1);console.log('PASS: AI-only testers cannot access Stripe operator endpoint.');}
 console.log('PASS: sandbox portal with server-derived customer, full bounded subscription ownership review, safe configuration, fixed return and test URL, disabled default and no production grants.');
 
 const opaque='https://billing.stripe.com/p/session/new_fixture~opaque?locale=en#fragment';
