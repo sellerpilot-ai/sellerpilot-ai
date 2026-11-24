@@ -36,23 +36,32 @@ try {
  page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',async route=>{
   const url=route.request().url();
-  if(url.startsWith(origin+'/')){const u=new URL(url);if(workspacePhase&&u.pathname.startsWith('/js/')&&u.searchParams.get('v')!=='57.1'){staleRequests.push(u.pathname+u.search);return route.fulfill({status:200,contentType:'text/javascript',body:'export const staleCachedModule=true;'});}return route.continue();}
+  if(url.startsWith(origin+'/')){const u=new URL(url);if(workspacePhase&&u.pathname.startsWith('/js/')&&u.searchParams.get('v')!=='58'){staleRequests.push(u.pathname+u.search);return route.fulfill({status:200,contentType:'text/javascript',body:'export const staleCachedModule=true;'});}return route.continue();}
   if(url.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});
   return route.abort();
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v57\.1/);
+ await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v58/);
  await page.locator('[data-view="keywords"]:visible, [data-go="keywords"]:visible').count().then(async n=>{if(n)await page.locator('[data-view="keywords"]:visible, [data-go="keywords"]:visible').first().click();else await page.locator('#v22-tab-keyword').click()});
  if(!await page.locator('#view-keywords').isVisible()){await page.locator('#v22-home-keyword').fill('bracelet');await page.locator('[data-v22-action="keyword"]').click()}
  await page.locator('#v57-product').selectOption('fixture-product');await page.locator('#v57-seed').fill('gold tone bracelet');await page.locator('#v57-extra').fill('birthday gift');
  await page.locator('#v57-generate').click();assert.doesNotMatch(await page.locator('#v57-results').innerText(),/local relevance/);
  await page.locator('#v57-confirm').check();await page.locator('#v57-generate').click();
- assert.match(await page.locator('#v57-results').innerText(),/Duplicate tags/);assert.match(await page.locator('#v57-results').innerText(),/bracelet × 2/);
+ assert.match(await page.locator('#v57-results').innerText(),/Duplicate tags/);assert.match(await page.locator('#v57-results').innerText(),/bracelet × 2/);assert.ok(await page.locator('#v57-results .v57-row').count()<=8);assert.match(await page.locator('#v57-results').innerText(),/Page 1 of/);if(!await page.locator('[data-v58-page="1"]').isDisabled()){await page.locator('[data-v58-page="1"]').click();assert.match(await page.locator('#v57-results').innerText(),/Page 2 of/);}
  await page.locator('#v57-filter').selectOption('tags');await page.locator('#v57-results [data-v57-save]').first().click();assert.ok((await page.locator('#keyword-shortlist button').count())>0);
  await page.locator('#v57-seed').fill('new phrase');assert.match(await page.locator('#v57-results').innerText(),/Inputs changed/);
  await page.locator('[data-view="overview"]:visible').first().click();
 
+ await page.locator('[data-view="settings"]:visible').first().click();
+ await page.locator('.v22-settings-grid [data-go="competitors"]').click();
+ await page.locator('#v58-own').selectOption('fixture-product');await page.locator('#v58-title').fill('Observed rival bracelet');await page.locator('#v58-date').fill('2026-11-24');await page.locator('#v58-price').fill('24.50');
+ await page.locator('#v58-run').click();assert.equal(await page.locator('#v58-export').isDisabled(),true);
+ await page.locator('#v58-consent').check();await page.locator('#v58-run').click();assert.match(await page.locator('#v58-results').innerText(),/No competitor tag data supplied/);assert.match(await page.locator('#v58-results').innerText(),/GBP -6.00/);
+ await page.locator('#v58-known').check();await page.locator('#v58-tags').fill('bracelet,birthday gift');await page.locator('#v58-own-facts').fill('gift box');await page.locator('#v58-run').click();
+ assert.match(await page.locator('#v58-results').innerText(),/1 shared · 1 missing/);assert.match(await page.locator('#v58-results').innerText(),/birthday gift/);assert.equal(await page.locator('#v58-export').isDisabled(),false);
+ await page.locator('#v58-currency').selectOption('USD');assert.equal(await page.locator('#v58-export').isDisabled(),true);await page.locator('#v58-run').click();assert.match(await page.locator('#v58-results').innerText(),/Not comparable/);
+ await page.locator('[data-view="overview"]:visible').first().click();
  await page.waitForFunction(()=>document.querySelector('#v55-home-status')?.textContent.includes('Starter'));
  assert.match(await page.locator('#v55-home-status').innerText(),/0 \/ 5 daily · 25 \/ 30 monthly remaining/);
  assert.match(await page.locator('#v55-home-reset').innerText(),/25 Nov 2026 at 00:00 UTC/);
@@ -173,8 +182,8 @@ try {
  await page.waitForTimeout(800);assert.equal(await page.locator('#v54-image').isHidden(),true);assert.equal(await page.locator('#v54-sidebar').isHidden(),true);assert.equal(await page.locator('#v55-home').isHidden(),true);assert.equal(await page.locator('#v55-home-reset').textContent(),'');assert.equal(await page.locator('#v54-side-usage').textContent(),'');
  await page.evaluate(()=>localStorage.removeItem('test-v54-mode'));
  console.log('PASS: V54 integrated status, billing navigation, Starter and Professional, errors, account reset and late response isolation.');
- await page.evaluate(async()=>{const {clearWorkspace}=await import('./js/ui.js');const {state}=await import('./js/core.js');document.querySelector('#v57-seed').value='private keyword';document.querySelector('#v57-extra').value='private modifier';document.querySelector('#v57-results').textContent='Private keyword results';document.querySelector('#keyword-results').textContent='Private catalogue results';document.querySelector('#ai-output').value='Private prior brief';document.querySelector('#ai-audience').value='Private audience';document.querySelector('#ai-facts').value='Private facts';state.shortlist=['private phrase'];clearWorkspace()});
- assert.equal(await page.locator('#v57-seed').inputValue(),'');assert.equal(await page.locator('#v57-extra').inputValue(),'');assert.doesNotMatch(await page.locator('#v57-results').textContent(),/Private keyword results/);assert.doesNotMatch(await page.locator('#keyword-results').textContent(),/Private catalogue results/);assert.equal(await page.locator('#ai-output').inputValue(),'');assert.equal(await page.locator('#ai-audience').inputValue(),'');assert.equal(await page.locator('#ai-facts').inputValue(),'');assert.equal(await page.locator('#v19-content-reports').innerText(),'');assert.equal(await page.locator('#auth-signup').isDisabled(),true);
+ await page.evaluate(async()=>{const {clearWorkspace}=await import('./js/ui.js');const {state}=await import('./js/core.js');document.querySelector('#v58-title').value='private competitor';document.querySelector('#v58-results').textContent='Private competitor results';document.querySelector('#v57-seed').value='private keyword';document.querySelector('#v57-extra').value='private modifier';document.querySelector('#v57-results').textContent='Private keyword results';document.querySelector('#keyword-results').textContent='Private catalogue results';document.querySelector('#ai-output').value='Private prior brief';document.querySelector('#ai-audience').value='Private audience';document.querySelector('#ai-facts').value='Private facts';state.shortlist=['private phrase'];clearWorkspace()});
+ assert.equal(await page.locator('#v58-title').inputValue(),'');assert.doesNotMatch(await page.locator('#v58-results').textContent(),/Private competitor results/);assert.equal(await page.locator('#v57-seed').inputValue(),'');assert.equal(await page.locator('#v57-extra').inputValue(),'');assert.doesNotMatch(await page.locator('#v57-results').textContent(),/Private keyword results/);assert.doesNotMatch(await page.locator('#keyword-results').textContent(),/Private catalogue results/);assert.equal(await page.locator('#ai-output').inputValue(),'');assert.equal(await page.locator('#ai-audience').inputValue(),'');assert.equal(await page.locator('#ai-facts').inputValue(),'');assert.equal(await page.locator('#v19-content-reports').innerText(),'');assert.equal(await page.locator('#auth-signup').isDisabled(),true);
  assert.deepEqual(staleRequests,[]);workspacePhase=false;
  await page.goto(origin+'/demo.html');await page.locator('#demo-fix').waitFor({state:'visible'});assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.locator('#demo-fix').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/62\/100/);await page.locator('#demo-reset').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
@@ -186,7 +195,7 @@ try {
  assert.deepEqual(errors,[]);
  const failurePage=await browser.newPage();
  await failurePage.route('**/*',async route=>{const url=new URL(route.request().url());if(url.pathname.endsWith('/keyword-discovery.js'))return route.abort();if(url.origin===origin)return route.continue();return route.abort()});
- await failurePage.goto(origin+'/index.html?v=57.1');await failurePage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Workspace startup failed'));
+ await failurePage.goto(origin+'/index.html?v=58');await failurePage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Workspace startup failed'));
  assert.equal(await failurePage.locator('#account-chip').textContent(),'Connection unavailable');await failurePage.close();
  console.log('PASS: one version for all local workspace modules; simulated stale cache cannot supply outdated modules; failed module startup is visible.');
  console.log('PASS: module startup, mocked authentication, mobile navigation, guided apply, immediate score refresh, undo, mocked save and reload. No real cloud requests.');
