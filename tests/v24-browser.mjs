@@ -42,7 +42,7 @@ try {
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v31/);await open();
+ await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v32/);await open();
  assert.equal(await page.locator('#edit-market option:not([hidden])').allTextContents().then(x=>x.join(',')),'Etsy');
  await page.locator('[data-view="settings"]:visible').first().click();
  await page.locator('#v25-legacy').check();
@@ -101,6 +101,10 @@ try {
  await page.locator('[data-v19-action="save-week"]').click();await page.waitForFunction(()=>document.querySelector('#v30-week-status')?.textContent.includes('Saved for this week'));
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.weekly.length),1);
  await page.reload();await ready();await page.locator('[data-view="settings"]:visible').first().click();await page.locator('#view-settings [data-go="reports"]').click();await page.locator('#v30-history').waitFor({state:'visible'});assert.match(await page.locator('#v30-history').innerText(),/62\/100/);
+ await page.locator('[data-view="shop"]:visible').first().click();await page.locator('#v31-check').click();await page.waitForFunction(()=>document.querySelector('#v31-status')?.textContent.includes('unavailable'));assert.equal(await page.locator('#v31-start').isDisabled(),true);
+ await page.locator('[data-view="settings"]:visible').first().click();assert.match(await page.locator('#v32-beta').innerText(),/Paid subscriptions are not available/);
+ await page.locator('#v32-notes').fill('Example test only');await page.locator('#v32-clear').click();assert.equal(await page.locator('#v32-notes').inputValue(),'');
+ await page.locator('#v32-notes').fill('Example test only');const downloadEvent=page.waitForEvent('download');await page.locator('#v32-download').click();assert.equal((await downloadEvent).suggestedFilename(),'sellerpilot-beta-feedback.txt');
  await page.goto(origin+'/demo.html');await page.locator('#demo-fix').waitFor({state:'visible'});assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.locator('#demo-fix').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/62\/100/);await page.locator('#demo-reset').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.goto(origin+'/home.html');assert.match(await page.locator('h1').innerText(),/Find listing problems/);
