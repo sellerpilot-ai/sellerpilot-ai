@@ -97,7 +97,7 @@ try {
  assert.match(await page.locator('#v59-plan').innerText(),/Draft changed/);
  await page.locator('#edit-tags').fill('bracelet,gold jewellery,bracelet');
  await page.locator('#v59-plan [data-v59-recheck]').click();
- await page.locator('#v59-plan [data-v23-fix="edit-tags"]').click();
+ await page.locator('#v59-plan .v59-action [data-v23-fix="edit-tags"]').click();
  await fix();await page.locator('#v23-workbench').waitFor({state:'visible'});await apply();
  assert.equal(await page.locator('#edit-tags').inputValue(),'bracelet, gold jewellery');
  assert.match(await score(),/^62\/100/);
