@@ -42,7 +42,7 @@ try {
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v63/);
+ await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v63/);assert.match(await page.locator('.top-pill').innerText(),/SELLERPILOT V63/);assert.match(await page.locator('.footer-note').innerText(),/SellerPilot AI v63/);assert.match(await page.locator('.sidebar-foot').textContent(),/v63 · Listing intelligence beta/);
  assert.equal(await page.locator('#v63-operator-tools').isHidden(),true);assert.equal(await page.locator('#v55-home').isHidden(),true);assert.equal(await page.evaluate(()=>Number(localStorage.getItem('test-v63-sandbox-requests')||0)),0);
  await page.locator('[data-view="settings"]:visible').first().click();assert.equal(await page.locator('#v40-stripe-check').isHidden(),true);
  await page.goto(origin+'/index.html?operator=1');await ready();assert.equal(await page.locator('#v63-operator-tools').getAttribute('hidden'),null);
