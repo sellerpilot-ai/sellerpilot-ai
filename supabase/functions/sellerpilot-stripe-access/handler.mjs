@@ -29,7 +29,7 @@ export function createHandler(env,fetcher,clock=Date.now){return async req=>{
  let input;try{input=await read(req)}catch{return fail(400,'Invalid request.')}
  if(!input||typeof input!=='object'||Array.isArray(input))return fail(400,'Invalid request.');
  const fields=Object.keys(input).sort().join(',');
- if(!((input.action==='status'&&fields==='action')||(input.action==='simulate'&&fields==='action,feature,request_id'&&['text','photo'].includes(input.feature)&&uuid.test(input.request_id||''))))return fail(400,'Unsupported sandbox action.');
+ if(!((['status','dashboard'].includes(input.action)&&fields==='action')||(input.action==='simulate'&&fields==='action,feature,request_id'&&['text','photo'].includes(input.feature)&&uuid.test(input.request_id||''))))return fail(400,'Unsupported sandbox action.');
  if(env('SELLERPILOT_STRIPE_ACCESS_ENABLED')!=='true')return fail(503,'Sandbox access simulation disabled.');
  const key=env('SELLERPILOT_STRIPE_TEST_KEY'),service=runtimeKey(env,'SUPABASE_SECRET_KEYS','SUPABASE_SERVICE_ROLE_KEY'),prices={starter:env('SELLERPILOT_STRIPE_STARTER_PRICE'),professional:env('SELLERPILOT_STRIPE_PRO_PRICE')};
  if(!/^sk_test_[A-Za-z0-9_]{12,}$/.test(key)||!service||!pid.test(prices.starter)||!pid.test(prices.professional)||prices.starter===prices.professional)return fail(503,'Sandbox configuration incomplete.');
@@ -49,6 +49,21 @@ export function createHandler(env,fetcher,clock=Date.now){return async req=>{
  const allowed=active.length===1?eligible(active[0],user.id,prices,clock()):null;
  const common={ok:true,sandbox:true,production_access:false,eligible:!!allowed,plan:allowed?.plan??null,period_end:allowed?.period_end??null,cancel_at_period_end:allowed?.cancel_at_period_end??false,monthly_credits:allowed?.monthly_credits??0,daily_credits:allowed?.daily_credits??0};
  if(input.action==='status')return reply(200,common);
+ if(input.action==='dashboard'){
+  if(!allowed)return reply(200,{...common,usage:null});
+  const stamp=new Date(clock()),day=new Date(Date.UTC(stamp.getUTCFullYear(),stamp.getUTCMonth(),stamp.getUTCDate())),month=new Date(Date.UTC(stamp.getUTCFullYear(),stamp.getUTCMonth(),1));
+  const nextDay=new Date(day.getTime()+86400000),nextMonth=new Date(Date.UTC(stamp.getUTCFullYear(),stamp.getUTCMonth()+1,1));
+  // Read only the verified account's current UTC month, across plans and subscriptions.
+  const q=new URLSearchParams({select:'credits,created_at',user_id:'eq.'+user.id,created_at:'gte.'+month.toISOString(),limit:'101'});
+  const result=await fetcher(base+'/rest/v1/sellerpilot_sandbox_credit_requests?'+q,{headers:{...admin,Prefer:'count=exact'},redirect:'error',signal:AbortSignal.timeout(8000)});
+  if(!result.ok)throw Error('usage unavailable');
+  const rows=await result.json(),range=result.headers.get('content-range')||'',count=Number(range.split('/').at(-1));
+  if(!Array.isArray(rows)||rows.length>100||!range.includes('/')||!Number.isSafeInteger(count)||count!==rows.length||range.split('/').at(-1)!==String(count))throw Error('usage incomplete');
+  let daily=0,monthly=0;
+  for(const row of rows){const t=Date.parse(row.created_at);if(![1,3].includes(row.credits)||!Number.isFinite(t)||t<month.getTime()||t>stamp.getTime())throw Error('invalid usage');monthly+=row.credits;if(t>=day.getTime())daily+=row.credits;}
+  if(monthly>100||daily>15)throw Error('usage inconsistent');
+  return reply(200,{...common,usage:{daily_used:daily,monthly_used:monthly,daily_remaining:Math.max(0,allowed.daily_credits-daily),monthly_remaining:Math.max(0,allowed.monthly_credits-monthly),daily_resets_at:nextDay.toISOString(),monthly_resets_at:nextMonth.toISOString()}});
+ }
  if(!allowed)return fail(403,'No verified paid sandbox subscription.');
  // Photo is Professional-only; simulated units are never sent to the AI provider.
  if(input.feature==='photo'&&allowed.plan!=='professional')return fail(403,'Photo simulation requires Professional.');
