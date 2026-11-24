@@ -1,3 +1,4 @@
+import {operatorView,$} from './core.js';
 import {v61Init} from './beta-onboarding.js';
 import {v60Init} from './shop-assistant-workspace.js';
 import {v59Init} from './listing-plan-workspace.js';
@@ -39,9 +40,7 @@ v28Init();
 v31Init();
 v32Init();
 v37Init();
-v40Init();
-v41Init();
-v44Init();
+if(operatorView()){document.body.classList.add("v63-operator");$("v63-operator-tools").hidden=false;v40Init();v41Init();v44Init();}
 v54Init();
 v57Init();
 await init();
