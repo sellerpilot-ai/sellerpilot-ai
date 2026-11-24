@@ -26,5 +26,7 @@ jobs:
         run: node tests/v27-ai-handler.mjs
       - name: Test isolated image handler with mock network
         run: node tests/v28-image-handler.mjs
+      - name: Test Etsy authorisation handler using mock network
+        run: node tests/v31-etsy-handler.mjs
       - name: Run browser regression using only mock data
         run: node tests/v24-browser.mjs
