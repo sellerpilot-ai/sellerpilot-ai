@@ -33,7 +33,23 @@ export function createHandler(env,fetcher){
   if(!auth.startsWith("Bearer "))return fail(401,"Sign in first.");
   if(!url||!anon)return fail(503,"Secure account service unavailable.");
   const userHeaders={apikey:anon,Authorization:auth};
-  const fetchJson=async(u,init={},timeout=12000)=>{const res=await fetcher(u,{...init,signal:AbortSignal.timeout(timeout)});if(!res.ok)throw Error("Upstream request failed");return await res.json()};
+  const fetchJson=async(u,init={},timeout=12000)=>{
+   const provider=u==="https://api.openai.com/v1/responses";
+   let res;try{res=await fetcher(u,{...init,signal:AbortSignal.timeout(timeout)})}catch{
+    if(provider){const e=Error("AI provider connection failed.");e.safeDetail="OpenAI connection failed. No listing was changed. [AI_NETWORK]";console.warn("AI_NETWORK");throw e}throw Error("Upstream connection failed");
+   }
+   if(!res.ok){
+    if(provider){
+     let rawCode="";try{const body=await res.json();rawCode=body?.error?.code||""}catch{}
+     const known=new Set(["invalid_api_key","model_not_found","insufficient_quota","credit_balance_exhausted","rate_limit_exceeded","unsupported_parameter","unsupported_value","invalid_request_error","billing_hard_limit_reached","project_spend_limit_reached","server_is_overloaded"]);
+     const code=known.has(rawCode)?rawCode:"unknown";
+     const status=res.status;const e=Error("AI provider rejected request");
+     e.safeDetail=(status===401?"OpenAI rejected the API credential.":status===403||status===404?"OpenAI denied access to the configured model or endpoint.":status===429?"OpenAI reported a usage or billing limit.":status===400?"OpenAI rejected the request configuration.":"OpenAI returned a service error.")+" No listing was changed. [AI_"+status+"_"+code+"]";
+     console.warn("AI_PROVIDER_STATUS",status,code);throw e;
+    }throw Error("Upstream request failed");
+   }
+   try{return await res.json()}catch{if(provider){const e=Error("AI provider response invalid");e.safeDetail="OpenAI returned an unreadable response. [AI_RESPONSE]";console.warn("AI_RESPONSE");throw e}throw Error("Upstream response invalid")}
+  };
   try{
    const user=await fetchJson(url+"/auth/v1/user",{headers:userHeaders});
    if(!uuid.test(user.id||"")||user.is_anonymous===true||!user.email_confirmed_at)return fail(401,"A verified account is required.");
@@ -73,6 +89,6 @@ export function createHandler(env,fetcher){
    let draft;try{draft=validateDraft(JSON.parse(part?.text||""))}catch{}
    if(!draft)return fail(502,"AI output failed validation. No draft was applied.");
    return reply(200,{ok:true,draft,updated_at:p.updated_at});
-  }catch{return fail(503,"Secure AI service unavailable. No listing was changed.")}
+  }catch(e){return fail(503,e?.safeDetail||"Secure AI service unavailable. No listing was changed.")}
  };
 }
