@@ -1,5 +1,5 @@
 import { v44Init } from './stripe-portal.js';
-import { v41Init } from './stripe-checkout.js';
+import { v41Init } from './stripe-checkout.js?v=45';
 import { v40Init } from './stripe-test.js';
 import { v37Init } from './privacy-controls.js';
 import { v32Init } from './beta-feedback.js';
