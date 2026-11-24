@@ -43,7 +43,7 @@ export async function v19Commit(next){
 }
 export async function v19Mutate(fn,success='Saved to private cloud'){
  if(!v19Store.loaded){toast('Research workspace has not loaded. Refresh and try again.',true);return}
- await guarded(async()=>{const next=JSON.parse(JSON.stringify(v19Store.data));fn(next);await v19Commit(next);toast(success)});
+ const uid=state.uid,serial=state.serial;await guarded(async()=>{if(state.uid!==uid||state.serial!==serial||!v19Store.loaded)throw Error('Account changed. Reopen the research workspace.');const next=JSON.parse(JSON.stringify(v19Store.data));fn(next);await v19Commit(next);if(state.uid===uid&&state.serial===serial)toast(success)});
 }
 export function v19Input(id){return ($(id)?.value||'').trim()}
 export function v19Number(id){const n=Number($(id)?.value);if(!Number.isFinite(n)||n<0)throw Error('Enter valid non-negative numbers.');return n}
