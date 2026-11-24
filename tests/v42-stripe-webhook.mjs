@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {createHandler,verifySignature} from '../supabase/functions/sellerpilot-stripe-webhook/handler.mjs';
+import {createHandler,verifySignature,observation} from '../supabase/functions/sellerpilot-stripe-webhook/handler.mjs';
 const now=1795543200000,t=Math.floor(now/1000),secret='whsec_fixture_signing_secret',uid='11111111-1111-4111-8111-111111111111',sid='sub_fixture123',cid='cus_fixture123',price='price_fixtureStarter';
 const env={SELLERPILOT_STRIPE_WEBHOOK_ENABLED:'true',SELLERPILOT_STRIPE_WEBHOOK_SECRET:secret,SELLERPILOT_STRIPE_TEST_KEY:'sk_test_fixture_not_real',SUPABASE_URL:'https://example.invalid',SUPABASE_SERVICE_ROLE_KEY:'fixture_service',SELLERPILOT_STRIPE_STARTER_PRICE:price,SELLERPILOT_STRIPE_PRO_PRICE:'price_fixtureProfessional'};
 const evt={object:'event',id:'evt_fixture123',type:'invoice.paid',livemode:false,created:t,data:{object:{object:'invoice',livemode:false,parent:{subscription_details:{subscription:sid}},private:'not stored'}}};
@@ -25,3 +25,11 @@ change={metadata:{}};await call({...evt,id:'evt_fixture789'});assert.equal(rows.
 change={livemode:true};assert.equal((await call()).status,502);
 change={};dbFail=true;assert.equal((await call({...evt,id:'evt_fixture999'})).status,503);assert.equal(rows.size,2);
 console.log('PASS: signed sandbox snapshot events, tamper/time checks, provider reconciliation, minimal append-only records, duplicate retries, failure handling, no entitlements.');
+
+const priceMap={starter:price,professional:env.SELLERPILOT_STRIPE_PRO_PRICE};
+const end=sub.items.data[0].current_period_end;
+const updated={...evt,id:'evt_fixtureCancel',type:'customer.subscription.updated',data:{object:{id:sid,livemode:false}}};
+for(const [fields,expected] of [[{cancel_at:end,cancel_at_period_end:false},true],[{cancel_at:null,cancel_at_period_end:true},true],[{cancel_at:null,cancel_at_period_end:false},false],[{cancel_at:end+3600,cancel_at_period_end:false},false],[{cancel_at:end-3600,cancel_at_period_end:false},false],[{cancel_at:String(end),cancel_at_period_end:false},false]]){const result=observation(updated,{...sub,...fields},priceMap,now);assert.equal(result.cancel_at_period_end,expected);assert.equal(result.subscription_status,'active');assert.equal(result.period_end,new Date(end*1000).toISOString())}
+dbFail=false;change={cancel_at:end,cancel_at_period_end:false};assert.equal((await call(updated)).status,200);assert.equal(rows.get(updated.id).cancel_at_period_end,true);
+change={cancel_at:null,cancel_at_period_end:false};assert.equal((await call({...updated,id:'evt_fixtureResume'})).status,200);assert.equal(rows.get('evt_fixtureResume').cancel_at_period_end,false);assert.equal(rows.get(updated.id).cancel_at_period_end,true);
+console.log('PASS: scheduled cancellation via matching cancel_at, reversal and append-only history.');

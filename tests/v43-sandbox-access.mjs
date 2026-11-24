@@ -25,3 +25,9 @@ res=await call(sim);assert.equal((await res.json()).simulated,true);
 reserve=false;assert.equal((await call(sim)).status,429);reserve=true;
 sub=fixture('professional');data=await (await call({...sim,feature:'photo'})).json();assert.equal(data.credits,3);assert.equal(data.monthly_credits,100);assert.equal(data.production_access,false);
 console.log('PASS: sandbox subscription ownership, fresh provider state, duplicate subscription rejection, test-only credit reservations and no production access.');
+
+const end=fixture().items.data[0].current_period_end;
+for(const [fields,expected] of [[{cancel_at:end,cancel_at_period_end:false},true],[{cancel_at:null,cancel_at_period_end:true},true],[{cancel_at:null,cancel_at_period_end:false},false],[{cancel_at:end+3600,cancel_at_period_end:false},false],[{cancel_at:end-1800,cancel_at_period_end:false},false],[{cancel_at:String(end),cancel_at_period_end:false},false]]){const result=eligible({...fixture(),...fields},uid,prices,now);assert.equal(result.cancel_at_period_end,expected);assert.equal(result.period_end,new Date(end*1000).toISOString())}
+sub={...fixture(),cancel_at:end,cancel_at_period_end:false};data=await (await call()).json();assert.equal(data.cancel_at_period_end,true);assert.equal(data.eligible,true);assert.equal(data.production_access,false);
+sub={...fixture(),cancel_at:null,cancel_at_period_end:false};data=await (await call()).json();assert.equal(data.cancel_at_period_end,false);
+console.log('PASS: sandbox status normalizes period-end cancellation without granting production access.');

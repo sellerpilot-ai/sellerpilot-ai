@@ -33,7 +33,7 @@ export function observation(event,sub,prices,now){
  const periodEnd=Number.isSafeInteger(period)&&period>0&&period<4102444800?new Date(period*1000).toISOString():null;
  const invoice=sub.latest_invoice;
  const paid=invoice?.object==='invoice'&&invoice.livemode===false&&invoice.customer===sub.customer&&invoice.status==='paid'&&invoice.currency==='gbp'&&invoice.amount_paid===expected;
- return {event_id:event.id,event_type:event.type,event_created_at:new Date(event.created*1000).toISOString(),observed_at:new Date(now).toISOString(),user_id:user,stripe_subscription_id:id,stripe_customer_id:sub.customer,plan,subscription_status:statuses.has(sub.status)?sub.status:'unknown',price_matches:valid,latest_invoice_paid:paid,period_end:periodEnd,cancel_at_period_end:sub.cancel_at_period_end===true,sandbox:true};
+ return {event_id:event.id,event_type:event.type,event_created_at:new Date(event.created*1000).toISOString(),observed_at:new Date(now).toISOString(),user_id:user,stripe_subscription_id:id,stripe_customer_id:sub.customer,plan,subscription_status:statuses.has(sub.status)?sub.status:'unknown',price_matches:valid,latest_invoice_paid:paid,period_end:periodEnd,cancel_at_period_end:sub.cancel_at_period_end===true||(Number.isSafeInteger(period)&&period>0&&period<4102444800&&Number.isSafeInteger(sub.cancel_at)&&sub.cancel_at===period),sandbox:true};
 }
 export function createHandler(env,fetcher,clock=Date.now){return async req=>{
  const reply=(status,detail)=>Response.json({ok:status<400,detail},{status,headers:{'Cache-Control':'no-store'}});
