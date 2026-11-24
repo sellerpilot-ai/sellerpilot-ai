@@ -2,7 +2,7 @@ import {v19Store,v19Mutate,v19Id,v19CSV} from './workspace.js';
 import { $, esc, norm, tagList, state, toast, localKey } from './core.js';
 
 export function catalogueKeywords(){const map=new Map();for(const p of state.products){const seen=new Set(tagList(p.tags).map(norm).filter(Boolean));for(const phrase of seen)map.set(phrase,(map.get(phrase)||0)+1)}return [...map].sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]))}
-export function renderKeywords(){v57RenderProducts();const tagValues=catalogueKeywords();$('keyword-frequency').innerHTML=tagValues.length?tagValues.slice(0,24).map(([v,n])=>`<span class="keyword-tag">${esc(v)} <b>${n} products</b></span>`).join(''):'<div class="empty">No catalogue tags yet.</div>';renderShortlist()}
+export function renderKeywords(){v57RenderProducts();demandProducts();if(demandCurrent())drawDemand();const tagValues=catalogueKeywords();$('keyword-frequency').innerHTML=tagValues.length?tagValues.slice(0,24).map(([v,n])=>`<span class="keyword-tag">${esc(v)} <b>${n} products</b></span>`).join(''):'<div class="empty">No catalogue tags yet.</div>';renderShortlist()}
 export function keywordAnalyse(){const term=$('keyword-search').value.trim();if(!term){toast('Enter a phrase',true);return}const n=norm(term),items=state.products.filter(p=>norm(p.title+' '+p.tags+' '+p.description).includes(n)),titleCount=state.products.filter(p=>norm(p.title).includes(n)).length,tagCount=state.products.filter(p=>tagList(p.tags).some(t=>norm(t).includes(n))).length;$('keyword-results').innerHTML=`<div class="eyebrow">YOUR CATALOGUE ONLY</div><div class="row" style="margin-top:12px"><div><b>${items.length}</b><div class="mini">Products mentioning “${esc(term)}”</div></div><div class="mini">of ${state.products.length} products</div></div><hr class="soft-divider"><p class="mini"><strong>${titleCount}</strong> title matches · <strong>${tagCount}</strong> products with tag matches</p><div class="stack">${items.slice(0,6).map(p=>`<div class="list-card"><div class="detail"><b>${esc(p.title)}</b></div><button class="button ghost sm" data-edit="${esc(p.id)}">Review</button></div>`).join('')||'<p class="mini">No matching products yet.</p>'}</div><p class="mini">These are catalogue coverage counts, not marketplace search volumes.</p>`}
 export function renderShortlist(){$('keyword-shortlist').innerHTML=state.shortlist.length?state.shortlist.map((x,i)=>`<span class="keyword-tag">${esc(x)}<button data-unkeyword="${i}" aria-label="Remove ${esc(x)}">×</button></span>`).join(''):'<div class="empty">No saved phrases yet.</div>'}
 export function saveShortlist(){if(!state.uid)return;try{localStorage.setItem(localKey('keywords'),JSON.stringify(state.shortlist))}catch{toast('Could not save shortlist to this device.',true)}}
@@ -19,10 +19,47 @@ export function v57Init(){if(!$('v57-generate'))return;for(const id of ['v57-pro
 
 /* V67: explicit private Google demand requests; never send catalogue data automatically. */
 import {verifiedUser} from './supabase-client.js';
+import {validateReport,sortRows,compareReports,seasonal} from './demand-intelligence.js';
+import {editProduct} from './product-editor.js';
+let demandReports={},demandActive=null,demandOwner=null,demandSelected=null;
+const metric=n=>n===null||n===undefined?'Not available':n.toLocaleString('en-GB');
+function demandProduct(){return state.products.find(p=>p.id===$('v68-product')?.value)||null}
+function demandProducts(){const el=$('v68-product');if(!el)return;const old=el.value;el.replaceChildren(new Option('No product selected',''));if(state.ready)for(const p of state.products)el.add(new Option(p.title,p.id));if(state.products.some(p=>p.id===old)&&state.ready)el.value=old;}
+function demandCurrent(){return state.ready&&state.uid&&demandOwner===state.uid&&demandActive&&demandReports[demandActive]?.report;}
+function demandMonthChart(row){
+ const months=row.monthly,known=months.filter(m=>m.searches!==null),max=Math.max(1,...known.map(m=>m.searches)),season=seasonal(months);
+ return '<p class="mini">'+(season.observed?'Highest observed month'+(season.peaks.length>1?'s':'')+': '+esc(season.peaks.join(', '))+' · '+metric(season.peak)+' searches. '+season.observed+' month(s) with data.':'No observed monthly search data.')+'</p>'+
+ '<div class="v68-bars" aria-label="Monthly Google search estimates">'+months.map(m=>'<div class="v68-bar-row"><span>'+esc(m.month)+'</span><div class="v68-track"><span style="width:'+(m.searches===null?0:100*m.searches/max)+'%"></span></div><b>'+metric(m.searches)+'</b></div>').join('')+'</div><p class="mini">Historical estimates only; missing months are not zero. No prediction of future demand.</p>';
+}
+function drawDemand(){
+ const report=demandCurrent();if(!report)return;
+ const product=demandProduct(),rows=sortRows(report.rows,$('v68-sort').value,product,$('v68-filter').value),entry=demandReports[report.region];
+ const comp=compareReports(demandReports.UK?.report,demandReports.US?.report);
+ if(!rows.some(r=>r.keyword===demandSelected))demandSelected=rows[0]?.keyword||null;
+ const row=rows.find(r=>r.keyword===demandSelected);
+ const productLabel=product?'<p class="mini">Local keyword-word coverage against '+esc(product.title)+'. This measures wording overlap, not verified relevance, ranking or sales likelihood. Review product facts before using any phrase.</p>':'<p class="mini">Choose a saved product above to compare local keyword-word coverage.</p>';
+ const comparison=comp.length?'<details open><summary>UK / US comparison ('+comp.length+' shared phrases)</summary><p class="mini">Separate Google Ads snapshots; UK retrieved '+esc(new Date(demandReports.UK.report.retrieved_at).toLocaleString())+'; US retrieved '+esc(new Date(demandReports.US.report.retrieved_at).toLocaleString())+'. Compare exact shared phrases only.</p><div class="v68-comparison">'+comp.map(r=>'<div><b>'+esc(r.keyword)+'</b><span>UK: '+metric(r.UK)+'</span><span>US: '+metric(r.US)+'</span></div>').join('')+'</div></details>':'<p class="mini">To compare markets, research the same keyword batch in the other region. A new uncached batch uses one trial task.</p>';
+ $('v67-results').innerHTML='<div class="result-strip"><b>Google demand · '+(report.region==='UK'?'United Kingdom':'United States')+'</b><p class="mini">'+esc(report.source)+' · Retrieved '+esc(new Date(report.retrieved_at).toLocaleString())+' · '+(entry.cached?'Cached result; no new provider task':'Research result')+'. Google estimates, not Etsy search volumes.</p><div class="form-actions">'+Object.keys(demandReports).sort().map(region=>'<button class="button secondary sm" type="button" data-v68-region="'+region+'" '+(region===report.region?'disabled':'')+'>Show '+region+'</button>').join('')+'<button class="button ghost sm" type="button" data-v68-prepare>Prepare same batch for '+(report.region==='UK'?'US':'UK')+'</button></div></div>'+productLabel+
+ '<p class="mini">'+rows.length+' of '+report.rows.length+' keywords shown</p><div class="stack">'+rows.map(r=>'<article class="v57-row"><div class="row" style="flex-wrap:wrap"><b>'+esc(r.keyword)+'</b><span class="pill">'+metric(r.average_monthly_searches)+' Google searches/mo</span></div><p class="mini">Google Ads competition: '+esc(r.ads_competition||'Not available')+' · Peak: '+(r.season.peak===null?'Not available':esc(r.season.peaks.join(', '))+' ('+metric(r.season.peak)+')')+'</p>'+(r.relevance?'<p class="mini">Local word coverage: '+r.relevance.matched+'/'+r.relevance.total+' ('+r.relevance.score+'%) · '+(r.relevance.exactTitle?'In title':'Not in title')+' · '+(r.relevance.exactTag?'Exact tag present':'No exact tag')+' · '+(r.relevance.tagEligible?'Fits 20-character tag limit':'Longer phrase')+'</p>':'')+'<button type="button" class="button secondary sm" data-v68-trend="'+esc(r.keyword)+'">View trend</button> <button type="button" class="button ghost sm" data-v68-save="'+esc(r.keyword)+'">Save phrase</button>'+(product&&r.relevance?.matched>0?'<button type="button" class="button ghost sm" data-v68-audit="'+esc(r.keyword)+'">Review in listing audit</button>':'')+'</article>').join('')+'</div>'+
+ (row?'<div class="result-strip" id="v68-trend" style="margin-top:12px"><b>Monthly trend: '+esc(row.keyword)+'</b>'+demandMonthChart(row)+'</div>':'<p class="mini">No matching keywords.</p>')+comparison;
+}
+function demandAction(e){
+ const report=demandCurrent();if(!report||demandPending)return;
+ const button=e.target.closest('button');if(!button)return;
+ if(button.hasAttribute('data-v68-region')){const region=button.dataset.v68Region;if(demandReports[region]){demandActive=region;demandSelected=null;drawDemand();}return;}
+ if(button.hasAttribute('data-v68-prepare')){$('v67-region').value=report.region==='UK'?'US':'UK';$('v67-keywords').value=report.rows.map(r=>r.keyword).join('\n');$('v67-consent').checked=false;v67Button();$('v67-status').textContent='Other market prepared. Review consent and choose Research to send a request; nothing was sent.';$('v67-region').scrollIntoView({block:'center'});return;}
+ const keyword=button.dataset.v68Trend||button.dataset.v68Save||button.dataset.v68Audit;
+ if(!report.rows.some(r=>r.keyword===keyword))return;
+ if(button.hasAttribute('data-v68-trend')){demandSelected=keyword;drawDemand();$('v68-trend')?.scrollIntoView({block:'nearest'});return;}
+ if(button.hasAttribute('data-v68-save')){if(state.shortlist.some(x=>norm(x)===norm(keyword))){toast('Phrase already saved.');return;}if(state.shortlist.length>=50){toast('Shortlist is full.',true);return;}state.shortlist.push(keyword);saveShortlist();renderShortlist();toast('Phrase saved to this device.');return;}
+ if(button.hasAttribute('data-v68-audit')){const p=demandProduct();if(!p||!confirm('Open this listing in the audit editor with the selected focus phrase? Unsaved editor changes will be replaced. No cloud product will be saved.'))return;editProduct(p.id);$('edit-focus').value=keyword;toast('Focus phrase prepared in editor. Review and analyse; no listing saved.');}
+}
+
 let demandSerial=0,demandPending=false,demandEnabled=false;
 export function v67Reset(){
- demandSerial++;demandPending=false;demandEnabled=false;
+ demandSerial++;demandPending=false;demandEnabled=false;demandReports={};demandActive=null;demandOwner=null;demandSelected=null;
  if(!$('v67-run'))return;
+ $('v68-product').value='';$('v68-sort').value='volume';$('v68-filter').value='';
  $('v67-region').value='UK';$('v67-keywords').value='';$('v67-consent').checked=false;$('v67-results').replaceChildren();$('v67-status').textContent='Check availability to start.';$('v67-run').disabled=true;$('v67-status-check').disabled=false;
 }
 function v67Button(){ $('v67-run').disabled=!demandEnabled||demandPending||!$('v67-consent').checked;$('v67-status-check').disabled=demandPending; }
@@ -40,22 +77,17 @@ async function v67Check(){
  finally{if(serial===demandSerial&&uid===state.uid){demandPending=false;v67Button();}}
 }
 export function v67RenderReport(report,cached){
- if(report?.source!=='Google Ads via DataForSEO'||!['UK','US'].includes(report.region)||!Number.isFinite(Date.parse(report.retrieved_at))||!Array.isArray(report.rows)||!report.rows.length||report.rows.length>20)throw Error('Invalid Google demand report.');
- const metric=n=>Number.isSafeInteger(n)&&n>=0?n.toLocaleString():'Not available';
- const rows=report.rows.map(r=>{
-  if(typeof r?.keyword!=='string'||r.keyword.length>80||!Array.isArray(r.monthly)||r.monthly.length>12)throw Error('Invalid Google demand row.');
-  const months=r.monthly.filter(m=>typeof m?.month==='string'&&/^\d{4}-\d{2}$/.test(m.month)).map(m=>'<div class="row"><span>'+esc(m.month)+'</span><b>'+metric(m.searches)+'</b></div>').join('');
-  return '<article class="v57-row"><b>'+esc(r.keyword)+'</b><p>Estimated average monthly Google searches: <strong>'+metric(r.average_monthly_searches)+'</strong></p><p class="mini">Google Ads competition: '+esc(['LOW','MEDIUM','HIGH'].includes(r.ads_competition)?r.ads_competition:'Not available')+'</p><details><summary>Monthly Google search history</summary>'+(months||'<p class="mini">No monthly data available.</p>')+'</details></article>';
- }).join('');
- $('v67-results').innerHTML='<div class="result-strip"><b>Google demand · '+(report.region==='UK'?'United Kingdom':'United States')+'</b><p class="mini">'+esc(report.source)+' · Retrieved '+esc(new Date(report.retrieved_at).toLocaleString())+' · '+(cached?'Cached result; no new provider task':'New research result')+'. Google estimates, not Etsy search volumes.</p></div><div class="stack">'+rows+'</div>';
+ const validated=validateReport(report);if(!state.uid||!state.ready)return;
+ if(demandOwner!==state.uid){demandReports={};demandOwner=state.uid;}
+ demandReports[validated.region]={report:validated,cached:cached===true};demandActive=validated.region;demandSelected=null;drawDemand();
 }
 async function v67Run(){
  if(!state.ready||!state.uid||!demandEnabled||demandPending||!$('v67-consent').checked)return;
  const keywords=$('v67-keywords').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean),region=$('v67-region').value;
  if(!keywords.length||keywords.length>20||keywords.some(x=>x.length>80)){toast('Enter 1–20 phrases, at most 80 characters each.',true);return;}
- const uid=state.uid,serial=++demandSerial;demandPending=true;$('v67-consent').checked=false;v67Button();$('v67-results').replaceChildren();$('v67-status').textContent='Researching Google demand…';
+ const uid=state.uid,serial=++demandSerial;demandPending=true;$('v67-consent').checked=false;v67Button();$('v67-status').textContent='Researching Google demand…';
  try{await verifiedUser();if(serial!==demandSerial||uid!==state.uid)return;const data=await v67Invoke({action:'research',region,keywords,consent:true});if(serial!==demandSerial||uid!==state.uid)return;if(data.report?.region!==region)throw Error('Unexpected research region.');v67RenderReport(data.report,data.cached===true);$('v67-status').textContent='Research ready. No listing has been changed.';}
  catch(e){if(serial===demandSerial&&uid===state.uid)$('v67-status').textContent=e.message;}
  finally{if(serial===demandSerial&&uid===state.uid){demandPending=false;v67Button();}}
 }
-export function v67Init(){if(!$('v67-run'))return;v67Reset();$('v67-consent').onchange=v67Button;$('v67-status-check').onclick=v67Check;$('v67-run').onclick=v67Run;}
+export function v67Init(){if(!$('v67-run'))return;v67Reset();$('v67-consent').onchange=v67Button;$('v67-status-check').onclick=v67Check;$('v67-run').onclick=v67Run;$('v68-sort').onchange=drawDemand;$('v68-filter').oninput=drawDemand;$('v68-product').onchange=drawDemand;$('v67-results').addEventListener('click',demandAction);demandProducts();}
