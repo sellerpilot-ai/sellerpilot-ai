@@ -7,7 +7,7 @@ async function read(req){const reader=req.body?.getReader();if(!reader)throw Err
 
 const bpc=/^bpc_[A-Za-z0-9]{8,160}$/;
 const returnURL=origin+'/sellerpilot-ai/?v=44&billing=portal-return';
-export function safePortalURL(raw){try{const u=new URL(raw);return u.origin==='https://billing.stripe.com'&&!u.username&&!u.password&&/^\/p\/session\/test_[A-Za-z0-9_-]{12,1000}$/.test(u.pathname)&&!u.search&&!u.hash}catch{return false}}
+export function safePortalURL(raw){try{if(typeof raw!=='string'||raw.length>8192||raw!==raw.trim()||/[\u0000-\u0020\u007f\\]/.test(raw))return false;const u=new URL(raw);return u.origin==='https://billing.stripe.com'&&!u.username&&!u.password&&u.pathname!=='/'&&!/^\/p\/session\/live_/i.test(u.pathname)}catch{return false}}
 export function safeConfig(c,id){const f=c?.features;return c?.object==='billing_portal.configuration'&&c.id===id&&c.livemode===false&&c.active===true&&c.login_page?.enabled===false&&f?.invoice_history?.enabled===true&&f.payment_method_update?.enabled===true&&f.subscription_cancel?.enabled===true&&f.subscription_cancel.mode==='at_period_end'&&f.subscription_cancel.proration_behavior==='none'&&f.subscription_update?.enabled===false&&f.customer_update?.enabled===false}
 export function ownsSubscription(sub,user,customer,prices){const plan=sub?.metadata?.sellerpilot_plan,expected=plan==='starter'?999:plan==='professional'?1999:0,items=sub?.items?.data,item=Array.isArray(items)&&items.length===1&&sub.items.has_more===false?items[0]:null,p=item?.price;return sub?.object==='subscription'&&sid.test(sub.id||'')&&sub.livemode===false&&sub.customer===customer&&sub.metadata?.sellerpilot_mode==='sandbox'&&sub.metadata?.sellerpilot_user_id===user&&expected>0&&item?.quantity===1&&p?.id===prices[plan]&&p.livemode===false&&p.currency==='gbp'&&p.unit_amount===expected&&p.recurring?.interval==='month'&&p.recurring?.interval_count===1}
 export function createHandler(env,fetcher){return async req=>{
@@ -44,7 +44,8 @@ export function createHandler(env,fetcher){return async req=>{
  if(!safeConfig(c,config))return fail(409,'Sandbox portal configuration does not match the approved test settings.');
  if(input.action==='status')return reply(200,{ok:true,sandbox:true,enabled:true,production_access:false});
  const session=await stripe('billing_portal/sessions',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({customer,configuration:config,return_url:returnURL})});
- if(session?.object!=='billing_portal.session'||session.livemode!==false||session.customer!==customer||session.configuration!==config||session.return_url!==returnURL||!safePortalURL(session.url))return fail(502,'Unexpected portal response.');
+ const issue=session?.object!=='billing_portal.session'?'object':session.livemode!==false?'sandbox mode':session.customer!==customer?'customer':session.configuration!==config?'configuration':session.return_url!==returnURL?'return URL':!safePortalURL(session.url)?'hosted URL':null;
+ if(issue)return fail(502,'Unexpected portal response ('+issue+').');
  return reply(200,{ok:true,sandbox:true,production_access:false,url:session.url});
  }catch{console.warn('STRIPE_SANDBOX_PORTAL_FAILED');return fail(503,'Sandbox portal unavailable. No production access granted.')}
 }}
