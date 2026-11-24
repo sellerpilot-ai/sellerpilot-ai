@@ -21,9 +21,9 @@ const get=()=>JSON.parse(localStorage.getItem('test-fixture')||JSON.stringify(in
 export function createClient(){return{
  functions:{async invoke(name,{body}){if(name!=='sellerpilot-ai-copy')return {error:{message:'Mock provider unavailable'}};if(body.action==='status'||body.action==='image_status')return {data:{ok:true,enabled:true}};if(body.action==='image_analyse')return {data:{ok:true,review:{summary:'Product is centred.',lighting:'Soft light.',background:'Plain background.',composition:'Leave more space.',thumbnail:'Product is visible.',recommended_shots:['Detail view'],alt_text:'Product against a plain background',caveats:['Only one photo reviewed']}}};return {data:{ok:true,updated_at:get().updated_at,draft:{title:'Gold tone bracelet for everyday wear',description:'Simple bracelet for everyday wear.',tags:['bracelet','gold jewellery'],explanations:['Removed repeated tags.'],missing_facts:['Confirm dimensions.']}}}}},
  auth:{onAuthStateChange(){},async getSession(){return{data:{session:{user}},error:null}},async getUser(){return{data:{user},error:null}}},
- from(table){let update=null;const q={select(){return q},order(){return q},eq(){return q},update(v){update=v;return q},
+ from(table){let update=null,insert=null;const q={select(){return q},order(){return q},eq(){return q},update(v){update=v;return q},insert(v){insert=v;return q},async single(){return q.maybeSingle()},
  async range(){if(table!=='products')throw Error('unexpected range');return{data:[get()],error:null}},
- async maybeSingle(){if(table==='sellerpilot_workspace_v19')return{data:{data:{},updated_at:null},error:null};
+ async maybeSingle(){if(table==='sellerpilot_workspace_v19'){if(update||insert){const v=update||insert;const saved={data:v.data,updated_at:v.updated_at||new Date().toISOString()};localStorage.setItem('test-weekly-workspace',JSON.stringify(saved));return{data:saved,error:null}}return{data:JSON.parse(localStorage.getItem('test-weekly-workspace')||'null'),error:null}};
  if(table!=='products')throw Error('unexpected table');if(update){const p={...get(),...update};localStorage.setItem('test-fixture',JSON.stringify(p));return{data:p,error:null}}return{data:get(),error:null}}
  };return q}
 }}
@@ -42,7 +42,7 @@ try {
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v29/);await open();
+ await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v30/);await open();
  assert.equal(await page.locator('#edit-market option:not([hidden])').allTextContents().then(x=>x.join(',')),'Etsy');
  await page.locator('[data-view="settings"]:visible').first().click();
  await page.locator('#v25-legacy').check();
@@ -94,6 +94,13 @@ try {
  await page.waitForFunction(()=>document.querySelector('#v28-result')?.textContent.includes('Product is centred.'));
  assert.match(await page.locator('#v28-result').innerText(),/Product against a plain background/);
  await page.locator('#v28-clear').click();assert.equal(await page.locator('#v28-preview-box').isVisible(),false);
+ await page.locator('[data-view="settings"]:visible').first().click();await page.locator('#view-settings [data-go="reports"]').click();
+ await page.locator('[data-v19-action="save-week"]').waitFor({state:'visible'});await page.locator('[data-v19-action="save-week"]').click();
+ await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')||'{}').data?.weekly?.length===1);
+ assert.match(await page.locator('#v30-history').innerText(),/1 listings/);assert.match(await page.locator('#v30-history').innerText(),/62\/100/);
+ await page.locator('[data-v19-action="save-week"]').click();await page.waitForFunction(()=>document.querySelector('#v30-week-status')?.textContent.includes('Saved for this week'));
+ assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.weekly.length),1);
+ await page.reload();await ready();await page.locator('[data-view="settings"]:visible').first().click();await page.locator('#view-settings [data-go="reports"]').click();await page.locator('#v30-history').waitFor({state:'visible'});assert.match(await page.locator('#v30-history').innerText(),/62\/100/);
  await page.goto(origin+'/demo.html');await page.locator('#demo-fix').waitFor({state:'visible'});assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.locator('#demo-fix').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/62\/100/);await page.locator('#demo-reset').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.goto(origin+'/home.html');assert.match(await page.locator('h1').innerText(),/Find listing problems/);
