@@ -42,7 +42,7 @@ try {
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v28/);await open();
+ await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v29/);await open();
  assert.equal(await page.locator('#edit-market option:not([hidden])').allTextContents().then(x=>x.join(',')),'Etsy');
  await page.locator('[data-view="settings"]:visible').first().click();
  await page.locator('#v25-legacy').check();
@@ -96,6 +96,11 @@ try {
  await page.locator('#v28-clear').click();assert.equal(await page.locator('#v28-preview-box').isVisible(),false);
  await page.goto(origin+'/demo.html');await page.locator('#demo-fix').waitFor({state:'visible'});assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.locator('#demo-fix').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/62\/100/);await page.locator('#demo-reset').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
+ await page.goto(origin+'/home.html');assert.match(await page.locator('h1').innerText(),/Find listing problems/);
+ assert.equal(await page.locator('a[href="./demo.html"]').count()>0,true);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+ await page.locator('a[href="./privacy.html"]').first().click();assert.match(await page.locator('.notice').innerText(),/Not a final privacy notice/);
+ await page.locator('a[href="./terms.html"]').first().click();assert.match(await page.locator('.notice').innerText(),/Not final commercial terms/);
  assert.deepEqual(errors,[]);
  console.log('PASS: module startup, mocked authentication, mobile navigation, guided apply, immediate score refresh, undo, mocked save and reload. No real cloud requests.');
 }finally{if(browser)await browser.close();await new Promise(r=>server.close(r))}
