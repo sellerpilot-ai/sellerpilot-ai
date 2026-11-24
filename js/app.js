@@ -1,3 +1,4 @@
+import {v61Init} from './beta-onboarding.js';
 import {v60Init} from './shop-assistant-workspace.js';
 import {v59Init} from './listing-plan-workspace.js';
 import {v58Init} from './competitor-workspace.js';
@@ -30,6 +31,7 @@ v19Init();
 v58Init();
 v59Init();
 v60Init();
+v61Init();
 v22PostInit();
 v25Init();
 v27Init();
