@@ -47,5 +47,7 @@ jobs:
         run: node tests/v52-access-page.mjs
       - name: Test local keyword discovery engine
         run: node tests/v57-keyword-discovery.mjs
+      - name: Test local competitor comparison engine
+        run: node tests/v58-competitor-comparison.mjs
       - name: Run browser regression using only mock data
         run: node tests/v24-browser.mjs
