@@ -1,3 +1,4 @@
+import { v40Init } from './stripe-test.js';
 import { v37Init } from './privacy-controls.js';
 import { v32Init } from './beta-feedback.js';
 import { v31Init } from './etsy-preview.js';
@@ -26,4 +27,5 @@ v28Init();
 v31Init();
 v32Init();
 v37Init();
+v40Init();
 init();
