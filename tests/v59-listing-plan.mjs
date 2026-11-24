@@ -17,6 +17,6 @@ assert.equal(buildPlan(current,null,kw,null).progress,null);
 assert.equal(buildPlan(current,null,kw,{currency:'USD',date:'invalid',difference:5}).price,null);
 assert.deepEqual(buildPlan({...current,market:'Amazon'},null,kw,null).keywords,[]);
 assert.equal(buildPlan({...current,market:'Amazon'},null,kw,null).slots,null);
-assert.equal(buildPlan(current,null,{...kw,tagCount:14},null).slots,0);
+assert.equal(buildPlan(current,null,{...kw,tagCount:14},null).slots,0);assert.deepEqual(buildPlan(current,null,{...kw,tagCount:14},null).keywords,[]);
 assert.equal(buildPlan({...current,issues:[]},baseline,kw,null).actions.length,0);
 console.log('PASS: priority grouping, eligible own-wording suggestions, honest baseline, price evidence, marketplace scope and empty states.');
