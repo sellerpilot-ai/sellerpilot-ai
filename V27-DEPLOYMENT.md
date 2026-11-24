@@ -14,3 +14,6 @@ References: https://supabase.com/docs/guides/functions/auth-headers ; https://de
 
 ## V28 addition
 Image analysis uses the same AI endpoint and global/per-user quota, plus a separate SELLERPILOT_AI_IMAGE_ENABLED switch (false by default). Confirm image-processing costs and data handling before enabling. The browser re-encodes to a bounded JPEG; the backend rejects oversized dimensions and common metadata markers. No photo is stored by SellerPilot. Provider retention is subject to the applicable service terms. Reference: https://developers.openai.com/api/docs/guides/images-vision
+
+## V34 superseding beta controls
+See launch/V34-AI-BETA.md for the current configuration. Older model and quota suggestions above are historical. Only the two reviewed efficient models are accepted, with hard maximum request counts and a verified-account allowlist. No public activation.
