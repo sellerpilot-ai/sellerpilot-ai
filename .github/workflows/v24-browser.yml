@@ -3,7 +3,8 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'index.html'
+      - '*.html'
+      - 'launch/**'
       - 'js/**'
       - 'css/**'
       - 'tests/**'
