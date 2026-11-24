@@ -45,10 +45,10 @@ export function createHandler(env,fetcher){
    if(!digits(owner)||!access.includes(".")||token.token_type?.toLowerCase()!=="bearer"||!String(token.scope||"").split(/\s+/).includes("listings_r"))return fail(502,"Etsy did not grant the required read-only access.");
    const etsyHeaders={"x-api-key":key+":"+secret,Authorization:"Bearer "+access};
    const shop=await json("https://api.etsy.com/v3/application/users/"+owner+"/shops",{headers:etsyHeaders});
-   if(!digits(shop.shop_id)||String(shop.user_id)!==owner)return fail(403,"Could not verify the shop belongs to this Etsy account.");
-   const data=await json("https://api.etsy.com/v3/application/shops/"+shop.shop_id+"/listings?state=active&limit=50&offset=0",{headers:etsyHeaders});
-   if(!Array.isArray(data.results)||data.results.some(x=>String(x.shop_id)!==String(shop.shop_id)||String(x.user_id)!==owner))return fail(502,"Could not verify the returned listings.");
-   const listings=data.results.slice(0,50).filter(x=>digits(x.listing_id)).map(x=>({listing_id:String(x.listing_id),title:tidy(x.title,250),state:tidy(x.state,30)}));
+   if(!digits(shop.shop_id)||String(shop.user_id)!==owner||typeof shop.shop_name!=="string"||!shop.shop_name.trim())return fail(403,"Could not verify the shop belongs to this Etsy account.");
+   const data=await json("https://api.etsy.com/v3/application/shops/"+shop.shop_id+"/listings?state=active&limit=50&offset=0&sort_on=created&sort_order=desc",{headers:etsyHeaders});
+   if(!Array.isArray(data.results)||data.results.length>50||data.results.some(x=>!x||String(x.shop_id)!==String(shop.shop_id)||String(x.user_id)!==owner||!digits(x.listing_id)||x.state!=="active"||typeof x.title!=="string"||!x.title.trim())||new Set(data.results.map(x=>String(x.listing_id))).size!==data.results.length)return fail(502,"Could not verify the returned listings.");
+   const listings=data.results.map(x=>({listing_id:String(x.listing_id),title:tidy(x.title,250),state:tidy(x.state,30)}));
    // Only basic preview fields returned; tokens, buyer data and raw response never leave the server.
    return reply(200,{ok:true,shop_name:tidy(shop.shop_name,120),listings,total:Number.isSafeInteger(data.count)&&data.count>=listings.length?data.count:null,retrieved_at:new Date().toISOString()});
   }catch{return fail(503,"Etsy preview unavailable. No listings or tokens were saved. Start a new authorisation if necessary.")}
