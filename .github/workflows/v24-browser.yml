@@ -60,5 +60,7 @@ jobs:
         run: node tests/v60-shop-assistant.mjs
       - name: Test marketplace approval and operator gates without network
         run: node tests/v65-marketplace-access.mjs
+      - name: Test isolated Google demand research with mock network
+        run: node tests/v67-google-demand.mjs
       - name: Run browser regression using only mock data
         run: node tests/v24-browser.mjs
