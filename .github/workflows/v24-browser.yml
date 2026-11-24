@@ -43,5 +43,7 @@ jobs:
         run: node tests/v44-sandbox-portal.mjs
       - name: Test dedicated mobile checkout with mock network
         run: node tests/v46-checkout-page.mjs
+      - name: Test dedicated sandbox access page with mock network
+        run: node tests/v52-access-page.mjs
       - name: Run browser regression using only mock data
         run: node tests/v24-browser.mjs
