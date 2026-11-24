@@ -1,3 +1,4 @@
+import {v61Render} from './beta-onboarding.js';
 import { $, esc, norm, tagList, cash, currencyCode, dateLabel, state, toast } from './core.js';
 import { getAuditHistory } from './audit.js';
 import { guarded } from './supabase-client.js';
@@ -39,7 +40,7 @@ export async function v19Commit(next){
   if(result.error)throw result.error;
  }
  if(state.uid!==uid||state.serial!==serial)return;
- v19Store.data=next;v19Store.updatedAt=result.data.updated_at;v19Render(state.view);
+ v19Store.data=next;v19Store.updatedAt=result.data.updated_at;v19Render(state.view);v61Render();
 }
 export async function v19Mutate(fn,success='Saved to private cloud'){
  if(!v19Store.loaded){toast('Research workspace has not loaded. Refresh and try again.',true);return}
