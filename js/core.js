@@ -1,5 +1,7 @@
 import { renderShortlist } from './keyword-lab.js';
 
+// Presentation mode only. Server authorisation is independent of this query parameter.
+export function operatorView(){const u=new URL(location.href);return u.searchParams.get('operator')==='1'||u.hash==='#v44-open'||['test-return','test-cancel'].includes(u.searchParams.get('billing'))}
 export const $=id=>document.getElementById(id);
 export const q=(sel,root=document)=>Array.from(root.querySelectorAll(sel));
 export const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
