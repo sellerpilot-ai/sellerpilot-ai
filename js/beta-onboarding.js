@@ -14,9 +14,11 @@ export function v61Checklist(products,workspace){
  ];
 }
 const link=(label,action)=>'<button type="button" class="button secondary sm" data-v61-go="'+action+'">'+label+'</button>';
-export function v61Reset(){if($('v61-checklist'))$('v61-checklist').replaceChildren();if($('v61-start-status'))$('v61-start-status').textContent='Sign in to see your setup progress.';if($('v61-start'))$('v61-start').open=false}
+let owner=null;
+export function v61Reset(){owner=null;if($('v61-checklist'))$('v61-checklist').replaceChildren();if($('v61-start-status'))$('v61-start-status').textContent='Sign in to see your setup progress.';if($('v61-start'))$('v61-start').open=false}
 export function v61Render(){
  const root=$('v61-checklist');if(!root)return;if(!state.ready||!state.uid){v61Reset();return}
+ if(owner!==state.uid){owner=state.uid;if($('v61-start'))$('v61-start').open=state.products.length===0;}
  const steps=v61Checklist(state.products,v19Store.loaded?v19Store.data:null),done=steps.filter(s=>s.done).length;
  $('v61-start-status').textContent=done+' of '+steps.length+' setup milestones · '+(v19Store.loaded?'Synced workspace':'Research sync unavailable');
  root.innerHTML=steps.map((s,i)=>'<div class="v61-step"><span class="v61-number" aria-hidden="true">'+(s.done?'✓':i+1)+'</span><div><b>'+esc(s.label)+'</b><span class="mini">'+(s.done?'Completed · ':'')+esc(s.detail)+'</span></div>'+link(s.done?'Revisit':'Open',s.action)+'</div>').join('');
