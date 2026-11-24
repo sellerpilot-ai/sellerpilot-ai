@@ -33,7 +33,7 @@ export function v22RenderHome(){
 export function v22GoToShopListings(){chosenView('shop');const el=document.getElementById('v21-cloud-list');if(el)el.scrollIntoView({block:'center',behavior:'smooth'})}
 export function v22ReviewId(id){const p=state.products.find(x=>x.id===id);if(!p){toast('Choose a saved listing first.',true);return}chosenView('shop');v21.selectedCloud.clear();v21.selectedCloud.add(id);v21SelectionReview()}
 export function v22HandleAction(action){
- if(action==='all-tools'){const d=document.getElementById('v22-dashboard-details');d.open=true;const el=d.querySelector('.v19-links')||d.querySelector('.v22-dashboard-inside');el.scrollIntoView({block:'center',behavior:'smooth'});return}
+ if(action==='all-tools'){const d=document.getElementById('v22-dashboard-details');d.open=true;if(document.body.classList.contains('v25-etsy-first')){chosenView('settings');document.querySelector('#view-settings .v19-links')?.scrollIntoView({block:'center',behavior:'smooth'});return}const el=d.querySelector('.v19-links')||d.querySelector('.v22-dashboard-inside');el.scrollIntoView({block:'center',behavior:'smooth'});return}
  if(action==='audit-one'){v22ReviewId(document.getElementById('v22-quick-product').value);return}
  if(action==='review-priority'){const sorted=[...state.products].sort((a,b)=>productQuality(a).score-productQuality(b).score);if(sorted[0])v22ReviewId(sorted[0].id);else chosenView('products');return}
  if(action==='audit-all'){v22GoToShopListings();return}

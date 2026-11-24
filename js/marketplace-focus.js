@@ -15,6 +15,7 @@ export function v25Refresh(){
  }
  const toggle=document.getElementById('v25-legacy');if(toggle)toggle.checked=legacy;
  const home=document.querySelector('label[for="v21-home-url"]');if(home)home.textContent=legacy?'Paste an Etsy shop or eBay seller link':'Paste an Etsy shop link';
+ const provider=document.getElementById('v25-shop-provider');if(provider)provider.textContent=legacy?'Etsy · eBay':'Etsy';
  const shop=document.getElementById('v21-shop-url');if(shop)shop.setAttribute('aria-label',legacy?'Etsy or eBay seller URL':'Etsy shop URL');
 }
 export function v25Init(){
