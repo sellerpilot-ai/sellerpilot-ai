@@ -31,5 +31,7 @@ jobs:
         run: node tests/v31-etsy-handler.mjs
       - name: Test isolated billing policy (no provider network)
         run: node tests/v38-billing-policy.mjs
+      - name: Test read-only Stripe diagnostic with mock network
+        run: node tests/v40-stripe-test.mjs
       - name: Run browser regression using only mock data
         run: node tests/v24-browser.mjs
