@@ -36,4 +36,4 @@ v41Init();
 v44Init();
 v54Init();
 v57Init();
-init();
+await init();
