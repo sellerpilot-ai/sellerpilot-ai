@@ -1,0 +1,21 @@
+// V30: private, catalogue-based health reports. No marketplace or sales estimates.
+import { esc, state } from './core.js';
+import { productQuality, getAuditHistory } from './audit.js';
+export function weekStart(now=new Date()){
+ const d=new Date(now);d.setUTCHours(0,0,0,0);d.setUTCDate(d.getUTCDate()-((d.getUTCDay()+6)%7));return d.toISOString().slice(0,10);
+}
+export function healthReport(products,now=new Date()){
+ const rows=products.map(p=>({p,a:productQuality(p)})),n=rows.length,counts=new Map();
+ for(const {a} of rows)for(const issue of a.issues){const label=String(issue.heading||'Review listing');counts.set(label,(counts.get(label)||0)+1)}
+ return {week:weekStart(now),at:now.toISOString(),products:n,average:n?Math.round(rows.reduce((s,r)=>s+r.a.score,0)/n):null,review:rows.filter(r=>r.a.score<70).length,strong:rows.filter(r=>r.a.score>=85).length,audits:products.reduce((s,p)=>s+getAuditHistory(p).length,0),issues:[...counts].sort((a,b)=>b[1]-a[1]).slice(0,5).map(([label,count])=>({label,count})),priority:rows.filter(r=>r.a.issues.length).sort((a,b)=>a.a.score-b.a.score).slice(0,5).map(({p,a})=>({id:p.id,title:p.title,score:a.score,issue:a.issues[0].heading}))};
+}
+export function saveWeek(history,r){
+ const {priority,...snapshot}=r;
+ return [snapshot,...history.filter(x=>x.week!==r.week)].sort((a,b)=>String(b.week).localeCompare(String(a.week))).slice(0,16);
+}
+export function renderHealth(history){
+ const r=healthReport(state.products),saved=history.find(x=>x.week===r.week),prev=history.find(x=>x.week<r.week);
+ const num=v=>Number.isFinite(v)?String(v):'—',score=v=>Number.isFinite(v)?v+'/100':'—';
+ const delta=prev&&Number.isFinite(prev.average)&&r.average!==null?r.average-prev.average:null;
+ return `<div class="card" style="margin-bottom:18px"><div class="row"><h2>Weekly shop health</h2><span class="pill">Week of ${esc(r.week)} · UTC</span></div><p class="mini">Live summary of your saved catalogue, not marketplace sales or rankings. Save one snapshot per week to track changes.</p><div class="v19-metrics">${[['Saved listings',r.products],['Average quality',score(r.average)],['Need review',r.review],['Strong listings',r.strong]].map(([k,v])=>`<div class="v19-mini-metric"><b>${esc(v)}</b><small>${esc(k)}</small></div>`).join('')}</div><p class="mini" id="v30-week-status">${saved?'Saved for this week. You may replace the snapshot.':'No snapshot saved for this week.'} ${delta===null?'Save reports in separate weeks to compare.':`Change from ${esc(prev.week)}: ${delta>0?'+':''}${delta} score points. Changes can reflect a different mix of listings.`}</p><div class="form-actions"><button class="button" data-v19-action="save-week">${saved?'Update this week':'Save this week'}</button><button class="button secondary" data-v19-action="export-weekly">Export weekly CSV</button></div><hr class="soft-divider"><h2>Most common issues</h2><div class="v19-entries">${r.issues.map(x=>`<div class="v19-entry row"><b>${esc(x.label)}</b><span class="pill">${num(x.count)} flags</span></div>`).join('')||'<p class="mini">No listing issues found in the current catalogue.</p>'}</div><h2 style="margin-top:18px">Priority actions</h2><div class="stack">${r.priority.map(x=>`<div class="list-card"><div class="detail"><b>${esc(x.title)}</b><span>${esc(x.issue)} · ${num(x.score)}/100</span></div><button class="button secondary sm" data-edit="${esc(x.id)}">Review</button></div>`).join('')||'<p class="mini">Add products to build an action list.</p>'}</div></div><div class="card" style="margin-bottom:18px"><h2>Weekly history</h2><p class="mini">Up to 16 saved weekly snapshots. No missing weeks are fabricated. Email delivery is not enabled.</p><div class="v19-entries" id="v30-history">${history.map(x=>`<div class="v19-entry"><div class="row"><b>Week of ${esc(x.week)}</b><span class="pill">${score(x.average)}</span></div><div class="mini">${num(x.products)} listings · ${num(x.review)} need review · ${num(x.audits)} retained audit snapshots</div></div>`).join('')||'<p class="mini">No weekly snapshots saved yet.</p>'}</div></div>`;
+}
