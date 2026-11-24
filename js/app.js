@@ -7,6 +7,8 @@ import { v23Init } from './guided-fixes.js';
 
 import { v25Init } from './marketplace-focus.js';
 
+import { v27Init } from './ai-optimiser.js';
+
 v20Init();
 v21Init();
 v22Init();
@@ -14,4 +16,5 @@ v23Init();
 v19Init();
 v22PostInit();
 v25Init();
+v27Init();
 init();
