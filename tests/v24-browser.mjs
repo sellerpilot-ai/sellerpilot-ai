@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
 import { chromium } from 'playwright';
 
-const root=process.cwd(), types={'.html':'text/html','.js':'text/javascript','.css':'text/css'};
+const root=process.cwd(), types={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css'};
 const server=createServer(async(req,res)=>{
  try {
   const path=resolve(root,'.'+new URL(req.url,'http://localhost').pathname);
@@ -42,7 +42,17 @@ try {
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v56/);
+ await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v57/);
+ await page.locator('[data-view="keywords"]:visible, [data-go="keywords"]:visible').count().then(async n=>{if(n)await page.locator('[data-view="keywords"]:visible, [data-go="keywords"]:visible').first().click();else await page.locator('#v22-tab-keyword').click()});
+ if(!await page.locator('#view-keywords').isVisible()){await page.locator('#v22-home-keyword').fill('bracelet');await page.locator('[data-v22-action="keyword"]').click()}
+ await page.locator('#v57-product').selectOption('fixture-product');await page.locator('#v57-seed').fill('gold tone bracelet');await page.locator('#v57-extra').fill('birthday gift');
+ await page.locator('#v57-generate').click();assert.doesNotMatch(await page.locator('#v57-results').innerText(),/local relevance/);
+ await page.locator('#v57-confirm').check();await page.locator('#v57-generate').click();
+ assert.match(await page.locator('#v57-results').innerText(),/Duplicate tags/);assert.match(await page.locator('#v57-results').innerText(),/bracelet × 2/);
+ await page.locator('#v57-filter').selectOption('tags');await page.locator('#v57-results [data-v57-save]').first().click();assert.ok((await page.locator('#keyword-shortlist button').count())>0);
+ await page.locator('#v57-seed').fill('new phrase');assert.match(await page.locator('#v57-results').innerText(),/Inputs changed/);
+ await page.locator('[data-view="overview"]:visible').first().click();
+
  await page.waitForFunction(()=>document.querySelector('#v55-home-status')?.textContent.includes('Starter'));
  assert.match(await page.locator('#v55-home-status').innerText(),/0 \/ 5 daily · 25 \/ 30 monthly remaining/);
  assert.match(await page.locator('#v55-home-reset').innerText(),/25 Nov 2026 at 00:00 UTC/);
@@ -163,8 +173,8 @@ try {
  await page.waitForTimeout(800);assert.equal(await page.locator('#v54-image').isHidden(),true);assert.equal(await page.locator('#v54-sidebar').isHidden(),true);assert.equal(await page.locator('#v55-home').isHidden(),true);assert.equal(await page.locator('#v55-home-reset').textContent(),'');assert.equal(await page.locator('#v54-side-usage').textContent(),'');
  await page.evaluate(()=>localStorage.removeItem('test-v54-mode'));
  console.log('PASS: V54 integrated status, billing navigation, Starter and Professional, errors, account reset and late response isolation.');
- await page.evaluate(async()=>{const {clearWorkspace}=await import('./js/ui.js');const {state}=await import('./js/core.js');document.querySelector('#ai-output').value='Private prior brief';document.querySelector('#ai-audience').value='Private audience';document.querySelector('#ai-facts').value='Private facts';state.shortlist=['private phrase'];clearWorkspace()});
- assert.equal(await page.locator('#ai-output').inputValue(),'');assert.equal(await page.locator('#ai-audience').inputValue(),'');assert.equal(await page.locator('#ai-facts').inputValue(),'');assert.equal(await page.locator('#v19-content-reports').innerText(),'');assert.equal(await page.locator('#auth-signup').isDisabled(),true);
+ await page.evaluate(async()=>{const {clearWorkspace}=await import('./js/ui.js');const {state}=await import('./js/core.js');document.querySelector('#v57-seed').value='private keyword';document.querySelector('#v57-extra').value='private modifier';document.querySelector('#v57-results').textContent='Private keyword results';document.querySelector('#keyword-results').textContent='Private catalogue results';document.querySelector('#ai-output').value='Private prior brief';document.querySelector('#ai-audience').value='Private audience';document.querySelector('#ai-facts').value='Private facts';state.shortlist=['private phrase'];clearWorkspace()});
+ assert.equal(await page.locator('#v57-seed').inputValue(),'');assert.equal(await page.locator('#v57-extra').inputValue(),'');assert.doesNotMatch(await page.locator('#v57-results').textContent(),/Private keyword results/);assert.doesNotMatch(await page.locator('#keyword-results').textContent(),/Private catalogue results/);assert.equal(await page.locator('#ai-output').inputValue(),'');assert.equal(await page.locator('#ai-audience').inputValue(),'');assert.equal(await page.locator('#ai-facts').inputValue(),'');assert.equal(await page.locator('#v19-content-reports').innerText(),'');assert.equal(await page.locator('#auth-signup').isDisabled(),true);
  await page.goto(origin+'/demo.html');await page.locator('#demo-fix').waitFor({state:'visible'});assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.locator('#demo-fix').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/62\/100/);await page.locator('#demo-reset').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.goto(origin+'/home.html');assert.match(await page.locator('h1').innerText(),/Find listing problems/);
