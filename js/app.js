@@ -1,3 +1,4 @@
+import {v59Init} from './listing-plan-workspace.js';
 import {v58Init} from './competitor-workspace.js';
 import {v57Init} from './keyword-lab.js';
 import { v54Init } from './subscription-workspace.js';
@@ -26,6 +27,7 @@ v22Init();
 v23Init();
 v19Init();
 v58Init();
+v59Init();
 v22PostInit();
 v25Init();
 v27Init();

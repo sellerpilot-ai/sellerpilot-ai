@@ -36,13 +36,13 @@ try {
  page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',async route=>{
   const url=route.request().url();
-  if(url.startsWith(origin+'/')){const u=new URL(url);if(workspacePhase&&u.pathname.startsWith('/js/')&&u.searchParams.get('v')!=='58'){staleRequests.push(u.pathname+u.search);return route.fulfill({status:200,contentType:'text/javascript',body:'export const staleCachedModule=true;'});}return route.continue();}
+  if(url.startsWith(origin+'/')){const u=new URL(url);if(workspacePhase&&u.pathname.startsWith('/js/')&&u.searchParams.get('v')!=='59'){staleRequests.push(u.pathname+u.search);return route.fulfill({status:200,contentType:'text/javascript',body:'export const staleCachedModule=true;'});}return route.continue();}
   if(url.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});
   return route.abort();
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v58/);
+ await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v59/);
  await page.locator('[data-view="keywords"]:visible, [data-go="keywords"]:visible').count().then(async n=>{if(n)await page.locator('[data-view="keywords"]:visible, [data-go="keywords"]:visible').first().click();else await page.locator('#v22-tab-keyword').click()});
  if(!await page.locator('#view-keywords').isVisible()){await page.locator('#v22-home-keyword').fill('bracelet');await page.locator('[data-v22-action="keyword"]').click()}
  await page.locator('#v57-product').selectOption('fixture-product');await page.locator('#v57-seed').fill('gold tone bracelet');await page.locator('#v57-extra').fill('birthday gift');
@@ -60,6 +60,9 @@ try {
  await page.locator('#v58-consent').check();await page.locator('#v58-run').click();assert.match(await page.locator('#v58-results').innerText(),/No competitor tag data supplied/);assert.match(await page.locator('#v58-results').innerText(),/GBP -6.00/);
  await page.locator('#v58-known').check();await page.locator('#v58-tags').fill('bracelet,birthday gift');await page.locator('#v58-own-facts').fill('gift box');await page.locator('#v58-run').click();
  assert.match(await page.locator('#v58-results').innerText(),/1 shared · 1 missing/);assert.match(await page.locator('#v58-results').innerText(),/birthday gift/);assert.equal(await page.locator('#v58-export').isDisabled(),false);
+ await page.locator('#v59-open-plan').click();assert.equal(await page.locator('#v59-plan').isVisible(),true);
+ assert.match(await page.locator('#v59-plan').innerText(),/Pricing observation/);assert.match(await page.locator('#v59-plan').innerText(),/GBP -6.00/);
+ await page.locator('[data-view="settings"]:visible').first().click();await page.locator('.v22-settings-grid [data-go="competitors"]').click();
  await page.locator('#v58-currency').selectOption('USD');assert.equal(await page.locator('#v58-export').isDisabled(),true);await page.locator('#v58-run').click();assert.match(await page.locator('#v58-results').innerText(),/Not comparable/);
  await page.locator('[data-view="overview"]:visible').first().click();
  await page.waitForFunction(()=>document.querySelector('#v55-home-status')?.textContent.includes('Starter'));
@@ -86,14 +89,23 @@ try {
  const fix=()=>page.locator('#v23-guide [data-v23-heading="Repeated tags"]').click();
  const apply=()=>page.locator('[data-v23-action="apply"]').click();
  assert.match(await score(),/^51\/100/);
+ assert.match(await page.locator('#v59-plan').innerText(),/Recommended next steps/);
+ assert.match(await page.locator('#v59-plan').innerText(),/Keyword opportunities/);
+ assert.match(await page.locator('#v59-plan').innerText(),/No current comparable observation/);
+ assert.match(await page.locator('#v59-plan').innerText(),/0 of .* saved audit findings cleared/);
+ await page.locator('#edit-tags').fill('bracelet,gold jewellery,bracelet,extra');
+ assert.match(await page.locator('#v59-plan').innerText(),/Draft changed/);
+ await page.locator('#edit-tags').fill('bracelet,gold jewellery,bracelet');
+ await page.locator('#v59-plan [data-v59-recheck]').click();
+ await page.locator('#v59-plan .v59-action [data-v23-fix="edit-tags"]').click();
  await fix();await page.locator('#v23-workbench').waitFor({state:'visible'});await apply();
  assert.equal(await page.locator('#edit-tags').inputValue(),'bracelet, gold jewellery');
  assert.match(await score(),/^62\/100/);
- assert.match(await page.locator('#audit-output .ring-inner').innerText(),/62/);
+ assert.match(await page.locator('#audit-output .ring-inner').innerText(),/62/);assert.match(await page.locator('#v59-plan').innerText(),/\+11/);assert.match(await page.locator('#v59-plan').innerText(),/1 of .* saved audit findings cleared/);
  assert.equal(await page.evaluate(()=>localStorage.getItem('test-fixture')),null);
  await page.locator('[data-v23-action="undo"]').click();
  assert.equal(await page.locator('#edit-tags').inputValue(),'bracelet,gold jewellery,bracelet');
- assert.match(await score(),/^51\/100/);
+ assert.match(await score(),/^51\/100/);assert.match(await page.locator('#v59-plan').innerText(),/0 of .* saved audit findings cleared/);
  await fix();await apply();await page.locator('[data-v23-action="save"]').click();
  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-fixture')||'{}').tags==='bracelet, gold jewellery'&&document.querySelector('#editor-state')?.textContent==='Saved in cloud');
  await page.reload();await ready();await open();assert.match(await score(),/^62\/100/);
@@ -182,8 +194,8 @@ try {
  await page.waitForTimeout(800);assert.equal(await page.locator('#v54-image').isHidden(),true);assert.equal(await page.locator('#v54-sidebar').isHidden(),true);assert.equal(await page.locator('#v55-home').isHidden(),true);assert.equal(await page.locator('#v55-home-reset').textContent(),'');assert.equal(await page.locator('#v54-side-usage').textContent(),'');
  await page.evaluate(()=>localStorage.removeItem('test-v54-mode'));
  console.log('PASS: V54 integrated status, billing navigation, Starter and Professional, errors, account reset and late response isolation.');
- await page.evaluate(async()=>{const {clearWorkspace}=await import('./js/ui.js');const {state}=await import('./js/core.js');document.querySelector('#v58-title').value='private competitor';document.querySelector('#v58-results').textContent='Private competitor results';document.querySelector('#v57-seed').value='private keyword';document.querySelector('#v57-extra').value='private modifier';document.querySelector('#v57-results').textContent='Private keyword results';document.querySelector('#keyword-results').textContent='Private catalogue results';document.querySelector('#ai-output').value='Private prior brief';document.querySelector('#ai-audience').value='Private audience';document.querySelector('#ai-facts').value='Private facts';state.shortlist=['private phrase'];clearWorkspace()});
- assert.equal(await page.locator('#v58-title').inputValue(),'');assert.doesNotMatch(await page.locator('#v58-results').textContent(),/Private competitor results/);assert.equal(await page.locator('#v57-seed').inputValue(),'');assert.equal(await page.locator('#v57-extra').inputValue(),'');assert.doesNotMatch(await page.locator('#v57-results').textContent(),/Private keyword results/);assert.doesNotMatch(await page.locator('#keyword-results').textContent(),/Private catalogue results/);assert.equal(await page.locator('#ai-output').inputValue(),'');assert.equal(await page.locator('#ai-audience').inputValue(),'');assert.equal(await page.locator('#ai-facts').inputValue(),'');assert.equal(await page.locator('#v19-content-reports').innerText(),'');assert.equal(await page.locator('#auth-signup').isDisabled(),true);
+ await page.evaluate(async()=>{const {clearWorkspace}=await import('./js/ui.js');const {state}=await import('./js/core.js');document.querySelector('#v59-plan').textContent='Private action plan';document.querySelector('#v58-title').value='private competitor';document.querySelector('#v58-results').textContent='Private competitor results';document.querySelector('#v57-seed').value='private keyword';document.querySelector('#v57-extra').value='private modifier';document.querySelector('#v57-results').textContent='Private keyword results';document.querySelector('#keyword-results').textContent='Private catalogue results';document.querySelector('#ai-output').value='Private prior brief';document.querySelector('#ai-audience').value='Private audience';document.querySelector('#ai-facts').value='Private facts';state.shortlist=['private phrase'];clearWorkspace()});
+ assert.equal(await page.locator('#v59-plan').textContent(),'');assert.equal(await page.locator('#v59-plan').isVisible(),false);assert.equal(await page.locator('#v58-title').inputValue(),'');assert.doesNotMatch(await page.locator('#v58-results').textContent(),/Private competitor results/);assert.equal(await page.locator('#v57-seed').inputValue(),'');assert.equal(await page.locator('#v57-extra').inputValue(),'');assert.doesNotMatch(await page.locator('#v57-results').textContent(),/Private keyword results/);assert.doesNotMatch(await page.locator('#keyword-results').textContent(),/Private catalogue results/);assert.equal(await page.locator('#ai-output').inputValue(),'');assert.equal(await page.locator('#ai-audience').inputValue(),'');assert.equal(await page.locator('#ai-facts').inputValue(),'');assert.equal(await page.locator('#v19-content-reports').innerText(),'');assert.equal(await page.locator('#auth-signup').isDisabled(),true);
  assert.deepEqual(staleRequests,[]);workspacePhase=false;
  await page.goto(origin+'/demo.html');await page.locator('#demo-fix').waitFor({state:'visible'});assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.locator('#demo-fix').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/62\/100/);await page.locator('#demo-reset').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
@@ -195,7 +207,7 @@ try {
  assert.deepEqual(errors,[]);
  const failurePage=await browser.newPage();
  await failurePage.route('**/*',async route=>{const url=new URL(route.request().url());if(url.pathname.endsWith('/keyword-discovery.js'))return route.abort();if(url.origin===origin)return route.continue();return route.abort()});
- await failurePage.goto(origin+'/index.html?v=58');await failurePage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Workspace startup failed'));
+ await failurePage.goto(origin+'/index.html?v=59');await failurePage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Workspace startup failed'));
  assert.equal(await failurePage.locator('#account-chip').textContent(),'Connection unavailable');await failurePage.close();
  console.log('PASS: one version for all local workspace modules; simulated stale cache cannot supply outdated modules; failed module startup is visible.');
  console.log('PASS: module startup, mocked authentication, mobile navigation, guided apply, immediate score refresh, undo, mocked save and reload. No real cloud requests.');
