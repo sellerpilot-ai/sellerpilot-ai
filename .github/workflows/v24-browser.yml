@@ -37,5 +37,7 @@ jobs:
         run: node tests/v41-stripe-checkout.mjs
       - name: Test signed sandbox webhooks with mock network
         run: node tests/v42-stripe-webhook.mjs
+      - name: Test sandbox access policy with mock network
+        run: node tests/v43-sandbox-access.mjs
       - name: Run browser regression using only mock data
         run: node tests/v24-browser.mjs
