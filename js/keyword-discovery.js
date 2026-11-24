@@ -39,7 +39,7 @@ export function discover(product,seed='',extra=''){
   const anchored=w.some(x=>heads.has(x)),sourceList=[...sources],explicit=sources.has('Your focus phrase')||sources.has('Your confirmed phrase');
   const evidence=coverage.title?1:coverage.tag?.9:coverage.description?.75:explicit?.65:.45;
   const specificity=w.length===1?.35:w.length===2?.75:w.length===3?1:w.length<=5?.85:.6;
-  const context=focus.size?focusMatch:anchored?1:explicit?.65:.25;
+  const context=focus.size?focusMatch:anchored?.85:explicit?.65:.25;
   let score=Math.round(100*(.40*match+.25*context+.20*evidence+.15*specificity));
   if(query&&phrase===query&&coverage.title&&match===1)score=100;else score=Math.min(95,score);
   const tagEligible=Array.from(phrase).length<=20;
