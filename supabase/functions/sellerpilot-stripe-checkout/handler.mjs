@@ -22,7 +22,7 @@ export function createHandler(env,fetcher){return async req=>{
   if(!ur.ok)return fail(401,'Verified account required.');
   const user=await ur.json();
   // Existing private AI test-account allowlist is reused solely for the operator diagnostic.
-  if(!uuid.test(user?.id||'')||!user.email_confirmed_at||user.is_anonymous===true||!env('SELLERPILOT_AI_BETA_USER_IDS').split(',').map(x=>x.trim()).includes(user.id))return fail(403,'Private test account required.');
+  if(!uuid.test(user?.id||'')||!user.email_confirmed_at||user.is_anonymous===true||!env('SELLERPILOT_STRIPE_BETA_USER_IDS').split(',').map(x=>x.trim()).includes(user.id))return fail(403,'Private test account required.');
   let input;try{input=await body(req)}catch{return fail(400,'Invalid diagnostic request.')}
   if(!input||typeof input!=='object'||Array.isArray(input))return fail(400,'Invalid request.');
   const enabled=env('SELLERPILOT_STRIPE_ENABLED')==='true';

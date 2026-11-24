@@ -23,7 +23,7 @@ export function createHandler(env,fetcher){return async req=>{
  const ur=await fetcher(base+'/auth/v1/user',{headers:{apikey:pk,Authorization:auth},redirect:'error',signal:AbortSignal.timeout(8000)});
  if(!ur.ok)return fail(401,'Verified account required.');
  const user=await ur.json();
- if(!uuid.test(user?.id||'')||!user.email_confirmed_at||user.is_anonymous===true||!env('SELLERPILOT_AI_BETA_USER_IDS').split(',').map(x=>x.trim()).includes(user.id))return fail(403,'Private test account required.');
+ if(!uuid.test(user?.id||'')||!user.email_confirmed_at||user.is_anonymous===true||!env('SELLERPILOT_STRIPE_BETA_USER_IDS').split(',').map(x=>x.trim()).includes(user.id))return fail(403,'Private test account required.');
  let input;try{input=await read(req)}catch{return fail(400,'Invalid request.')}
  if(!input||typeof input!=='object'||Array.isArray(input))return fail(400,'Invalid request.');
  const fields=Object.keys(input).sort().join(',');

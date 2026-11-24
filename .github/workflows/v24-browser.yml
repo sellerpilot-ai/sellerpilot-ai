@@ -58,5 +58,7 @@ jobs:
         run: node tests/v59-listing-plan.mjs
       - name: Test local shop assistant
         run: node tests/v60-shop-assistant.mjs
+      - name: Test marketplace approval and operator gates without network
+        run: node tests/v65-marketplace-access.mjs
       - name: Run browser regression using only mock data
         run: node tests/v24-browser.mjs
