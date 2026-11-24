@@ -51,5 +51,7 @@ jobs:
         run: node tests/v58-competitor-comparison.mjs
       - name: Test local listing action plan
         run: node tests/v59-listing-plan.mjs
+      - name: Test local shop assistant
+        run: node tests/v60-shop-assistant.mjs
       - name: Run browser regression using only mock data
         run: node tests/v24-browser.mjs
