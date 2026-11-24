@@ -3,11 +3,11 @@ import { getAuditHistory } from './audit.js';
 import { guarded } from './supabase-client.js';
 import { toCSV, download } from './csv.js';
 import { v19Competitors } from './competitor-research.js';
-import { healthReport, saveWeek, renderHealth } from './weekly-health.js';
+import { healthReport, saveWeek, renderHealth, autoSnapshotDue } from './weekly-health.js';
 
 /* SellerPilot v19 — additional first-party cloud research modules. Runs inside v18 module. */
 export const v19Store={loaded:false,updatedAt:null,error:'',data:null};
-export function v19Defaults(){return {keywords:[],competitors:[],ranks:[],profits:[],tasks:[],weekly:[],prefs:{currency:'GBP',focusMarketplace:'Etsy',targetCountry:'United Kingdom',audience:'',seoStrategy:'natural',targetMargin:'25',approvalRequired:true,notifyEmail:false,privacyMode:true},notes:''}}
+export function v19Defaults(){return {keywords:[],competitors:[],ranks:[],profits:[],tasks:[],weekly:[],monitoring:{enabled:false},prefs:{currency:'GBP',focusMarketplace:'Etsy',targetCountry:'United Kingdom',audience:'',seoStrategy:'natural',targetMargin:'25',approvalRequired:true,notifyEmail:false,privacyMode:true},notes:''}}
 export function v19Reset(){v19Store.loaded=false;v19Store.data=v19Defaults();v19Store.updatedAt=null;v19Store.error='';}
 export function v19SafeArray(value,max=250){return Array.isArray(value)?value.filter(x=>x&&typeof x==='object').slice(0,max):[]}
 export async function v19Load(uid,serial){
@@ -17,20 +17,28 @@ export async function v19Load(uid,serial){
   const raw=data?.data||{},base=v19Defaults();
   for(const k of ['keywords','competitors','ranks','profits','tasks'])base[k]=v19SafeArray(raw[k]);
   base.weekly=v19SafeArray(raw.weekly,16).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x.week||'')).sort((a,b)=>b.week.localeCompare(a.week));
+  base.monitoring={enabled:raw.monitoring?.enabled===true};
   base.prefs={...base.prefs,...(raw.prefs&&typeof raw.prefs==='object'&&!Array.isArray(raw.prefs)?raw.prefs:{})};base.notes=String(raw.notes||'').slice(0,3000);
   v19Store.data=base;v19Store.loaded=true;v19Store.updatedAt=data?.updated_at||null;v19Store.error='';
  }catch(e){v19Store.error=e.message||'Workspace data inaccessible';v19Store.loaded=false;toast('Research workspace unavailable: '+v19Store.error,true)}
- v19Render(state.view);
+ if(state.uid!==uid||state.serial!==serial)return;
+ if(v19Store.loaded&&state.ready&&autoSnapshotDue(v19Store.data.monitoring,v19Store.data.weekly,state.products)){
+  try{const next=JSON.parse(JSON.stringify(v19Store.data));next.weekly=saveWeek(next.weekly,{...healthReport(state.products),source:'auto'});await v19Commit(next)}
+  catch{if(state.uid===uid&&state.serial===serial)toast('Automatic weekly snapshot was not saved. Refresh later to retry.',true)}
+ }
+ if(state.uid===uid&&state.serial===serial)v19Render(state.view);
 }
 export async function v19Commit(next){
  if(!state.uid||!v19Store.loaded)throw Error('Sign in and load your research workspace first.');
+ const uid=state.uid,serial=state.serial;
  const dataString=JSON.stringify(next);if(dataString.length>160000)throw Error('Research workspace is full. Export and remove old records before adding more.');
  const updated_at=new Date().toISOString();let result;
- if(v19Store.updatedAt){result=await state.client.from('sellerpilot_workspace_v19').update({data:next,updated_at}).eq('user_id',state.uid).eq('updated_at',v19Store.updatedAt).select('updated_at').maybeSingle();
+ if(v19Store.updatedAt){result=await state.client.from('sellerpilot_workspace_v19').update({data:next,updated_at}).eq('user_id',uid).eq('updated_at',v19Store.updatedAt).select('updated_at').maybeSingle();
   if(result.error)throw result.error;if(!result.data)throw Error('This workspace changed elsewhere. Refresh the page before making further changes.');
- }else{result=await state.client.from('sellerpilot_workspace_v19').insert({user_id:state.uid,data:next}).select('updated_at').single();
+ }else{result=await state.client.from('sellerpilot_workspace_v19').insert({user_id:uid,data:next}).select('updated_at').single();
   if(result.error)throw result.error;
  }
+ if(state.uid!==uid||state.serial!==serial)return;
  v19Store.data=next;v19Store.updatedAt=result.data.updated_at;v19Render(state.view);
 }
 export async function v19Mutate(fn,success='Saved to private cloud'){
@@ -62,7 +70,7 @@ export function v19Init(){
  const linkbar=`<div class="v19-links"><div class="mini" style="font-weight:800;margin-bottom:9px">RESEARCH & OPERATIONS</div><div class="v19-actions">${[['research','Research Hub'],['competitors','Competitors'],['ranks','Rank & Trends'],['profits','Profit Planner'],['tasks','Review Tasks'],['reports','Reports'],['advanced','Advanced Controls']].map(([id,t])=>`<button data-go="${id}" class="button secondary sm">${t}</button>`).join('')}</div></div>`;
  $('view-overview').insertAdjacentHTML('beforeend',linkbar);
  $('view-settings').insertAdjacentHTML('beforeend',linkbar);
- document.querySelector('.sidebar-foot').innerHTML=document.querySelector('.sidebar-foot').innerHTML.replace('v18 · Listing intelligence beta','v33 · Seller workspace');
+ document.querySelector('.sidebar-foot').innerHTML=document.querySelector('.sidebar-foot').innerHTML.replace('v18 · Listing intelligence beta','v35 · Seller workspace');
  document.addEventListener('click',v19Click);
  document.addEventListener('input',e=>{if(e.target.closest('#v19-profit-calc'))v19Calc()});
  v19Reset();
@@ -95,15 +103,16 @@ export function v19Render(view){
  if(!state.ready){container.innerHTML=v19Empty('Sign in to access your private workspace.');return}
  if(!v19Store.loaded){container.innerHTML=`<div class="note warning">Research workspace unavailable. ${esc(v19Store.error||'Refresh your cloud catalogue and retry.')}</div>`;return}
  const templates={research:v19Research,competitors:v19Competitors,ranks:v19Ranks,profits:v19Profits,tasks:v19Tasks,reports:v19Reports,advanced:v19Advanced};
- container.innerHTML=(view==='reports'?renderHealth(v19Store.data.weekly):'')+(templates[view]?.()||'');
+ container.innerHTML=(view==='reports'?renderHealth(v19Store.data.weekly,v19Store.data.monitoring):'')+(templates[view]?.()||'');
  if(view==='profits')v19Calc();if(view==='advanced')$('v19-p-audience').value=v19Store.data.prefs.audience||'';
 }
 export function v19CSV(file,heads,items){download(file,'\ufeff'+toCSV([heads,...items]),'text/csv;charset=utf-8')}
 export async function v19Click(e){
  const btn=e.target.closest('[data-v19-action]');if(!btn)return;const action=btn.dataset.v19Action; if(!v19Store.loaded){toast('Your cloud workspace is not ready.',true);return}
  try{
-  if(action==='save-week'){if(!state.ready)return;const r=healthReport(state.products);await v19Mutate(d=>{d.weekly=saveWeek(d.weekly,r)},'Weekly health snapshot saved');return;}
-  if(action==='export-weekly'){const history=v19Store.data.weekly;v19CSV('sellerpilot-weekly-health.csv',['week_utc','saved_at','listings','average_quality','needs_review','strong_listings','retained_audits'],history.map(x=>[x.week,x.at,x.products,x.average??'',x.review,x.strong,x.audits]));return;}
+  if(action==='toggle-monitoring'){if(!state.ready)return;const enabled=!v19Store.data.monitoring.enabled;await v19Mutate(d=>{d.monitoring.enabled=enabled;if(autoSnapshotDue(d.monitoring,d.weekly,state.products))d.weekly=saveWeek(d.weekly,{...healthReport(state.products),source:'auto'})},enabled?'Weekly monitoring enabled':'Weekly monitoring paused');return;}
+  if(action==='save-week'){if(!state.ready)return;const r=healthReport(state.products);await v19Mutate(d=>{d.weekly=saveWeek(d.weekly,{...r,source:'manual'})},'Weekly health snapshot saved');return;}
+  if(action==='export-weekly'){const history=v19Store.data.weekly;v19CSV('sellerpilot-weekly-health.csv',['week_utc','saved_at','listings','average_quality','needs_review','strong_listings','retained_audits','capture_mode'],history.map(x=>[x.week,x.at,x.products,x.average??'',x.review,x.strong,x.audits,x.source==='auto'?'automatic':'manual']));return;}
   if(action==='inspect-tags'){v19TagInspect();return}
   if(action==='save-keyword'){
    const phrase=v19Input('v19-phrase');if(!phrase||phrase.length>120)throw Error('Enter a valid keyword phrase.');if(v19Store.data.keywords.some(k=>norm(k.phrase)===norm(phrase)))throw Error('Keyword already in your research library.');
