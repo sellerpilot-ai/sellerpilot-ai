@@ -1,0 +1,12 @@
+# GitHub Pages: publish only website assets. Source and history remain public in the repository.
+exclude:
+  - launch
+  - billing
+  - supabase
+  - tests
+  - .github
+  - README.md
+  - V24-NOTES.md
+  - V27-DEPLOYMENT.md
+  - v15.js
+  - v16.js
