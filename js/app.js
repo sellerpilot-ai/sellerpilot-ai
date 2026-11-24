@@ -1,3 +1,4 @@
+import { v37Init } from './privacy-controls.js';
 import { v32Init } from './beta-feedback.js';
 import { v31Init } from './etsy-preview.js';
 import { init } from './supabase-client.js';
@@ -24,4 +25,5 @@ v27Init();
 v28Init();
 v31Init();
 v32Init();
+v37Init();
 init();
