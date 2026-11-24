@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
-import {discover} from '../js/keyword-discovery.mjs';
+import {readFile} from 'node:fs/promises';
+const source=await readFile(new URL('../js/keyword-discovery.js',import.meta.url));
+const {discover}=await import('data:text/javascript;base64,'+source.toString('base64'));
 const p={title:'Minimalist Gold Tone Bracelet',description:'Simple bracelet for everyday wear.',tags:'bracelet, gold jewellery, BRACELET, excessively long keyword phrase'};
 const d=discover(p,'gold tone bracelet','birthday gift');
 assert.deepEqual(d.duplicates,[{phrase:'bracelet',count:2}]);

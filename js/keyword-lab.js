@@ -6,7 +6,7 @@ export function keywordAnalyse(){const term=$('keyword-search').value.trim();if(
 export function renderShortlist(){$('keyword-shortlist').innerHTML=state.shortlist.length?state.shortlist.map((x,i)=>`<span class="keyword-tag">${esc(x)}<button data-unkeyword="${i}" aria-label="Remove ${esc(x)}">×</button></span>`).join(''):'<div class="empty">No saved phrases yet.</div>'}
 export function saveShortlist(){if(!state.uid)return;try{localStorage.setItem(localKey('keywords'),JSON.stringify(state.shortlist))}catch{toast('Could not save shortlist to this device.',true)}}
 
-import {discover} from './keyword-discovery.mjs';
+import {discover} from './keyword-discovery.js';
 let active=null,owner=null;
 export function v57Reset(){active=null;owner=null;for(const id of ['v57-seed','v57-extra','v57-filter','v57-product'])if($(id))$(id).value='';if($('v57-confirm'))$('v57-confirm').checked=false;if($('v57-results'))$('v57-results').textContent='Select a product or enter your own focus phrase.';if($('keyword-results'))$('keyword-results').textContent='Enter a phrase to explore your catalogue.'}
 function v57Invalidate(){active=null;$('v57-results').textContent='Inputs changed. Generate a fresh set of keyword ideas.'}
