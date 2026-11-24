@@ -1,3 +1,4 @@
+import { v54Init } from './subscription-workspace.js';
 import { v44Init } from './stripe-portal.js?v=50';
 import { v41Init } from './stripe-checkout.js?v=49';
 import { v40Init } from './stripe-test.js';
@@ -32,4 +33,5 @@ v37Init();
 v40Init();
 v41Init();
 v44Init();
+v54Init();
 init();
