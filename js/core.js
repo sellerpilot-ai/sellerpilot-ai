@@ -5,7 +5,9 @@ export const q=(sel,root=document)=>Array.from(root.querySelectorAll(sel));
 export const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export const norm=x=>String(x??'').normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim().replace(/\s+/g,' ');
 export const tagList=x=>String(x??'').split(',').map(v=>v.trim()).filter(Boolean);
-export const cash=x=>'£'+Number(x||0).toFixed(2);
+export function currencyCode(value){return value==='USD'?'USD':'GBP'}
+export function productCurrency(p){return currencyCode(p?.attributes?.sellerpilot?.currency)}
+export const cash=(x,currency='GBP')=>(currencyCode(currency)==='USD'?'US$':'£')+Number(x||0).toFixed(2);
 export const dateLabel=x=>new Date(x).toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});
 export const state={client:null,uid:null,user:null,products:[],ready:false,busy:false,view:'overview',editing:null,audit:null,preferences:{},shortlist:[],serial:0,resetReady:false};
 export const defaults={brand:'',market:'Etsy',region:'United Kingdom',voice:''};

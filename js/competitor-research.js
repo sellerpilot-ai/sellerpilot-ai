@@ -1,4 +1,4 @@
-import { $, q, esc, cash, state, toast } from './core.js';
+import { $, q, esc, cash, productCurrency, state, toast } from './core.js';
 import { v19Store, v19Mutate, v19Input, v19Id, v19CompetitorsLegacy, v19Render } from './workspace.js';
 
 /* SellerPilot AI v20 — Official competitor research and comparisons.
@@ -10,13 +10,13 @@ export function v20ResearchPanel(){
  const marketSearch=(p,q)=>p==='etsy'?'https://www.etsy.com/uk/search?q='+encodeURIComponent(q):'https://www.ebay.co.uk/sch/i.html?_nkw='+encodeURIComponent(q);
  const q=s.query||'bonus daughter necklace';
  const productOptions=state.products.map(p=>`<option value="${esc(p.id)}">${esc(p.title)}</option>`).join('');
- const ownPrice=state.products.find(p=>p.id===($('v20-own-product')?.value||''))?.price;
+ const ownProduct=state.products.find(p=>p.id===($('v20-own-product')?.value||'')),ownPrice=ownProduct?.price,ownCurrency=ownProduct?productCurrency(ownProduct):'';
  const providerLabel=(p)=>s.providers[p]?'<span class="v20-good">API configured</span>':'<span class="v20-warning">Awaiting approved API access</span>';
  const listings=s.results.map((x,i)=>{
-  const currency=x.currency||'', gbp=(currency==='GBP'&&typeof x.price==='number'&&Number.isFinite(x.price));
+  const currency=x.currency||'', sameCurrency=(currency===ownCurrency&&typeof x.price==='number'&&Number.isFinite(x.price));
   const price=Number.isFinite(Number(x.price))&&x.price!==null?`${esc(currency)} ${Number(x.price).toFixed(2)}`:'Price unavailable';
   const own=Number.isFinite(Number(ownPrice))?Number(ownPrice):null;
-  return `<article class="v20-result"><div class="v20-result-top"><span class="pill">${esc(s.provider==='etsy'?'Etsy':'eBay')} · Official API</span><span class="v20-price">${esc(price)}</span></div><h3>${esc(x.title)}</h3><p class="mini">${esc(x.shop||'Seller not provided')} · retrieved ${esc((s.checkedAt||'').slice(0,10))}</p>${own!==null&&gbp?`<p class="v20-diff">Compared with your selected listing: ${esc((Number(x.price)-own>=0?'+':'')+(Number(x.price)-own).toFixed(2))} GBP</p>`:''}<div class="v19-actions"><a class="button ghost sm" href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">Open original listing</a><button class="button secondary sm" data-v20-action="save-result" data-index="${i}">Save observed result to cloud</button></div></article>`;
+  return `<article class="v20-result"><div class="v20-result-top"><span class="pill">${esc(s.provider==='etsy'?'Etsy':'eBay')} · Official API</span><span class="v20-price">${esc(price)}</span></div><h3>${esc(x.title)}</h3><p class="mini">${esc(x.shop||'Seller not provided')} · retrieved ${esc((s.checkedAt||'').slice(0,10))}</p>${own!==null&&sameCurrency?`<p class="v20-diff">Compared with your selected listing: ${esc((Number(x.price)-own>=0?'+':'')+(Number(x.price)-own).toFixed(2))} ${esc(currency)}</p>`:''}<div class="v19-actions"><a class="button ghost sm" href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">Open original listing</a><button class="button secondary sm" data-v20-action="save-result" data-index="${i}">Save observed result to cloud</button></div></article>`;
  }).join('');
  const compareRecords=v19Store.data.competitors.filter(c=>typeof c.price==='number'&&Number.isFinite(c.price));
  let manual='';if(compareRecords.length){const prices=compareRecords.map(x=>x.price),min=Math.min(...prices),max=Math.max(...prices),avg=prices.reduce((a,b)=>a+b,0)/prices.length;manual=`<div class="v20-summary">${[['Price observations',prices.length],['Lowest observed',cash(min)],['Average observed',cash(avg)],['Highest observed',cash(max)]].map(([label,value])=>`<div><strong>${esc(value)}</strong><small>${esc(label)}</small></div>`).join('')}</div><p class="mini">Only from observations saved in your notebook. These are not a live marketplace price distribution.</p>`}
@@ -25,7 +25,7 @@ export function v20ResearchPanel(){
  <div class="v20-provider-state"><div><b>Etsy</b>${providerLabel('etsy')}</div><div><b>eBay</b>${providerLabel('ebay')}</div></div>
  <div class="v19-actions v20-buttons"><button class="button" data-v20-action="run-search" ${s.loading?'disabled':''}>${s.loading?'Searching official API…':'Search listings'}</button><button class="button secondary" data-v20-action="check-provider" ${s.loading?'disabled':''}>Check connections</button><a class="button ghost" id="v20-open-search" href="${marketSearch(s.provider,q)}" target="_blank" rel="noopener noreferrer">Explore on ${s.provider==='etsy'?'Etsy':'eBay'} directly</a></div>
  <p class="mini" id="v20-api-status" role="status">${esc(s.status)}</p>${s.problem?`<div class="note warning">${esc(s.problem)}<p class="mini">SellerPilot cannot retrieve marketplace results until the official provider approves access and server-side credentials are configured. You can still research in the marketplace and save observations manually below.</p></div>`:''}
- ${s.results.length?`<div class="row" style="margin:22px 0 10px"><div><h3>Retrieved listings · ${s.results.length}</h3><p class="mini">Source: ${esc(s.source)}, ${esc(s.checkedAt)}</p></div></div><div class="field"><label for="v20-own-product">Compare against your product's GBP price</label><select id="v20-own-product"><option value="">Choose your product (optional)</option>${productOptions}</select></div><div class="v20-results">${listings}</div>`:'<div class="v20-empty">No external listings fetched in this session. This is not a claim of zero marketplace results.</div>'}
+ ${s.results.length?`<div class="row" style="margin:22px 0 10px"><div><h3>Retrieved listings · ${s.results.length}</h3><p class="mini">Source: ${esc(s.source)}, ${esc(s.checkedAt)}</p></div></div><div class="field"><label for="v20-own-product">Compare against your product's price (same currency only)</label><select id="v20-own-product"><option value="">Choose your product (optional)</option>${productOptions}</select></div><div class="v20-results">${listings}</div>`:'<div class="v20-empty">No external listings fetched in this session. This is not a claim of zero marketplace results.</div>'}
  </div>${manual?`<div class="card" style="margin-top:16px"><h2>Your observed-price comparisons</h2>${manual}</div>`:''}`;
 }
 export function v19Competitors(){
@@ -73,9 +73,9 @@ document.addEventListener('click',e=>{
 });
 document.addEventListener('change',e=>{
  if(!e.target||e.target.id!=='v20-own-product')return;
- const list=v20State.results,own=state.products.find(p=>p.id===e.target.value),currency='GBP';
+ const list=v20State.results,own=state.products.find(p=>p.id===e.target.value),currency=own?productCurrency(own):'';
  const nodes=document.querySelectorAll('#v20-research-panel .v20-result');
- nodes.forEach((node,i)=>{const item=list[i],old=node.querySelector('.v20-diff');if(old)old.remove();if(!own||item.currency!==currency||typeof item.price!=='number')return;const diff=item.price-Number(own.price);const p=document.createElement('p');p.className='v20-diff';p.textContent='Compared with your listing: '+(diff>=0?'+':'')+diff.toFixed(2)+' GBP';node.querySelector('.v19-actions').before(p)});
+ nodes.forEach((node,i)=>{const item=list[i],old=node.querySelector('.v20-diff');if(old)old.remove();if(!own||item.currency!==currency||typeof item.price!=='number')return;const diff=item.price-Number(own.price);const p=document.createElement('p');p.className='v20-diff';p.textContent='Compared with your listing: '+(diff>=0?'+':'')+diff.toFixed(2)+' '+currency;node.querySelector('.v19-actions').before(p)});
 });
 document.addEventListener('input',e=>{
  if(e.target?.id!=='v20-query'&&e.target?.id!=='v20-market')return;
