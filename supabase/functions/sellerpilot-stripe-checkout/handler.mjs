@@ -32,7 +32,7 @@ export function createHandler(env,fetcher){return async req=>{
   const key=env('SELLERPILOT_STRIPE_TEST_KEY'),starter=env('SELLERPILOT_STRIPE_STARTER_PRICE'),pro=env('SELLERPILOT_STRIPE_PRO_PRICE');
   if(!/^sk_test_[A-Za-z0-9_]{12,}$/.test(key)||!priceId.test(starter)||!priceId.test(pro)||starter===pro)return fail(503,'Sandbox key or price configuration incomplete.');
   const plans=[['Starter',starter,999,'SellerPilot AI Starter'],['Professional',pro,1999,'SellerPilot AI Professional']];
-  const stripeHeaders={Authorization:'Bearer '+key};
+  const stripeHeaders={Authorization:'Bearer '+key,'Stripe-Version':'2026-11-18.endive'};
   const request=async(path,init={})=>fetcher('https://api.stripe.com/v1/'+path,{...init,headers:{...stripeHeaders,...init.headers},redirect:'error',signal:AbortSignal.timeout(15000)});
   const planKey=input.plan==='starter'?'Starter':'Professional';
   if(input.action==='verify_checkout'){
@@ -47,17 +47,17 @@ export function createHandler(env,fetcher){return async req=>{
   }
   for(const [plan,id,amount,name] of plans.filter(p=>p[0]===planKey)){
    const url='https://api.stripe.com/v1/prices/'+encodeURIComponent(id)+'?expand%5B%5D=product';
-   const res=await fetcher(url,{method:'GET',headers:{Authorization:'Bearer '+key},redirect:'error',signal:AbortSignal.timeout(12000)});
+   const res=await fetcher(url,{method:'GET',headers:stripeHeaders,redirect:'error',signal:AbortSignal.timeout(12000)});
    if(!res.ok){console.warn('STRIPE_PRICE_CHECK',plan,res.status);return fail(502,'Stripe price check failed for '+plan+' (HTTP '+res.status+'). No payment was created.')}
    const p=await res.json();if(!validPrice(p,id,amount,name))return fail(409,plan+' does not match the expected active GBP monthly sandbox price.');
   }
   const selected=plans.find(p=>p[0]===planKey);
   const home='https://sellerpilot-ai.github.io/sellerpilot-ai/';
-  const form=new URLSearchParams({mode:'subscription','line_items[0][price]':selected[1],'line_items[0][quantity]':'1','payment_method_types[0]':'card','adaptive_pricing[enabled]':'false','automatic_tax[enabled]':'false',client_reference_id:user.id,success_url:home+'?v=41&billing=test-return&session_id={CHECKOUT_SESSION_ID}',cancel_url:home+'?v=41&billing=test-cancel','metadata[sellerpilot_user_id]':user.id,'metadata[sellerpilot_mode]':'sandbox','metadata[sellerpilot_plan]':input.plan,'subscription_data[metadata][sellerpilot_user_id]':user.id,'subscription_data[metadata][sellerpilot_mode]':'sandbox','subscription_data[metadata][sellerpilot_plan]':input.plan});
-  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('sellerpilot-v41:'+user.id+':'+input.request_id));
+  const form=new URLSearchParams({mode:'subscription','line_items[0][price]':selected[1],'line_items[0][quantity]':'1','allowed_payment_method_types[0]':'card','adaptive_pricing[enabled]':'false','automatic_tax[enabled]':'false',client_reference_id:user.id,success_url:home+'?v=41&billing=test-return&session_id={CHECKOUT_SESSION_ID}',cancel_url:home+'?v=41&billing=test-cancel','metadata[sellerpilot_user_id]':user.id,'metadata[sellerpilot_mode]':'sandbox','metadata[sellerpilot_plan]':input.plan,'subscription_data[metadata][sellerpilot_user_id]':user.id,'subscription_data[metadata][sellerpilot_mode]':'sandbox','subscription_data[metadata][sellerpilot_plan]':input.plan});
+  const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('sellerpilot-v47-endive:'+user.id+':'+input.request_id));
   const idem=Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');
   const res=await request('checkout/sessions',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded','Idempotency-Key':idem},body:form});
-  if(!res.ok){console.warn('STRIPE_CHECKOUT_STATUS',res.status);return fail(502,'Stripe could not prepare the test checkout. Retry the same request.')}
+  if(!res.ok){let param='';try{const e=(await res.json())?.error;const allowed=new Set(['payment_method_types','allowed_payment_method_types','adaptive_pricing','automatic_tax','mode','line_items','success_url','cancel_url','payment_method_configuration']);if(allowed.has(e?.param))param=e.param}catch{}console.warn('STRIPE_CHECKOUT_STATUS',res.status,param||'other');return fail(502,'Stripe rejected test checkout (HTTP '+res.status+(param?', parameter: '+param:'')+'). No paid access granted.')}
   const s=await res.json();
   if(s?.object!=='checkout.session'||s.livemode!==false||s.mode!=='subscription'||s.status!=='open'||s.client_reference_id!==user.id||s.amount_total!==selected[2]||s.currency!=='gbp'||!/^cs_test_[A-Za-z0-9]{12,180}$/.test(s.id||'')||!safeCheckoutURL(s.url,s.id))return fail(502,'Unexpected Stripe checkout response. No access granted.');
   return reply(200,{ok:true,sandbox:true,url:s.url,access_granted:false});
