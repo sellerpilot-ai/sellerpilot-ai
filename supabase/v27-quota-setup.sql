@@ -1,4 +1,4 @@
--- Deployment candidate, not applied. Review and test in Supabase before enabling paid generation.
+-- Applied in V34; paid generation remains disabled pending secure configuration.
 begin;
 create schema if not exists sellerpilot_ai_private;
 revoke all on schema sellerpilot_ai_private from public, anon, authenticated;
@@ -22,7 +22,7 @@ declare
   user_total integer;
 begin
   if p_user_id is null or p_daily_cap is null or p_monthly_cap is null or p_user_cap is null
-    or p_daily_cap not between 1 and 100 or p_monthly_cap not between 1 and 1000 or p_user_cap not between 1 and 10 then return false; end if;
+    or p_daily_cap not between 1 and 10 or p_monthly_cap not between 1 and 100 or p_user_cap not between 1 and 3 then return false; end if;
   -- Serialize reservations across all callers so simultaneous requests cannot exceed the global cap.
   perform pg_catalog.pg_advisory_xact_lock(270027);
   select coalesce(sum(calls),0) into day_total from sellerpilot_ai_private.usage_by_day where day=d;
