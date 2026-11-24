@@ -1,3 +1,4 @@
+import { v44Init } from './stripe-portal.js';
 import { v41Init } from './stripe-checkout.js';
 import { v40Init } from './stripe-test.js';
 import { v37Init } from './privacy-controls.js';
@@ -30,4 +31,5 @@ v32Init();
 v37Init();
 v40Init();
 v41Init();
+v44Init();
 init();
