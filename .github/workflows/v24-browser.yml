@@ -1,0 +1,24 @@
+name: V24 browser regression
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'js/**'
+      - 'css/**'
+      - 'tests/**'
+      - '.github/workflows/v24-browser.yml'
+permissions:
+  contents: read
+jobs:
+  mobile-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install test browser
+        run: |
+          npm install --no-save --no-package-lock --ignore-scripts playwright@1.51.1
+          npx --no-install playwright install --with-deps chromium
+      - name: Run browser regression using only mock data
+        run: node tests/v24-browser.mjs
