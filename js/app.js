@@ -1,3 +1,4 @@
+import { v31Init } from './etsy-preview.js';
 import { init } from './supabase-client.js';
 import { v19Init } from './workspace.js';
 import { v20Init } from './competitor-research.js';
@@ -20,4 +21,5 @@ v22PostInit();
 v25Init();
 v27Init();
 v28Init();
+v31Init();
 init();

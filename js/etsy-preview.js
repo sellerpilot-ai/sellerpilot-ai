@@ -1,0 +1,16 @@
+import {$,state,esc} from './core.js';
+import {verifiedUser} from './supabase-client.js';
+let request=0;
+const key='sellerpilot-etsy-return';
+function pending(){try{const v=JSON.parse(sessionStorage.getItem(key)||'null');if(v&&Date.now()-v.at<600000)return v;sessionStorage.removeItem(key)}catch{}return null}
+function output(s){const el=$('v31-status');if(el)el.textContent=s}
+async function invoke(body){await verifiedUser();const {data,error}=await state.client.functions.invoke('sellerpilot-etsy-preview',{body});if(error||!data?.ok)throw Error(data?.detail||'Authorised preview unavailable. CSV import remains available.');return data}
+export function v31Reset(){request++;if($('v31-results'))$('v31-results').innerHTML='';if($('v31-consent'))$('v31-consent').checked=false;if($('v31-start'))$('v31-start').disabled=true;output('Not verified. Check availability.')}
+export function v31Init(){
+ const panel=document.createElement('div');panel.className='card';panel.style.marginBottom='18px';panel.innerHTML='<h2>Authorised Etsy preview</h2><p class="mini">Read-only preview of up to 50 active listings belonging to the Etsy account you authorise. No automatic publishing, import, recurring sync or retained Etsy tokens. External approval and backend activation are required.</p><label class="checkbox-line"><input id="v31-consent" type="checkbox"> I agree to request read-only access to my Etsy listings.</label><div class="form-actions"><button class="button secondary" id="v31-check">Check availability</button><button class="button" id="v31-start" disabled>Authorise on Etsy</button><button class="button ghost" id="v31-finish">Finish returned authorisation</button></div><p class="mini" id="v31-status" role="status">Not verified. Check availability.</p><div class="stack" id="v31-results"></div>';
+ $('view-shop').querySelector('.section-header').after(panel);
+ const run=async fn=>{if(!state.ready)return;const n=++request,uid=state.uid;const current=()=>n===request&&uid===state.uid&&state.ready;try{await fn(current)}catch(e){if(current())output(e.message)}};
+ $('v31-check').onclick=()=>run(async current=>{const d=await invoke({action:'status'});if(!current())return;$('v31-start').disabled=!d.enabled;output(d.enabled?'Read-only preview available.':'Not enabled. Use CSV import instead.')});
+ $('v31-start').onclick=()=>run(async current=>{if(!$('v31-consent').checked){output('Confirm read-only access first.');return}const d=await invoke({action:'begin',consent:true});if(!current())return;const u=new URL(d.authorization_url);if(u.origin!=='https://www.etsy.com'||u.pathname!=='/oauth/connect')throw Error('Unexpected authorisation address.');sessionStorage.removeItem(key);location.assign(u.href)});
+ $('v31-finish').onclick=()=>run(async current=>{const p=pending();if(!p){output('No recent Etsy authorisation.');return}sessionStorage.removeItem(key);if(p.cancelled){output('Authorisation was cancelled.');return}const d=await invoke({action:'finish',state:p.state,code:p.code});if(!current())return;output('Verified shop: '+d.shop_name+' · '+d.listings.length+' active listings shown. Preview only.');$('v31-results').innerHTML=d.listings.map(x=>'<div class="list-card"><span class="detail"><b>'+esc(x.title)+'</b><span>Listing '+esc(x.listing_id)+'</span></span></div>').join('')||'<p class="mini">No active listings returned.</p>'});
+}
