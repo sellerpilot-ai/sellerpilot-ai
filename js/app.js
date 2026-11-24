@@ -1,3 +1,4 @@
+import {v58Init} from './competitor-workspace.js';
 import {v57Init} from './keyword-lab.js';
 import { v54Init } from './subscription-workspace.js';
 import { v44Init } from './stripe-portal.js?v=50';
@@ -24,6 +25,7 @@ v21Init();
 v22Init();
 v23Init();
 v19Init();
+v58Init();
 v22PostInit();
 v25Init();
 v27Init();
