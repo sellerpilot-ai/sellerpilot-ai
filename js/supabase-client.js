@@ -1,5 +1,5 @@
 import { v44Reset } from './stripe-portal.js';
-import { v41Reset } from './stripe-checkout.js?v=45';
+import { v41Reset } from './stripe-checkout.js?v=49';
 import { v40Reset } from './stripe-test.js';
 import { v37Reset } from './privacy-controls.js';
 import { v32Reset } from './beta-feedback.js';
