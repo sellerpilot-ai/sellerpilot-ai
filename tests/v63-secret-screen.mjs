@@ -1,7 +1,7 @@
 // Credential-pattern screening. Never print matched token values. Not a substitute for a managed secret scanner.
 import {execFileSync} from 'node:child_process';
 const git=(...args)=>execFileSync('git',args,{encoding:'utf8',maxBuffer:30*1024*1024});
-const fixtures=new Set(['sk_test_fixture_not_real','sk_live_fixture_not_real','whsec_fixture_signing_secret']);
+const fixtures=new Set(['sk_test_fixture_not_real','sk_test_fixture_not_a_real_key','sk_live_fixture_not_real','whsec_fixture_signing_secret']);
 const rules=[
  ['OpenAI',/\bsk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{24,}\b/g],
  ['Stripe private key',/\b(?:sk|rk)_(?:test|live)_[A-Za-z0-9_]{12,}\b/g],
