@@ -3,7 +3,7 @@ import {v61Init} from './beta-onboarding.js';
 import {v60Init} from './shop-assistant-workspace.js';
 import {v59Init} from './listing-plan-workspace.js';
 import {v58Init} from './competitor-workspace.js';
-import {v57Init} from './keyword-lab.js';
+import {v57Init,v67Init} from './keyword-lab.js';
 import { v54Init } from './subscription-workspace.js';
 import { v44Init } from './stripe-portal.js?v=50';
 import { v41Init } from './stripe-checkout.js?v=49';
@@ -43,4 +43,5 @@ v37Init();
 if(operatorView()){document.body.classList.add("v63-operator");$("v63-operator-tools").hidden=false;v40Init();v41Init();v44Init();}
 v54Init();
 v57Init();
+v67Init();
 await init();
