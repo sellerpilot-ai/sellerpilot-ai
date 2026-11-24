@@ -58,7 +58,7 @@ export function createHandler(env,fetcher,clock=Date.now){return async req=>{
   const result=await fetcher(base+'/rest/v1/sellerpilot_sandbox_credit_requests?'+q,{headers:{...admin,Prefer:'count=exact'},redirect:'error',signal:AbortSignal.timeout(8000)});
   if(!result.ok)throw Error('usage unavailable');
   const rows=await result.json(),range=result.headers.get('content-range')||'',count=Number(range.split('/').at(-1));
-  if(!Array.isArray(rows)||rows.length>100||!/^([0-9]+-[0-9]+|\*)\/[0-9]+$/.test(range)||count!==rows.length)throw Error('usage incomplete');
+  if(!Array.isArray(rows)||rows.length>100||!range.includes('/')||!Number.isSafeInteger(count)||count!==rows.length||range.split('/').at(-1)!==String(count))throw Error('usage incomplete');
   let daily=0,monthly=0;
   for(const row of rows){const t=Date.parse(row.created_at);if(![1,3].includes(row.credits)||!Number.isFinite(t)||t<month.getTime()||t>stamp.getTime())throw Error('invalid usage');monthly+=row.credits;if(t>=day.getTime())daily+=row.credits;}
   if(monthly>100||daily>15)throw Error('usage inconsistent');
