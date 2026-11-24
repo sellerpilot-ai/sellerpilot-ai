@@ -41,7 +41,14 @@ try {
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v24/);await open();
+ await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v25/);await open();
+ assert.equal(await page.locator('#edit-market option:not([hidden])').allTextContents().then(x=>x.join(',')),'Etsy');
+ await page.locator('[data-view="settings"]:visible').first().click();
+ await page.locator('#v25-legacy').check();
+ assert.equal(await page.locator('#pref-market option:not([hidden])').count(),4);
+ await page.locator('#v25-legacy').uncheck();
+ assert.equal(await page.locator('#pref-market option:not([hidden])').count(),1);
+ await open();
  const score=()=>page.locator('.v23-guide-score').innerText();
  const fix=()=>page.locator('#v23-guide [data-v23-heading="Repeated tags"]').click();
  const apply=()=>page.locator('[data-v23-action="apply"]').click();

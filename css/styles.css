@@ -147,3 +147,10 @@ body{background:#f7faf9} .content-main{max-width:1410px}
 .v23-review-banner strong{font-size:13px;color:#075b4a}
 @media(max-width:760px){.v23-guide{padding:14px}.v23-step{grid-template-columns:20px minmax(0,1fr);gap:9px}.v23-step .button{grid-column:2;justify-self:start}.v23-guide .v23-dual{grid-template-columns:1fr}.v23-guide .v23-operations .button{flex:1}.v23-guide-top h2{font-size:19px}.v23-workbench{padding:12px}}
 
+
+/* V25: familiar palette, uncluttered main navigation and touch-friendly controls. */
+:root{--sp-emerald:#075B4A;--sp-indigo:#6454E8;--sp-navy:#263653;--sp-pale:#E6F5EF;--sp-gold:#F5B84B}
+.v25-toggle{display:flex;align-items:center;gap:10px;min-height:44px;font-weight:650;font-size:13px}.v25-toggle input{width:18px;height:18px;accent-color:var(--sp-emerald)}
+.v25-etsy-first .sidebar [data-view="ranks"],.v25-etsy-first .sidebar [data-view="advanced"],.v25-etsy-first .sidebar [data-view="reports"],.v25-etsy-first .sidebar [data-view="tasks"]{display:none}
+.v25-etsy-first #view-overview .v19-links{display:none}.v25-etsy-first #view-settings .v19-links{display:block}
+@media(max-width:900px){.mobile-nav button{min-height:48px}.v22-task-buttons .button,.v22-tool,.v25-focus-card input{touch-action:manipulation}.v22-task-buttons .button{min-height:44px}}

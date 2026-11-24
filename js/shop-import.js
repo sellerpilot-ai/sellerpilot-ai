@@ -5,6 +5,7 @@ import { editProduct } from './product-editor.js';
 import { download } from './csv.js';
 import { chosenView } from './ui.js';
 import { v23 } from './guided-fixes.js';
+import { v25LegacyEnabled } from './marketplace-focus.js';
 
 /* SellerPilot V21 — shop-first, approved-API listing previews and private catalogue audits.
    No scraping, no invented marketplace listing data, and no unverified shop ownership claim. */
@@ -31,7 +32,7 @@ export function v21Render(){
  if(!state.ready)return;
  v21RenderCloud();v21RenderRemote();
  const status=$('v21-shop-message');if(status){status.textContent=v21.status;status.className='v21-message'+(v21.status.startsWith('Official')?' ok':'')}
- const summary=$('v21-shop-details');if(summary)summary.textContent=v21.shop?'Recognised '+(v21.provider==='etsy'?'Etsy shop':'eBay seller')+': '+v21.shop+'. Listings will only be retrieved through an authorised API.':'We recognise Etsy and eBay seller links. No private shop data is accessed through a public link.';
+ const summary=$('v21-shop-details');if(summary)summary.textContent=v21.shop?'Recognised '+(v21.provider==='etsy'?'Etsy shop':'eBay seller')+': '+v21.shop+'. Listings will only be retrieved through an authorised API.':(v25LegacyEnabled()?'We recognise Etsy and eBay seller links.':'We recognise Etsy shop links.')+' No private shop data is accessed through a public link.';
  const box=$('v21-results-meta');if(box)box.textContent=v21.apiSource?`${v21.results.length} returned · ${v21.apiSource} · ${v21.checkedAt?.slice(0,16)||'date unavailable'}`:'No external listings retrieved yet';
  const batch=$('v21-review-output');if(batch)batch.innerHTML=v21.reviewHtml||'<div class="v21-placeholder">Select one or more saved products, then tap “Analyse selected”. You will see specific issues and a button to open the full editor.</div>';
  const shopInput=$('v21-shop-url');if(shopInput&&document.activeElement!==shopInput&&v21.shopUrl&&!shopInput.value)shopInput.value=v21.shopUrl;
@@ -69,7 +70,7 @@ export function v21PublicReview(item,provider){
 }
 export async function v21Lookup(){
  if(!state.ready||v21.busy)return;
- let details;try{details=v21ParseShop($('v21-shop-url').value)}catch(e){v21.status=e.message;v21Render();toast(e.message,true);return}
+ let details;try{details=v21ParseShop($('v21-shop-url').value);if(details.provider!=='etsy'&&!v25LegacyEnabled())throw Error('SellerPilot currently focuses on Etsy. Enable legacy marketplace tools in Settings to use other supported links.')}catch(e){v21.status=e.message;v21Render();toast(e.message,true);return}
  v21.provider=details.provider;v21.shop=details.shop;v21.shopUrl=details.url;v21.results=[];v21.selectedRemote.clear();v21.apiSource='';v21.checkedAt='';v21.reviewHtml='';v21.busy=true;v21.status='Checking your shop through the approved marketplace API…';v21Render();$('v21-lookup').disabled=true;
  try{
   await verifiedUser();const {data,error}=await state.client.functions.invoke('sellerpilot-shop-listings',{body:{provider:details.provider,shop:details.shop}});
