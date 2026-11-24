@@ -1,0 +1,22 @@
+import assert from 'node:assert/strict';
+import {createHandler,safeCheckoutURL} from '../supabase/functions/sellerpilot-stripe-checkout/handler.mjs';
+const id='11111111-1111-4111-8111-111111111111',other='22222222-2222-4222-8222-222222222222',rid='33333333-3333-4333-8333-333333333333',sid='cs_test_fixture123456789';
+const cfg={SUPABASE_URL:'https://example.invalid',SUPABASE_ANON_KEY:'fixture',SELLERPILOT_AI_BETA_USER_IDS:id,SELLERPILOT_STRIPE_TEST_KEY:'sk_test_fixture_not_real',SELLERPILOT_STRIPE_STARTER_PRICE:'price_fixtureStarter',SELLERPILOT_STRIPE_PRO_PRICE:'price_fixtureProfessional',SELLERPILOT_STRIPE_ENABLED:'true'};
+let calls=[],uid=id,change={},priceChange={},verification=false,form,idem;
+const session={object:'checkout.session',id:sid,livemode:false,mode:'subscription',status:'open',client_reference_id:id,amount_total:999,currency:'gbp',url:'https://checkout.stripe.com/c/pay/'+sid+'#test'};
+const mock=async(url,init)=>{calls.push([url,init.method]);if(url.endsWith('/auth/v1/user'))return Response.json({id:uid,email_confirmed_at:'2026-01-01'});if(url.includes('/prices/'))return Response.json({object:'price',id:cfg.SELLERPILOT_STRIPE_STARTER_PRICE,livemode:false,active:true,currency:'gbp',unit_amount:999,type:'recurring',billing_scheme:'per_unit',recurring:{interval:'month',interval_count:1,usage_type:'licensed'},product:{object:'product',active:true,livemode:false,name:'SellerPilot AI Starter'},...priceChange});if(init.method==='POST'){form=init.body;idem=init.headers['Idempotency-Key'];return Response.json({...session,...change})}assert.ok(verification);return Response.json({...session,status:'complete',payment_status:'paid',customer:'cus_fixture',metadata:{sellerpilot_user_id:id,sellerpilot_mode:'sandbox',sellerpilot_plan:'starter'},line_items:{data:[{quantity:1,price:{id:cfg.SELLERPILOT_STRIPE_STARTER_PRICE}}],has_more:false},subscription:{object:'subscription',livemode:false,status:'active',customer:'cus_fixture',metadata:{sellerpilot_user_id:id,sellerpilot_mode:'sandbox',sellerpilot_plan:'starter'}},...change})};
+const create={action:'create_checkout',plan:'starter',consent:true,request_id:rid};
+const check=(body=create,config=cfg)=>createHandler(k=>config[k]||'',mock)(new Request('https://example.invalid/f',{method:'POST',headers:{origin:'https://sellerpilot-ai.github.io',authorization:'Bearer fixture'},body:JSON.stringify(body)}));
+assert.equal((await check({action:'status'},{...cfg,SELLERPILOT_STRIPE_ENABLED:'false'})).status,200);
+calls=[];assert.equal((await check(create,{...cfg,SELLERPILOT_STRIPE_ENABLED:'false'})).status,503);assert.equal(calls.length,1);
+for(const body of [{...create,consent:false},{...create,price:'price_attack'},{...create,request_id:'bad'},{...create,plan:'unknown'}]){calls=[];assert.equal((await check(body)).status,400);assert.equal(calls.length,1)}
+uid=other;assert.equal((await check()).status,403);uid=id;
+calls=[];assert.equal((await check(create,{...cfg,SELLERPILOT_STRIPE_TEST_KEY:'sk_live_fixture_not_real'})).status,503);assert.equal(calls.length,1);
+priceChange={unit_amount:1};assert.equal((await check()).status,409);priceChange={};
+let res=await check();assert.equal(res.status,200);assert.equal((await res.json()).access_granted,false);assert.equal(form.get('line_items[0][price]'),cfg.SELLERPILOT_STRIPE_STARTER_PRICE);assert.equal(form.get('client_reference_id'),id);assert.equal(form.get('mode'),'subscription');assert.equal(form.get('adaptive_pricing[enabled]'),'false');const first=idem;await check();assert.equal(idem,first);
+for(const c of [{livemode:true},{url:'https://checkout.stripe.com.evil.invalid/c/pay/'+sid},{amount_total:1},{id:'cs_live_fixture123456789'}]){change=c;assert.equal((await check()).status,502)}change={};
+assert.equal(safeCheckoutURL('https://checkout.stripe.com@evil.invalid/c/pay/'+sid,sid),false);
+verification=true;res=await check({action:'verify_checkout',session_id:sid});assert.deepEqual(await res.json(),{ok:true,sandbox:true,verified:true,plan:'Starter',access_granted:false});
+change={client_reference_id:other};assert.equal((await check({action:'verify_checkout',session_id:sid})).status,404);
+change={payment_status:'unpaid'};res=await check({action:'verify_checkout',session_id:sid});assert.equal((await res.json()).verified,false);
+console.log('PASS: sandbox-only checkout, ownership, idempotency, fixed price and URL, return verification without entitlements.');
