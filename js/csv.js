@@ -1,10 +1,10 @@
-import { $, esc, state, toast } from './core.js';
+import { $, esc, state, toast, productCurrency } from './core.js';
 import { productQuality } from './audit.js';
 import { verifiedUser, refreshCloud, guarded } from './supabase-client.js';
 
 export function toCSV(rows){return rows.map(row=>row.map(v=>{let s=String(v??'');if(/^[\s]*[=+@\-]/.test(s))s="'"+s;return '"'+s.replaceAll('"','""')+'"'}).join(',')).join('\r\n')}
 export function download(name,content,type='text/plain;charset=utf-8'){const a=document.createElement('a'),url=URL.createObjectURL(new Blob([content],{type}));a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000)}
-export function exportProducts(){if(!state.ready){toast('Cloud not loaded',true);return}const rows=[['title','description','tags','price','sku'],...state.products.map(p=>[p.title,p.description,p.tags,p.price,p.sku])];download('sellerpilot-v18-products.csv','\ufeff'+toCSV(rows),'text/csv;charset=utf-8')}
+export function exportProducts(){if(!state.ready){toast('Cloud not loaded',true);return}const rows=[['title','description','tags','price','sku','currency'],...state.products.map(p=>[p.title,p.description,p.tags,p.price,p.sku,productCurrency(p)])];download('sellerpilot-products.csv','\ufeff'+toCSV(rows),'text/csv;charset=utf-8')}
 export function parseCSV(text){const rows=[];let row=[],cell='',quoted=false;for(let i=0;i<text.length;i++){const c=text[i];if(c==='"'){if(quoted&&text[i+1]==='"'){cell+='"';i++}else quoted=!quoted}else if(c===','&&!quoted){row.push(cell);cell=''}else if((c==='\n'||c==='\r')&&!quoted){if(c==='\r'&&text[i+1]==='\n')i++;row.push(cell);if(row.some(x=>String(x).trim()))rows.push(row);row=[];cell=''}else cell+=c}if(quoted)throw Error('CSV contains an unmatched quotation mark.');row.push(cell);if(row.some(x=>String(x).trim()))rows.push(row);return rows}
 /* Etsy CSV and SellerPilot template preview. No writes occur until explicit confirmation. */
 export function prepareImport(text,existing=[],market='Etsy'){
@@ -20,14 +20,17 @@ export function prepareImport(text,existing=[],market='Etsy'){
  const titles=new Set(existing.map(p=>key(p.title)).filter(Boolean)),skus=new Set(existing.map(p=>key(p.sku)).filter(Boolean));
  return rows.map((row,i)=>{
   const read=k=>String(row[index[k]]??'').trim(),title=read('title'),sku=read('sku'),currency=read('currency').toUpperCase(),rawPrice=read('price');
-  const priceText=rawPrice.replace(/^£\s*/,'');
+  const symbol=rawPrice.startsWith('£')?'GBP':rawPrice.startsWith('$')||rawPrice.startsWith('US$')?'USD':'';
+  const resolvedCurrency=currency||symbol||'GBP';
+  const priceText=rawPrice.replace(/^(?:£|US\$|\$)\s*/,'');
   const price=/^\d+(?:\.\d{1,2})?$/.test(priceText)?Number(priceText):NaN;
-  const item={title,description:read('description'),tags:read('tags').replaceAll('|',','),price,sku,attributes:{sellerpilot:{market,materials:read('materials')}}};
+  const item={title,description:read('description'),tags:read('tags').replaceAll('|',','),price,sku,attributes:{sellerpilot:{market,materials:read('materials'),currency:resolvedCurrency}}};
   let error='';
   if(row.length!==header.length)error='Column count does not match header';
   else if(!title||title.length>250)error='Title must contain 1–250 characters';
-  else if(currency&&currency!=='GBP')error='Unsupported currency '+currency+' — prices currently use GBP';
-  else if(!Number.isFinite(price)||price<=0)error='A positive GBP price is required';
+  else if(!['GBP','USD'].includes(resolvedCurrency))error='Unsupported currency '+resolvedCurrency+' — use GBP or USD';
+  else if(symbol&&symbol!==resolvedCurrency)error='Price symbol conflicts with currency column';
+  else if(!Number.isFinite(price)||price<=0||price>9999999999)error='A valid positive price is required';
   else if(item.description.length>10000||item.tags.length>6000||sku.length>200||item.attributes.sellerpilot.materials.length>2000)error='One or more fields exceed import limits';
   const duplicate=!error&&(titles.has(key(title))||!!sku&&skus.has(key(sku)));
   if(!error){titles.add(key(title));if(sku)skus.add(key(sku))}
@@ -39,7 +42,7 @@ function previewImport(entries,fileName){
   const dialog=document.createElement('dialog');dialog.className='v26-import-dialog';
   const valid=entries.filter(r=>!r.error&&!r.duplicate);
   const dup=entries.filter(r=>r.duplicate).length,invalid=entries.filter(r=>r.error).length;
-  dialog.innerHTML='<h2>Review your CSV import</h2><p class="mini">'+esc(fileName)+' · '+entries.length+' rows · '+valid.length+' ready · '+dup+' duplicate · '+invalid+' invalid</p><p>Prices are interpreted as GBP when no currency is specified. Invalid rows and duplicate titles or SKUs are excluded. Nothing is written until you confirm.</p><div class="v26-import-list">'+entries.map(r=>'<label class="v26-import-row"><input type="checkbox" data-row="'+r.row+'" '+(!r.error&&!r.duplicate?'checked':'disabled')+'><span><strong>'+esc(r.item.title||'Untitled row')+'</strong><small>Row '+r.row+' · '+esc(r.error|| (r.duplicate?'Duplicate — skipped':'Quality '+r.score+'/100'))+'</small></span></label>').join('')+'</div><div class="form-actions"><button class="button secondary" type="button" data-cancel>Cancel</button><button class="button" type="button" data-confirm '+(!valid.length?'disabled':'')+'>Import selected</button></div>';
+  dialog.innerHTML='<h2>Review your CSV import</h2><p class="mini">'+esc(fileName)+' · '+entries.length+' rows · '+valid.length+' ready · '+dup+' duplicate · '+invalid+' invalid</p><p>Prices keep their GBP or USD currency. Unlabelled amounts without a symbol default to GBP. Invalid rows and duplicate titles or SKUs are excluded. Nothing is written until you confirm.</p><div class="v26-import-list">'+entries.map(r=>'<label class="v26-import-row"><input type="checkbox" data-row="'+r.row+'" '+(!r.error&&!r.duplicate?'checked':'disabled')+'><span><strong>'+esc(r.item.title||'Untitled row')+'</strong><small>Row '+r.row+' · '+esc(r.error|| (r.duplicate?'Duplicate — skipped':r.item.attributes.sellerpilot.currency+' '+r.item.price.toFixed(2)+' · Quality '+r.score+'/100'))+'</small></span></label>').join('')+'</div><div class="form-actions"><button class="button secondary" type="button" data-cancel>Cancel</button><button class="button" type="button" data-confirm '+(!valid.length?'disabled':'')+'>Import selected</button></div>';
   document.body.appendChild(dialog);
   let result=[];
   const confirm=dialog.querySelector('[data-confirm]');

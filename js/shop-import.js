@@ -1,4 +1,4 @@
-import { $, esc, norm, tagList, cash, state, toast, banner, busy } from './core.js';
+import { $, esc, norm, tagList, cash, productCurrency, state, toast, banner, busy } from './core.js';
 import { productQuality } from './audit.js';
 import { verifiedUser } from './supabase-client.js';
 import { editProduct } from './product-editor.js';
@@ -42,7 +42,7 @@ export function v21RenderCloud(){
  const term=norm(v21.filter),rows=state.products.filter(p=>!term||norm([p.title,p.tags,p.sku].join(' ')).includes(term));
  $('v21-cloud-count').textContent=`${rows.length} of ${state.products.length} private cloud products · ${v21.selectedCloud.size} selected`;
  list.innerHTML=rows.length?rows.map(p=>{const audit=productQuality(p),n=audit.issues.length;
-  return `<article class="v21-listing"><label class="v21-choice"><input type="checkbox" data-v21-cloud="${esc(p.id)}" ${v21.selectedCloud.has(p.id)?'checked':''} aria-label="Select ${esc(p.title)}"><span class="v21-listing-title">${esc(p.title)}</span></label><div class="v21-meta"><span>${esc(cash(p.price))}</span><span>Internal audit ${audit.score}/100</span><span>${n} basic findings</span></div><div class="v21-listing-actions"><button type="button" class="button ghost sm" data-v21-action="review-one" data-id="${esc(p.id)}">See problems</button><button type="button" class="button secondary sm" data-v21-action="open-editor" data-id="${esc(p.id)}">Open editor</button></div></article>`
+  return `<article class="v21-listing"><label class="v21-choice"><input type="checkbox" data-v21-cloud="${esc(p.id)}" ${v21.selectedCloud.has(p.id)?'checked':''} aria-label="Select ${esc(p.title)}"><span class="v21-listing-title">${esc(p.title)}</span></label><div class="v21-meta"><span>${esc(cash(p.price,productCurrency(p)))}</span><span>Internal audit ${audit.score}/100</span><span>${n} basic findings</span></div><div class="v21-listing-actions"><button type="button" class="button ghost sm" data-v21-action="review-one" data-id="${esc(p.id)}">See problems</button><button type="button" class="button secondary sm" data-v21-action="open-editor" data-id="${esc(p.id)}">Open editor</button></div></article>`
  }).join(''):'<div class="v21-placeholder">No saved cloud products match that filter. Import a compatible CSV or clear the search.</div>';
 }
 export function v21RenderRemote(){
@@ -105,7 +105,7 @@ export function v21Init(){
   else if(action==='select-all'){state.products.filter(p=>!v21.filter||norm(p.title+' '+p.tags+' '+p.sku).includes(norm(v21.filter))).forEach(p=>v21.selectedCloud.add(p.id));v21RenderCloud()}
   else if(action==='clear-selection'){v21.selectedCloud.clear();v21.selectedRemote.clear();v21Render()}
   else if(action==='review-selected')v21SelectionReview();
-  else if(action==='template')download('sellerpilot-listing-template.csv','title,description,tags,price,sku\n','text/csv;charset=utf-8');
+  else if(action==='template')download('sellerpilot-listing-template.csv','title,description,tags,price,sku,currency\n','text/csv;charset=utf-8');
   else if(action==='import-csv')$('csv-input').click();
   else if(action==='manual-preview')v21ManualPreview();
   else if(action==='shop-lookup')void v21Lookup();

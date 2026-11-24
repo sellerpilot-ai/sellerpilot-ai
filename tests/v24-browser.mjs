@@ -42,7 +42,7 @@ try {
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v32/);await open();
+ await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v33/);await open();
  assert.equal(await page.locator('#edit-market option:not([hidden])').allTextContents().then(x=>x.join(',')),'Etsy');
  await page.locator('[data-view="settings"]:visible').first().click();
  await page.locator('#v25-legacy').check();
@@ -66,9 +66,11 @@ try {
  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-fixture')||'{}').tags==='bracelet, gold jewellery'&&document.querySelector('#editor-state')?.textContent==='Saved in cloud');
  await page.reload();await ready();await open();assert.match(await score(),/^62\/100/);
  const preview=await page.evaluate(async()=>{const {prepareImport}=await import('./js/csv.js');return prepareImport('TITLE,DESCRIPTION,TAGS,PRICE,CURRENCY_CODE,SKU\nGift mug,Description,mug,12.50,GBP,M1\nGift mug,Description,mug,12.50,GBP,M2\nUS listing,Description,gift,10,USD,U1',[]).map(x=>({duplicate:x.duplicate,error:x.error,score:x.score}))});
- assert.equal(preview[0].error,'');assert.equal(preview[1].duplicate,true);assert.match(preview[2].error,/Unsupported currency USD/);
+ assert.equal(preview[0].error,'');assert.equal(preview[1].duplicate,true);assert.equal(preview[2].error,'');
  await page.locator('[data-view="products"]:visible').first().click();
  await page.locator('#csv-input').setInputFiles({name:'etsy.csv',mimeType:'text/csv',buffer:Buffer.from('TITLE,DESCRIPTION,TAGS,PRICE,CURRENCY_CODE,SKU\nGift mug,Description,mug,12.50,GBP,M1')});
+ const currencyChecks=await page.evaluate(async()=>{const {prepareImport}=await import('./js/csv.js');return prepareImport('title,description,tags,price,currency\nUS mug,Description,mug,$12.50,USD\nMismatch,Description,mug,£10,USD\nUnsupported,Description,mug,10,EUR\nLegacy,Description,mug,10,',[]).map(r=>({currency:r.item.attributes.sellerpilot.currency,error:r.error,price:r.item.price}))});
+ assert.deepEqual(currencyChecks,[{currency:'USD',error:'',price:12.5},{currency:'USD',error:'Price symbol conflicts with currency column',price:10},{currency:'EUR',error:'Unsupported currency EUR — use GBP or USD',price:10},{currency:'GBP',error:'',price:10}]);
  await page.locator('.v26-import-dialog').waitFor({state:'visible'});assert.match(await page.locator('.v26-import-dialog').innerText(),/1 ready/);await page.locator('[data-cancel]').click();await page.locator('.v26-import-dialog').waitFor({state:'detached'});
  await page.locator('[data-view="ai"]:visible').first().click();
  await page.locator('#ai-product').selectOption('fixture-product');
@@ -105,6 +107,7 @@ try {
  await page.locator('[data-view="settings"]:visible').first().click();assert.match(await page.locator('#v32-beta').innerText(),/Paid subscriptions are not available/);
  await page.locator('#v32-notes').fill('Example test only');await page.locator('#v32-clear').click();assert.equal(await page.locator('#v32-notes').inputValue(),'');
  await page.locator('#v32-notes').fill('Example test only');const downloadEvent=page.waitForEvent('download');await page.locator('#v32-download').click();assert.equal((await downloadEvent).suggestedFilename(),'sellerpilot-beta-feedback.txt');
+ await open();assert.equal(await page.locator('#edit-currency').inputValue(),'GBP');await page.locator('#edit-currency').selectOption('USD');await page.locator('#save-product').click();await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-fixture')||'{}').attributes?.sellerpilot?.currency==='USD'&&document.querySelector('#editor-state')?.textContent==='Saved in cloud');await page.reload();await ready();await page.locator('[data-view="products"]:visible').first().click();assert.match(await page.locator('#product-mobile').innerText(),/US\$18\.50/);await open();assert.equal(await page.locator('#edit-currency').inputValue(),'USD');
  await page.goto(origin+'/demo.html');await page.locator('#demo-fix').waitFor({state:'visible'});assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.locator('#demo-fix').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/62\/100/);await page.locator('#demo-reset').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.goto(origin+'/home.html');assert.match(await page.locator('h1').innerText(),/Find listing problems/);
