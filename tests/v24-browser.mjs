@@ -42,7 +42,7 @@ try {
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v37/);await open();
+ await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v38/);await open();
  assert.equal(await page.locator('#edit-market option:not([hidden])').allTextContents().then(x=>x.join(',')),'Etsy');
  await page.locator('[data-view="settings"]:visible').first().click();
  await page.locator('#v25-legacy').check();
@@ -111,7 +111,7 @@ try {
  await page.reload();await ready();assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.weekly.length),2);
  await page.locator('[data-view="settings"]:visible').first().click();await page.locator('#view-settings [data-go="reports"]').click();await page.locator('[data-v19-action="toggle-monitoring"]').click();await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.monitoring?.enabled===false);await page.waitForFunction(()=>!document.querySelector('[data-v19-action="toggle-monitoring"]').disabled);assert.equal(await page.locator('#v31-start').isDisabled(),true);
  await page.locator('[data-view="shop"]:visible').first().click();await page.locator('#v31-check').click();await page.waitForFunction(()=>document.querySelector('#v31-status')?.textContent.includes('unavailable'));assert.equal(await page.locator('#v31-start').isDisabled(),true);
- await page.locator('[data-view="settings"]:visible').first().click();assert.match(await page.locator('#v32-beta').innerText(),/Paid subscriptions are not available/);
+ await page.locator('[data-view="settings"]:visible').first().click();assert.match(await page.locator('#v32-beta').innerText(),/Paid subscriptions are not available/);assert.match(await page.locator('#v32-beta').innerText(),/Paid checkout is disabled/);assert.equal(await page.locator('#v32-beta input[type="credit-card"]').count(),0);
  const exportEvent=page.waitForEvent('download');await page.locator('#v37-export').click();const exported=await exportEvent;assert.equal(exported.suggestedFilename(),'sellerpilot-workspace-data.json');const contents=JSON.parse(await readFile(await exported.path(),'utf8'));assert.equal(contents.account.id,'mock-user');assert.equal(contents.products[0].id,'fixture-product');assert.equal(contents.research_workspace.monitoring.enabled,false);assert.equal('session' in contents,false);
  const blocked=await page.evaluate(async()=>{const {workspaceExport}=await import('./js/privacy-controls.js');try{workspaceExport({id:'a'},[{user_id:'b'}],{}, {},[]);return false}catch{return true}});assert.equal(blocked,true);
  await page.locator('#v37-request-type').selectOption('delete');const requestEvent=page.waitForEvent('download');await page.locator('#v37-request').click();const request=await requestEvent;assert.equal(request.suggestedFilename(),'sellerpilot-privacy-request.txt');assert.match(await readFile(await request.path(),'utf8'),/not submitted/);assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-fixture')).id),'fixture-product');
