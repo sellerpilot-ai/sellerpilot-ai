@@ -4,6 +4,7 @@ on:
     branches: [main]
     paths:
       - '*.html'
+      - '_config.yml'
       - 'launch/**'
       - 'js/**'
       - 'css/**'
@@ -19,6 +20,10 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-depth: 0
+      - name: Screen reachable repository history for credential patterns
+        run: node tests/v63-secret-screen.mjs
       - name: Install test browser
         run: |
           npm install --no-save --no-package-lock --ignore-scripts playwright@1.51.1
