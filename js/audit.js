@@ -1,0 +1,53 @@
+import { $, esc, norm, tagList, dateLabel, state, toast } from './core.js';
+import { refreshCloud, guarded } from './supabase-client.js';
+import { readEditor } from './product-editor.js';
+import { v23 } from './guided-fixes.js';
+
+export function getAuditHistory(p){const a=p?.attributes?.sellerpilot?.auditHistory;return Array.isArray(a)?a.slice(0,12):[]}
+export function savedDetails(p){return p?.attributes?.sellerpilot||{}}
+export function productAudit(p,market='Etsy',focus=''){
+ const title=String(p.title||'').trim(),description=String(p.description||'').trim(),tags=tagList(p.tags),ts=tags.map(norm),issues=[],limits={Etsy:140,eBay:80,Amazon:200,Shopify:200};let score=100;
+ const add=(severity,heading,detail,field,penalty)=>{issues.push({severity,heading,detail,field,penalty});score-=penalty};
+ if(!title)add('critical','Missing title','Add a clear product name and one verified distinguishing detail.','edit-title',30);
+ else {
+   if(title.length>limits[market])add('critical','Title exceeds guidance limit',market==='Amazon'?'Amazon rules vary by category. Check your category-specific title limit before publishing.':`Shorten to ${limits[market]} characters or fewer for ${market}.`,'edit-title',22);
+   if(title.length<28)add('important','Title may lack identifying detail','Describe the actual product and distinguishing attributes instead of generic gift phrases.','edit-title',10);
+   const words=norm(title).split(' ').filter(x=>x.length>=4);const counts=Object.fromEntries([...new Set(words)].map(w=>[w,words.filter(v=>v===w).length]));
+   if(Object.values(counts).some(x=>x>=3))add('important','Repeated words in title','Reduce keyword repetition to improve readability.','edit-title',9);
+   if(title===title.toUpperCase() && title.length>8)add('minor','All-capital title','Use ordinary sentence or title case for readability.','edit-title',4);
+   if(market==='Shopify'&&title.length>70)add('minor','Long search-display title','A shorter SEO page title may be easier to display. This is not a Shopify product-title limit.','edit-title',4);
+ }
+ if(description.length<100)add('important','Description lacks detail','Add only verified benefits, materials, sizing, variants and care details that apply.','edit-description',18);
+ else if(description.length<190)add('minor','Consider a more complete description','Clarify what is included, options and practical details without padding.','edit-description',7);
+ const material=String(p.materials||savedDetails(p).materials||'').trim(),dimensions=String(p.dimensions||savedDetails(p).dimensions||'').trim();
+ if(!material&&!/\b(material|made from|steel|silver|gold|cotton|wood|ceramic|polyester)\b/i.test(description))add('minor','Materials are not specified','If materials matter for this item, add confirmed material details.','edit-materials',5);
+ if(!dimensions&&!/\b(\d+(?:\.\d+)?\s?(?:mm|cm|inch|inches|ft|metres|meter|ml|litres|grams|g))\b/i.test(description))add('minor','Size information is missing','Add verified measurements or sizing options where relevant.','edit-dimensions',5);
+ if(market==='Etsy'){
+   if(tags.length>13)add('critical','Too many Etsy tags','Etsy supports a maximum of 13 tags.','edit-tags',18);
+   if(tags.some(x=>x.length>20))add('critical','Oversized Etsy tags',`${tags.filter(x=>x.length>20).length} tag(s) exceed 20 characters.`,'edit-tags',16);
+   if(tags.length<8)add('important','Underused Etsy tag slots','Consider additional distinct, relevant buyer search phrases.','edit-tags',10);
+   if(tags.length===0)add('critical','No Etsy tags','Add relevant, accurate phrases that describe your product.','edit-tags',12);
+ }else if(market==='eBay'&&tags.length)add('minor','Etsy-style tags are not eBay item specifics','Review category-specific item specifics and buyer filters when you publish.','edit-tags',3);
+ const duplicates=tags.length-new Set(ts).size;
+ if(duplicates>0)add('important','Repeated tags',`${duplicates} keyword phrase(s) are repeated after normalising case and punctuation.`,'edit-tags',11);
+ if(tags.length>1 && tags.every(x=>x.length<7))add('minor','Very broad keyword phrases','Consider specific phrases that accurately describe product type and use.','edit-tags',4);
+ if(focus.trim()){
+  const f=norm(focus);if(!norm(title).includes(f))add('important','Focus phrase absent from title','Check whether your selected search phrase naturally fits the title.','edit-title',7);
+  if(!norm(description).includes(f)&&!ts.some(x=>x.includes(f)))add('minor','Focus phrase lacks supporting context','Use it naturally in a relevant field, without repeating it mechanically.','edit-description',4);
+ }
+ if(!Number.isFinite(Number(p.price))||Number(p.price)<=0)add('critical','Invalid selling price','Use a valid positive product price.','edit-price',16);
+ const uncertainty=['Image quality, alt text, prohibited products and intellectual-property compliance are not checked.', 'No real marketplace search volume, competitor sales or ranking performance is available.'];
+ if(market==='Amazon')uncertainty.push('Amazon content, identifier and variation requirements depend on product category; this report does not validate publication eligibility.');
+ if(market==='eBay')uncertainty.push('eBay item specifics, condition and shipping requirements must be verified by category.');
+ if(market==='Shopify')uncertainty.push('Shopify SEO page title, meta description and collections require separate review.');
+ const max=limits[market];let suggestion=title.replace(/\s+/g,' ').replace(/\b([\p{L}\p{N}]+)(?:\s+\1)+\b/giu,'$1').replace(/[|,\-]\s*[|,\-]/g,' | ').trim();
+ if(focus.trim()&&suggestion&&!norm(suggestion).includes(norm(focus)))suggestion=(focus.trim()+' | '+suggestion);
+ if(suggestion.length>max){const short=suggestion.slice(0,max+1);suggestion=(short.lastIndexOf(' ')>max*.65?short.slice(0,short.lastIndexOf(' ')):short.slice(0,max)).replace(/[\s,|\-]+$/,'')}
+ return{score:Math.max(0,Math.min(100,score)),issues,uncertainty,market,suggestion,focus,checked_at:new Date().toISOString()};
+}
+export function productQuality(p){const d=savedDetails(p);return productAudit({...p,materials:d.materials||'',dimensions:d.dimensions||''},d.market||state.preferences.market||'Etsy',d.focusKeyword||'')}
+export function badgeClass(score){return score<50?'low':score<70?'mid':''}
+export function issueHtml(item){return`<div class="issue"><div class="row"><strong>${esc(item.heading)}</strong><span class="pill ${item.severity==='critical'?'red':item.severity==='important'?'amber':''}">${esc(item.severity)}</span></div><p>${esc(item.detail)}</p><button type="button" data-v23-fix="${esc(item.field)}" data-v23-heading="${esc(item.heading)}">Fix this issue →</button></div>`}
+export function analyseProduct(){const f=readEditor();state.audit=productAudit(f,f.market,f.focusKeyword);const a=state.audit;$('audit-output').className='';$('audit-output').innerHTML=`<div class="audit-hero"><div class="ring" style="--value:${a.score}%"><div class="ring-inner"><b>${a.score}</b><span>/ 100</span></div></div><div><strong style="font-size:15px">${a.score>=85?'Strong basics':a.score>=70?'Review recommended':'Improvements needed'}</strong><p class="mini">${a.issues.length} findings · ${esc(a.market)} guidance</p><div class="meter"><span style="width:${a.score}%"></span></div><p class="mini">Heuristic quality, not rank or sales potential.</p></div></div><div class="row"><h3 style="font-size:13px">Actions ranked by priority</h3><span class="pill">${a.issues.length} checks</span></div>${a.issues.length?a.issues.map(issueHtml).join(''):'<p class="note">No gaps found by these limited checks. Verify facts and marketplace rules manually.</p>'}<div class="note warning" style="margin-top:13px">${a.uncertainty.map(esc).join(' ')}</div><div class="form-actions"><button id="audit-save-snapshot" class="button sm">Save audit to cloud history</button><button id="audit-export" class="button ghost sm">Download audit</button></div>`;$('compare-output').innerHTML=`<div class="comparison"><div class="comparison-box"><h4>Current title</h4><p>${esc(f.title||'No title yet')}</p></div><div class="comparison-box best"><h4>Suggested edit</h4><p>${esc(a.suggestion||'Enter a title first')}</p></div></div><p class="mini">Only whitespace, repetition, length and focus-phrase placement are adjusted; no product claims are invented.</p><div class="form-actions"><button class="button secondary sm" id="compare-apply" ${!a.suggestion||a.suggestion===f.title?'disabled':''}>Apply title draft</button><button class="button ghost sm" id="compare-copy" ${!a.suggestion?'disabled':''}>Copy suggestion</button></div>`;}
+export async function saveAuditSnapshot(){if(!state.audit){toast('Run an analysis first.',true);return}const p=state.products.find(x=>x.id===state.editing);if(!p){toast('Save the product to cloud before saving its audit.',true);return}const f=readEditor();if(f.title!==p.title||f.description!==p.description||f.tags!==p.tags||Number(f.price)!==Number(p.price)||f.sku!==p.sku||f.market!==(savedDetails(p).market||state.preferences.market||'Etsy')||f.focusKeyword!==(savedDetails(p).focusKeyword||'')||f.materials!==(savedDetails(p).materials||'')||f.dimensions!==(savedDetails(p).dimensions||'')){toast('Save your latest product changes before saving an audit snapshot.',true);return}await guarded(async()=>{const h=getAuditHistory(p);const a=productAudit(f,f.market,f.focusKeyword);const snapshot={at:a.checked_at,score:a.score,market:a.market,focus:a.focus,findings:a.issues.map(i=>i.heading),suggestion:a.suggestion};const attributes={...(p.attributes||{}),sellerpilot:{...savedDetails(p),auditHistory:[snapshot,...h].slice(0,12)}};const{data,error}=await state.client.from('products').update({attributes,updated_at:new Date().toISOString()}).eq('id',p.id).eq('user_id',state.uid).eq('updated_at',p.updated_at).select('id').maybeSingle();if(error)throw error;if(!data)throw Error('The product changed elsewhere. Refresh before saving history.');await refreshCloud();renderHistory();toast('Audit snapshot saved to your cloud product');})}
+export function renderHistory(){const p=state.products.find(x=>x.id===state.editing),h=getAuditHistory(p);$('audit-history').innerHTML=!p?'<div class="empty">Open a saved product to view its history.</div>':!h.length?'<div class="empty">No saved audits yet. Run and save your first analysis.</div>':h.map(x=>`<div class="activity-item"><div class="row"><strong>${esc(x.market)} · ${Number(x.score)} / 100</strong><span class="mini">${esc(dateLabel(x.at))}</span></div><p>${esc((x.findings||[]).slice(0,3).join(' · ')||'No basic flags detected')}</p></div>`).join('')}
