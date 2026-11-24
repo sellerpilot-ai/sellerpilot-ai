@@ -36,13 +36,16 @@ try {
  page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',async route=>{
   const url=route.request().url();
-  if(url.startsWith(origin+'/')){const u=new URL(url);if(workspacePhase&&u.pathname.startsWith('/js/')&&u.searchParams.get('v')!=='62'){staleRequests.push(u.pathname+u.search);return route.fulfill({status:200,contentType:'text/javascript',body:'export const staleCachedModule=true;'});}return route.continue();}
+  if(url.startsWith(origin+'/')){const u=new URL(url);if(workspacePhase&&u.pathname.startsWith('/js/')&&u.searchParams.get('v')!=='63'){staleRequests.push(u.pathname+u.search);return route.fulfill({status:200,contentType:'text/javascript',body:'export const staleCachedModule=true;'});}return route.continue();}
   if(url.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});
   return route.abort();
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v62/);
+ await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v63/);
+ assert.equal(await page.locator('#v63-operator-tools').isHidden(),true);assert.equal(await page.locator('#v55-home').isHidden(),true);
+ await page.locator('[data-view="settings"]:visible').first().click();assert.equal(await page.locator('#v40-stripe-check').isHidden(),true);
+ await page.goto(origin+'/index.html?operator=1');await ready();assert.equal(await page.locator('#v63-operator-tools').getAttribute('hidden'),null);
  assert.match(await page.locator('#v61-start-status').innerText(),/1 of 4 setup milestones/);
  await page.locator('#v61-start summary').click();assert.equal(await page.locator('#v61-checklist .v61-step').count(),4);
  await page.locator('#v61-checklist [data-v61-go="audit"]').click();assert.equal(await page.locator('#v59-plan').isVisible(),true);
@@ -221,13 +224,13 @@ try {
  assert.equal(await page.locator('#v61-checklist').textContent(),'');assert.equal(await page.locator('#v60-search').inputValue(),'');assert.doesNotMatch(await page.locator('#v60-queue').textContent(),/Private queue/);assert.equal(await page.locator('#v59-plan').textContent(),'');assert.equal(await page.locator('#v59-plan').isVisible(),false);assert.equal(await page.locator('#v58-title').inputValue(),'');assert.doesNotMatch(await page.locator('#v58-results').textContent(),/Private competitor results/);assert.equal(await page.locator('#v57-seed').inputValue(),'');assert.equal(await page.locator('#v57-extra').inputValue(),'');assert.doesNotMatch(await page.locator('#v57-results').textContent(),/Private keyword results/);assert.doesNotMatch(await page.locator('#keyword-results').textContent(),/Private catalogue results/);assert.equal(await page.locator('#ai-output').inputValue(),'');assert.equal(await page.locator('#ai-audience').inputValue(),'');assert.equal(await page.locator('#ai-facts').inputValue(),'');assert.equal(await page.locator('#v19-content-reports').innerText(),'');assert.equal(await page.locator('#auth-signup').isDisabled(),true);
  const race=await page.evaluate(async()=>{const {state}=await import('./js/core.js');const {guarded}=await import('./js/supabase-client.js');const original=state.client.auth.getUser;let release,called=false;const uid=state.uid;state.client.auth.getUser=()=>new Promise(r=>{release=r});const pending=guarded(()=>{called=true});state.serial++;release({data:{user:{id:uid}},error:null});await pending;state.client.auth.getUser=original;return called});assert.equal(race,false);
  assert.deepEqual(staleRequests,[]);workspacePhase=false;
- const demoPage=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true});const demoRequests=[],demoErrors=[];demoPage.on('pageerror',e=>demoErrors.push(e.message));await demoPage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin!==origin){demoRequests.push(u.origin);return route.abort()}if(u.pathname.startsWith('/js/')&&u.searchParams.get('v')!=='62'){demoRequests.push(u.pathname+u.search);return route.abort()}return route.continue()});
+ const demoPage=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true});const demoRequests=[],demoErrors=[];demoPage.on('pageerror',e=>demoErrors.push(e.message));await demoPage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin!==origin){demoRequests.push(u.origin);return route.abort()}if(u.pathname.startsWith('/js/')&&u.searchParams.get('v')!=='63'){demoRequests.push(u.pathname+u.search);return route.abort()}return route.continue()});
  await demoPage.goto(origin+'/demo.html');await demoPage.locator('#demo-fix').waitFor({state:'visible'});assert.match(await demoPage.locator('#demo-score').innerText(),/51\/100/);await demoPage.locator('#demo-fix').click();assert.match(await demoPage.locator('#demo-delta').innerText(),/Change \+11/);await demoPage.locator('#demo-undo').click();assert.match(await demoPage.locator('#demo-score').innerText(),/51\/100/);await demoPage.locator('#demo-keywords').click();assert.match(await demoPage.locator('#demo-ideas').innerText(),/local relevance/);assert.equal(await demoPage.evaluate(()=>localStorage.length),0);assert.deepEqual(demoRequests,[]);assert.deepEqual(demoErrors,[]);await demoPage.close();
  await page.goto(origin+'/demo.html');await page.locator('#demo-fix').waitFor({state:'visible'});assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.locator('#demo-fix').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/62\/100/);await page.locator('#demo-reset').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.goto(origin+'/help.html');assert.match(await page.locator('h1').innerText(),/Help & tutorials/);await page.locator('summary').filter({hasText:'Discover keywords'}).click();assert.equal(await page.locator('details').filter({hasText:'4. Discover keywords'}).getAttribute('open'),'');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
  await page.setViewportSize({width:1280,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);await page.setViewportSize({width:393,height:852});
- await page.goto(origin+'/home.html');assert.match(await page.locator('h1').innerText(),/Know what to improve/);
+ await page.goto(origin+'/home.html');assert.match(await page.locator('h1').innerText(),/Know what to improve/);await page.locator('.hero a[href="./beta.html"]').click();assert.match(await page.locator('h1').innerText(),/Join the private beta/);assert.match(await page.locator('main').innerText(),/not accepting applications online/);
  assert.equal(await page.locator('a[href="./demo.html"]').count()>0,true);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
  await page.locator('a[href="./privacy.html"]').first().click();assert.match(await page.locator('.notice').innerText(),/Not a final privacy notice/);
@@ -235,7 +238,7 @@ try {
  assert.deepEqual(errors,[]);
  const failurePage=await browser.newPage();
  await failurePage.route('**/*',async route=>{const url=new URL(route.request().url());if(url.pathname.endsWith('/keyword-discovery.js'))return route.abort();if(url.origin===origin)return route.continue();return route.abort()});
- await failurePage.goto(origin+'/index.html?v=62');await failurePage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Workspace startup failed'));
+ await failurePage.goto(origin+'/index.html?v=63');await failurePage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Workspace startup failed'));
  assert.equal(await failurePage.locator('#account-chip').textContent(),'Connection unavailable');await failurePage.close();
  console.log('PASS: one version for all local workspace modules; simulated stale cache cannot supply outdated modules; failed module startup is visible.');
  console.log('PASS: module startup, mocked authentication, mobile navigation, guided apply, immediate score refresh, undo, mocked save and reload. No real cloud requests.');
