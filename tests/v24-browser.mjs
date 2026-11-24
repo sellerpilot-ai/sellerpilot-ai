@@ -19,7 +19,7 @@ const user={id:'mock-user',email:'fixture@example.invalid'};
 const initial={id:'fixture-product',user_id:user.id,title:'Minimalist Gold Tone Bracelet',description:'Simple bracelet for everyday wear.',tags:'bracelet,gold jewellery,bracelet',price:18.5,sku:'',attributes:{},created_at:'2026-01-01T00:00:00Z',updated_at:'2026-01-01T00:00:00Z'};
 const get=()=>JSON.parse(localStorage.getItem('test-fixture')||JSON.stringify(initial));
 export function createClient(){return{
- functions:{async invoke(name,{body}){if(name!=='sellerpilot-ai-copy')return {error:{message:'Mock provider unavailable'}};if(body.action==='status')return {data:{ok:true,enabled:true}};return {data:{ok:true,updated_at:get().updated_at,draft:{title:'Gold tone bracelet for everyday wear',description:'Simple bracelet for everyday wear.',tags:['bracelet','gold jewellery'],explanations:['Removed repeated tags.'],missing_facts:['Confirm dimensions.']}}}}},
+ functions:{async invoke(name,{body}){if(name!=='sellerpilot-ai-copy')return {error:{message:'Mock provider unavailable'}};if(body.action==='status'||body.action==='image_status')return {data:{ok:true,enabled:true}};if(body.action==='image_analyse')return {data:{ok:true,review:{summary:'Product is centred.',lighting:'Soft light.',background:'Plain background.',composition:'Leave more space.',thumbnail:'Product is visible.',recommended_shots:['Detail view'],alt_text:'Product against a plain background',caveats:['Only one photo reviewed']}}};return {data:{ok:true,updated_at:get().updated_at,draft:{title:'Gold tone bracelet for everyday wear',description:'Simple bracelet for everyday wear.',tags:['bracelet','gold jewellery'],explanations:['Removed repeated tags.'],missing_facts:['Confirm dimensions.']}}}}},
  auth:{onAuthStateChange(){},async getSession(){return{data:{session:{user}},error:null}},async getUser(){return{data:{user},error:null}}},
  from(table){let update=null;const q={select(){return q},order(){return q},eq(){return q},update(v){update=v;return q},
  async range(){if(table!=='products')throw Error('unexpected range');return{data:[get()],error:null}},
@@ -42,7 +42,7 @@ try {
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v27/);await open();
+ await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v28/);await open();
  assert.equal(await page.locator('#edit-market option:not([hidden])').allTextContents().then(x=>x.join(',')),'Etsy');
  await page.locator('[data-view="settings"]:visible').first().click();
  await page.locator('#v25-legacy').check();
@@ -84,6 +84,16 @@ try {
  await page.locator('#v27-apply').click();
  assert.equal(await page.locator('#edit-title').inputValue(),'Gold tone bracelet for everyday wear');
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-fixture')).title),'Minimalist Gold Tone Bracelet');
+ await page.locator('[data-view="ai"]:visible').first().click();
+ await page.locator('[data-go="image"]').click();
+ const png=await page.evaluate(()=>{const c=document.createElement('canvas');c.width=320;c.height=240;const ctx=c.getContext('2d');ctx.fillStyle='#e6f5ef';ctx.fillRect(0,0,320,240);ctx.fillStyle='#075b4a';ctx.fillRect(80,40,160,160);return c.toDataURL('image/png').split(',')[1]});
+ await page.locator('#v28-file').setInputFiles({name:'sample.png',mimeType:'image/png',buffer:Buffer.from(png,'base64')});
+ await page.locator('#v28-preview-box').waitFor({state:'visible'});
+ assert.equal(await page.locator('#v28-run').isDisabled(),true);
+ await page.locator('#v28-consent').check();await page.locator('#v28-run').click();
+ await page.waitForFunction(()=>document.querySelector('#v28-result')?.textContent.includes('Product is centred.'));
+ assert.match(await page.locator('#v28-result').innerText(),/Product against a plain background/);
+ await page.locator('#v28-clear').click();assert.equal(await page.locator('#v28-preview-box').isVisible(),false);
  await page.goto(origin+'/demo.html');await page.locator('#demo-fix').waitFor({state:'visible'});assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.locator('#demo-fix').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/62\/100/);await page.locator('#demo-reset').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  assert.deepEqual(errors,[]);

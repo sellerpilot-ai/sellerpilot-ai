@@ -11,3 +11,6 @@ This branch prepares a paid AI integration but does not deploy or activate it. N
 Required environment variable names: SELLERPILOT_OPENAI_KEY, SELLERPILOT_OPENAI_MODEL, SELLERPILOT_AI_ENABLED, SELLERPILOT_AI_DAILY_CAP, SELLERPILOT_AI_MONTHLY_CAP, SELLERPILOT_AI_USER_DAILY_CAP. Existing Supabase runtime secrets are used server-side only. Reservation counts attempts conservatively, including upstream failures; caps limit request counts, not exact cost.
 
 References: https://supabase.com/docs/guides/functions/auth-headers ; https://developers.openai.com/api/docs/guides/structured-outputs ; https://developers.openai.com/api/docs/models/gpt-5.6-terra
+
+## V28 addition
+Image analysis uses the same AI endpoint and global/per-user quota, plus a separate SELLERPILOT_AI_IMAGE_ENABLED switch (false by default). Confirm image-processing costs and data handling before enabling. The browser re-encodes to a bounded JPEG; the backend rejects oversized dimensions and common metadata markers. No photo is stored by SellerPilot. Provider retention is subject to the applicable service terms. Reference: https://developers.openai.com/api/docs/guides/images-vision
