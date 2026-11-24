@@ -42,7 +42,7 @@ try {
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v33/);await open();
+ await page.goto(origin+'/index.html');await ready();assert.match(await page.title(),/v35/);await open();
  assert.equal(await page.locator('#edit-market option:not([hidden])').allTextContents().then(x=>x.join(',')),'Etsy');
  await page.locator('[data-view="settings"]:visible').first().click();
  await page.locator('#v25-legacy').check();
@@ -103,6 +103,13 @@ try {
  await page.locator('[data-v19-action="save-week"]').click();await page.waitForFunction(()=>document.querySelector('#v30-week-status')?.textContent.includes('Saved for this week'));
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.weekly.length),1);
  await page.reload();await ready();await page.locator('[data-view="settings"]:visible').first().click();await page.locator('#view-settings [data-go="reports"]').click();await page.locator('#v30-history').waitFor({state:'visible'});assert.match(await page.locator('#v30-history').innerText(),/62\/100/);
+ const autoChecks=await page.evaluate(async()=>{const {autoSnapshotDue,weekStart}=await import('./js/weekly-health.js');const now=new Date('2026-11-23T00:00:00Z');return [weekStart(now),autoSnapshotDue({enabled:false},[],[{}],now),autoSnapshotDue({enabled:true},[],[],now),autoSnapshotDue({enabled:true},[{week:'2026-11-23'}],[{}],now),autoSnapshotDue({enabled:true},[{week:'2026-11-16'}],[{}],now)]});assert.deepEqual(autoChecks,['2026-11-23',false,false,false,true]);
+ await page.locator('[data-v19-action="toggle-monitoring"]').click();await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.monitoring?.enabled===true);
+ await page.evaluate(()=>{const x=JSON.parse(localStorage.getItem('test-weekly-workspace'));x.data.weekly[0].week='2020-01-06';localStorage.setItem('test-weekly-workspace',JSON.stringify(x))});
+ await page.reload();await ready();await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.weekly.length===2);
+ assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.weekly[0].source),'auto');
+ await page.reload();await ready();assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.weekly.length),2);
+ await page.locator('[data-view="settings"]:visible').first().click();await page.locator('#view-settings [data-go="reports"]').click();await page.locator('[data-v19-action="toggle-monitoring"]').click();await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.monitoring?.enabled===false);await page.waitForFunction(()=>!document.querySelector('[data-v19-action="toggle-monitoring"]').disabled);assert.equal(await page.locator('#v31-start').isDisabled(),true);
  await page.locator('[data-view="shop"]:visible').first().click();await page.locator('#v31-check').click();await page.waitForFunction(()=>document.querySelector('#v31-status')?.textContent.includes('unavailable'));assert.equal(await page.locator('#v31-start').isDisabled(),true);
  await page.locator('[data-view="settings"]:visible').first().click();assert.match(await page.locator('#v32-beta').innerText(),/Paid subscriptions are not available/);
  await page.locator('#v32-notes').fill('Example test only');await page.locator('#v32-clear').click();assert.equal(await page.locator('#v32-notes').inputValue(),'');
