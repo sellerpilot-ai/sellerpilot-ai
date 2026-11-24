@@ -1,5 +1,5 @@
 // V54: private sandbox display only; never modifies real AI eligibility.
-import { $,state } from './core.js';
+import { $,state,operatorView } from './core.js';
 import { verifiedUser } from './supabase-client.js';
 import { chosenView } from './ui.js';
 export function validate(d){
@@ -24,7 +24,7 @@ function display(message){
 export function v54Reset(){generation++;pending=false;checked=false;showPanels(false);display('Subscription not checked.');buttons(false)}
 export function v54Init(){v54Reset();document.querySelectorAll('[data-v54-refresh]').forEach(b=>b.addEventListener('click',()=>void v54Refresh(true)));document.querySelectorAll('[data-v55-billing]').forEach(b=>b.addEventListener('click',()=>{if(!state.ready||!state.uid)return;chosenView('settings');const el=$('v54-account');if(el&&!el.hidden){el.focus({preventScroll:true});el.scrollIntoView({block:'start',behavior:'instant'})}}));document.querySelectorAll('[data-v55-photo]').forEach(b=>b.addEventListener('click',()=>{if(state.ready&&state.uid)chosenView('image')}))}
 export async function v54Refresh(force=false){
- if(!state.ready||!state.uid||pending||(!force&&checked))return;
+ if(!operatorView()||!state.ready||!state.uid||pending||(!force&&checked))return;
  showPanels(true);checked=true;pending=true;buttons(true);display('Checking private test subscription…');
  const uid=state.uid,serial=state.serial,g=++generation,current=()=>state.ready&&state.uid===uid&&state.serial===serial&&generation===g;
  try{
