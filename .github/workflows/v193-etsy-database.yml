@@ -1,4 +1,4 @@
-name: V193 disposable PostgreSQL authorization tests
+name: V194 disposable PostgreSQL authorization tests
 on:
   pull_request:
     branches: [main]
@@ -21,5 +21,42 @@ jobs:
           set -euo pipefail
           sudo systemctl start postgresql
           sudo -u postgres createdb sellerpilot_v193_fixture
-          trap 'sudo -u postgres dropdb --if-exists sellerpilot_v193_fixture' EXIT
-          sudo -u postgres psql -X -v ON_ERROR_STOP=1 -d sellerpilot_v193_fixture -f "$GITHUB_WORKSPACE/tests/v193-etsy-authorization.sql"
+          fixture_dir=$(mktemp -d /tmp/sellerpilot-v193.XXXXXX)
+          trap 'sudo -u postgres dropdb --if-exists sellerpilot_v193_fixture; rm -rf "$fixture_dir"' EXIT
+          mkdir "$fixture_dir/launch" "$fixture_dir/tests"
+          install -m 0644 "$GITHUB_WORKSPACE/launch/v192-etsy-authorization-draft.sql" "$fixture_dir/launch/"
+          install -m 0644 "$GITHUB_WORKSPACE/tests/v193-etsy-authorization.sql" "$fixture_dir/tests/"
+          chmod 0755 "$fixture_dir" "$fixture_dir/launch" "$fixture_dir/tests"
+          sudo -u postgres psql -X -v ON_ERROR_STOP=1 -d sellerpilot_v193_fixture -f "$fixture_dir/tests/v193-etsy-authorization.sql"
+      - name: Exercise simultaneous quota and single-use requests
+        run: |
+          set -euo pipefail
+          # The previous step cleans up its DB; use another disposable fixture DB.
+          sudo -u postgres createdb sellerpilot_v194_fixture
+          fixture_dir=$(mktemp -d /tmp/sellerpilot-v194.XXXXXX)
+          trap 'sudo -u postgres dropdb --if-exists sellerpilot_v194_fixture; rm -rf "$fixture_dir"' EXIT
+          install -m 0644 "$GITHUB_WORKSPACE/launch/v192-etsy-authorization-draft.sql" "$fixture_dir/draft.sql"
+          chmod 0755 "$fixture_dir"
+          db() { sudo -u postgres psql -X -v ON_ERROR_STOP=1 -Atq -d sellerpilot_v194_fixture "$@"; }
+          db -c "create schema auth; create table auth.users(id uuid primary key); insert into auth.users values ('33333333-3333-4333-8333-333333333333'),('44444444-4444-4444-8444-444444444444');"
+          db -f "$fixture_dir/draft.sql"
+          pids=()
+          for i in 1 2 3 4 5 6 7 8; do
+            db -c "set role service_role; select public.sellerpilot_etsy_begin('33333333-3333-4333-8333-333333333333',lpad('$i',64,'0'),repeat('a',64));" > "$fixture_dir/quota-$i" &
+            pids+=("$!")
+          done
+          for pid in "${pids[@]}"; do wait "$pid"; done
+          test "$(grep -hxc t "$fixture_dir"/quota-* | awk '{s+=$1} END{print s}')" = 5
+          test "$(grep -hxc f "$fixture_dir"/quota-* | awk '{s+=$1} END{print s}')" = 3
+          test "$(db -c "select attempts from sellerpilot_etsy_private.authorization where user_id='33333333-3333-4333-8333-333333333333'")" = 5
+          test "$(db -c "set role service_role; select public.sellerpilot_etsy_begin('44444444-4444-4444-8444-444444444444',repeat('b',64),repeat('c',64))")" = t
+          pids=()
+          for i in 1 2 3 4 5 6 7 8; do
+            db -c "set role service_role; select coalesce(public.sellerpilot_etsy_consume('44444444-4444-4444-8444-444444444444',repeat('b',64))=repeat('c',64),false);" > "$fixture_dir/consume-$i" &
+            pids+=("$!")
+          done
+          for pid in "${pids[@]}"; do wait "$pid"; done
+          test "$(grep -hxc t "$fixture_dir"/consume-* | awk '{s+=$1} END{print s}')" = 1
+          test "$(grep -hxc f "$fixture_dir"/consume-* | awk '{s+=$1} END{print s}')" = 7
+          test "$(db -c "select count(*) from sellerpilot_etsy_private.authorization where user_id='44444444-4444-4444-8444-444444444444' and state_hash is null and verifier is null and expires_at is null")" = 1
+          echo 'PASS V194: eight concurrent starts enforce quota of five; eight concurrent consumes return verifier exactly once.'
