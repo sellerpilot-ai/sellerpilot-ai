@@ -33,3 +33,11 @@ commit;
 No CASCADE. This removes only new preview-specific pending state and quota records; cannot be used to delete catalogue, existing workspace or unrelated functions. Never run if objects were not created by this migration. Keep the existing nine live functions and protected candidate PR #48 unchanged.
 
 No live changes, secrets, provider calls, payments or additional spending.
+
+## V200 candidate update — 25 November 2026
+
+Owner dashboard confirms Pending Commercial Approval; no duplicate application or live Etsy activation. Written permission for intended analytics/AI uses remains unresolved.
+
+V197 binds opaque state digest to exact canonical redirect using a domain-separated SHA-256 hash of a JSON array. SQL/RPC signatures unchanged. Callback-switch test rejects token exchange without consuming original pending state. Offline and browser tests passed at 0e23185dc28e111d36c02920cbb58b937850c099. V198/V199 cleanup and rollback fixture encountered malformed dollar quoting; corrected at 646fdb68695ff08ff428c1b3e0686c454951c908. Final PostgreSQL verification still pending. Earlier V194 success does not establish new tests passed.
+
+Proposed cleanup: server-only invocation every five minutes, conditional on verified scheduler availability, permissions and cost. Ten-minute expiry always enforced; nominal removal within fifteen minutes if scheduling succeeds. Verify expired row counts and scheduler failures before activation; no provider HTTP calls or automatic extension installation. Keep preview disabled until approval, cleanup and all CI are verified. If digest format changes after deployment, disable preview and invalidate outstanding states before switching. Separate approvals required for migration, scheduling, deployment and activation. No live changes.
