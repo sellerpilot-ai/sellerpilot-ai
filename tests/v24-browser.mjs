@@ -94,7 +94,7 @@ try {
  assert.match(await page.locator('#v95-tool-count').innerText(),/14 tools found/);
  await page.locator('#v95-search').fill('audit');
  await page.locator('[data-view="settings"]:visible').first().click();
- await page.locator('#view-settings [data-v61-go="directory"]').click();
+ assert.equal(await page.locator('#view-settings a[href="./help.html#support"]').isVisible(),true);await page.locator('#view-settings [data-v61-go="directory"]').click();
  assert.equal(await page.locator('#view-overview.active #v95-directory').getAttribute('open'),'');
  assert.equal(await page.locator('#v95-search').inputValue(),'');
  assert.equal(await page.evaluate(()=>document.activeElement===document.querySelector('#v95-search')),true);
@@ -372,6 +372,11 @@ try {
  await page.setViewportSize({width:1280,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);await page.setViewportSize({width:393,height:852});
  await page.goto(origin+'/');await page.waitForFunction(()=>{const i=document.querySelector('.public-brand img');return i?.complete&&i.naturalWidth===32;});assert.match(await page.locator('h1').innerText(),/Know what to improve/);assert.equal(await page.locator('#view-auth').count(),0);assert.equal(await page.locator('.hero a[href="./app.html"]').count(),1);await page.goto(origin+'/home.html');assert.match(await page.locator('h1').innerText(),/Know what to improve/);await page.locator('.hero a[href="./beta.html"]').click();assert.match(await page.locator('h1').innerText(),/Join the private beta/);assert.match(await page.locator('main').innerText(),/not accepting applications online/);await page.locator('#beta-prepare input').first().check();const invitation=page.waitForEvent('download');await page.locator('#beta-download').click();assert.equal((await invitation).suggestedFilename(),'sellerpilot-beta-checklist.txt');assert.match(await page.locator('#beta-status').innerText(),/No information was sent/);
  assert.equal(await page.locator('a[href="./demo.html"]').count()>0,true);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+ await page.locator('.help-nav a[href="#support"]').click();assert.equal(new URL(page.url()).hash,'#support');
+ for(const [id,expected] of [['save-troubleshooting','Save product to cloud'],['score-troubleshooting','below 70'],['signin-troubleshooting','Forgot password?']]){
+  const topic=page.locator('#'+id);await topic.locator('summary').focus();await page.keyboard.press('Enter');assert.equal(await topic.getAttribute('open'),'');assert.ok((await topic.innerText()).includes(expected));await page.keyboard.press('Enter');assert.equal(await topic.getAttribute('open'),null);
+ }
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
  await page.locator('a[href="./privacy.html"]').first().click();assert.match(await page.locator('.notice').innerText(),/Not a final privacy notice/);
  await page.locator('a[href="./terms.html"]').first().click();assert.match(await page.locator('.notice').innerText(),/Not final commercial terms/);
