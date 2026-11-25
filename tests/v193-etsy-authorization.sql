@@ -42,7 +42,7 @@ begin
  if public.sellerpilot_etsy_begin(a,repeat('8',64),v) is distinct from true then raise exception 'next UTC day'; end if;
 end $$;
 -- V198: cleanup removes old inactive quota records but leaves fresh state and quota intact.
-do $
+do $$
 declare a uuid:='11111111-1111-4111-8111-111111111111'; b uuid:='22222222-2222-4222-8222-222222222222';
 begin
  update sellerpilot_etsy_private.authorization set quota_day=quota_day-2 where user_id=b;
