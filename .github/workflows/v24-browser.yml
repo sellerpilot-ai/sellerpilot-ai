@@ -51,6 +51,8 @@ jobs:
         run: node tests/v46-checkout-page.mjs
       - name: Test dedicated sandbox access page with mock network
         run: node tests/v52-access-page.mjs
+      - name: Verify dual-origin backend compatibility with mock network
+        run: node tests/v121-host-origins.mjs
       - name: Test local keyword discovery engine
         run: node tests/v57-keyword-discovery.mjs
       - name: Test local competitor comparison engine
