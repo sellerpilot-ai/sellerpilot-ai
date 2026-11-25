@@ -92,7 +92,7 @@ export function researchActionKeyword(report,dataset){
 // V80–V84: review several already-researched tag candidates together, never publish.
 // Every candidate is evaluated against the original listing, not other suggested wording.
 export function researchTagPlan(product,rows,selected=[]){
- if(!product||!Array.isArray(rows)||rows.length>20||!Array.isArray(selected)||selected.length>13)return null;
+ if(!product||!Array.isArray(rows)||rows.length>20||!Array.isArray(selected)||selected.length>20)return null;
  const market=product.attributes?.sellerpilot?.market;
  if(market&&market!=='Etsy')return null;
  const before=String(product.tags||''),tags=before.split(',').map(t=>t.trim()).filter(Boolean);
