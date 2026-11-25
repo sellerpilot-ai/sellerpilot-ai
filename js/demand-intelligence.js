@@ -109,3 +109,26 @@ export function researchTagPlan(product,rows,selected=[]){
  const additions=valid?selected.map(k=>lookup.get(k)):[];
  return {before,existingCount:tags.length,remaining,candidates,valid,additions,after:valid&&additions.length?[...tags,...additions].join(', '):before};
 }
+
+// V85–V89: save explicit private review notes, not a new data-provider request.
+// Only phrases from the validated report are eligible; existing notes are never overwritten.
+export function researchLibraryPlan(existing,report,requested){
+ if(!Array.isArray(existing)||existing.length>250||!Array.isArray(requested)||requested.length>20)throw Error('Invalid research selection.');
+ const validated=validateReport(report),available=new Set(validated.rows.map(r=>r.keyword));
+ const seen=new Set(existing.map(k=>normal(k?.phrase)));
+ const additions=[];
+ let skipped=0;
+ for(const phrase of requested){
+  if(typeof phrase!=='string'||!available.has(phrase)||/[\u0000-\u001f\u007f]/u.test(phrase)||!normal(phrase))throw Error('Invalid research phrase.');
+  if(seen.has(normal(phrase))){skipped++;continue;}
+  seen.add(normal(phrase));
+  additions.push({phrase,intent:'Other',notes:'Reviewed Google keyword idea · '+validated.region+' · report retrieved '+new Date(validated.retrieved_at).toISOString()+'. Google research, not Etsy demand. Verify relevance before use.'});
+ }
+ return {additions,skipped,remaining:250-existing.length,valid:additions.length<=250-existing.length};
+}
+export function researchReviewTask(product,report,selected){
+ if(!product||typeof product.title!=='string'||!product.title.trim())return null;
+ const validated=validateReport(report),plan=researchTagPlan(product,validated.rows,selected);
+ if(!plan?.valid||!plan.additions.length)return null;
+ return {title:('Review tags: '+product.title).slice(0,200),date:'',priority:'Normal',notes:('Review proposed tags: '+plan.additions.join(', ')+'. Google keyword ideas · '+validated.region+' · report retrieved '+new Date(validated.retrieved_at).toISOString()+'. Verify actual product facts and available tag slots before editing; nothing has been applied.').slice(0,3000),done:false};
+}
