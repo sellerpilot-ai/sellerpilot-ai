@@ -561,9 +561,18 @@ try {
   'https://sellerpilot-ai.github.io/other/app.html',
   'http://sellerpilot-ai-21c.pages.dev/app',
   'https://fake@sellerpilot-ai-21c.pages.dev/app',
+  'https://yuvilist.com/',
+  'https://yuvilist.com/app.html?v=106',
+  'https://yuvilist.com/app',
+  'https://yuvilist.com.evil.invalid/app',
+  'https://www.yuvilist.com/app',
+  'http://yuvilist.com/app',
+  'https://fake@yuvilist.com/app',
+  'https://yuvilist.com/other',
+  'https://yuvilist.com:8443/app',
   location.href
  ].map(recoveryRedirectFor)});
- assert.deepEqual(recoveryCases,['https://sellerpilot-ai.github.io/sellerpilot-ai/','https://sellerpilot-ai-21c.pages.dev/','https://sellerpilot-ai-21c.pages.dev/',null,null,null,null,null,null]);
+ assert.deepEqual(recoveryCases,['https://sellerpilot-ai.github.io/sellerpilot-ai/','https://sellerpilot-ai-21c.pages.dev/','https://sellerpilot-ai-21c.pages.dev/',null,null,null,null,null,'https://yuvilist.com/','https://yuvilist.com/','https://yuvilist.com/',null,null,null,null,null,null,null]);
  await redirectPage.close();
  console.log('PASS V120: exact recovery origin and path selection; unrelated, preview, HTTP and credential-bearing URLs denied; no real email.');
  // V116: serve only the static output, on a distinct local origin, with all external services mocked.
