@@ -8,6 +8,8 @@ const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const random=()=>Array.from(crypto.getRandomValues(new Uint8Array(32)),v=>v.toString(16).padStart(2,"0")).join("");
 const hash=async s=>new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)));
 const hex=a=>Array.from(a,v=>v.toString(16).padStart(2,"0")).join("");
+// Domain-separated digest binds the opaque state to the exact canonical callback without storing it separately.
+const boundStateHash=async(state,redirect)=>hex(await hash(JSON.stringify(["sellerpilot-etsy-preview-v1",redirect,state])));
 const base64url=a=>btoa(String.fromCharCode(...a)).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 const tidy=(v,n)=>typeof v==="string"?v.slice(0,n):"";
 const digits=v=>/^[1-9]\d{0,18}$/.test(String(v));
@@ -37,13 +39,13 @@ export function createHandler(env,fetcher){
    if(body?.action==="begin"){
     if(body.consent!==true)return fail(400,"Confirm read-only access first.");
     const state=random(),verifier=random(),challenge=base64url(await hash(verifier));
-    const reserved=await rpc("sellerpilot_etsy_begin",{p_user_id:user.id,p_state_hash:hex(await hash(state)),p_verifier:verifier});
+    const reserved=await rpc("sellerpilot_etsy_begin",{p_user_id:user.id,p_state_hash:await boundStateHash(state,redirect),p_verifier:verifier});
     if(reserved!==true)return fail(429,"Authorisation limit reached. Try again tomorrow.");
     const p=new URLSearchParams({response_type:"code",client_id:key,redirect_uri:redirect,scope:"listings_r",state,code_challenge:challenge,code_challenge_method:"S256"});
     return reply(200,{ok:true,authorization_url:"https://www.etsy.com/oauth/connect?"+p});
    }
    if(body?.action!=="finish"||!(/^[a-f0-9]{64}$/.test(body.state||""))||typeof body.code!=="string"||body.code.length<1||body.code.length>2048)return fail(400,"Start a new authorised preview.");
-   const verifier=await rpc("sellerpilot_etsy_consume",{p_user_id:user.id,p_state_hash:hex(await hash(body.state))});
+   const verifier=await rpc("sellerpilot_etsy_consume",{p_user_id:user.id,p_state_hash:await boundStateHash(body.state,redirect)});
    if(typeof verifier!=="string"||!(/^[a-f0-9]{64}$/.test(verifier)))return fail(400,"Authorisation expired, used already or belongs to a different account.");
    const token=await json("https://api.etsy.com/v3/public/oauth/token",{method:"POST",headers:{"Content-Type":"application/x-www-form-urlencoded","x-api-key":key+":"+secret},body:new URLSearchParams({grant_type:"authorization_code",client_id:key,redirect_uri:redirect,code:body.code,code_verifier:verifier})});
    const access=token.access_token,owner=typeof access==="string"?access.split(".")[0]:"";
