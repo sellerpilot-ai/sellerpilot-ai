@@ -477,6 +477,25 @@ try {
   assert.deepEqual(external,[]);await stalePage.close();
  }
  console.log('PASS V118: late success and thrown error from prior account generation do not reopen editor, expose data or overwrite sign-in status (mock only).');
+ // V120: explicit recovery origins only; never send real email.
+ const redirectPage=await browser.newPage();
+ await redirectPage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin)return route.continue();if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});return route.abort()});
+ await redirectPage.goto(origin+'/app.html');
+ await redirectPage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
+ const recoveryCases=await redirectPage.evaluate(async()=>{const {recoveryRedirectFor}=await import('./js/supabase-client.js?v=106');return [
+  'https://sellerpilot-ai.github.io/sellerpilot-ai/app.html?v=106',
+  'https://sellerpilot-ai-21c.pages.dev/app',
+  'https://sellerpilot-ai-21c.pages.dev/',
+  'https://sellerpilot-ai-21c.pages.dev.evil.invalid/app',
+  'https://preview.sellerpilot-ai-21c.pages.dev/app',
+  'https://sellerpilot-ai.github.io/other/app.html',
+  'http://sellerpilot-ai-21c.pages.dev/app',
+  'https://fake@sellerpilot-ai-21c.pages.dev/app',
+  location.href
+ ].map(recoveryRedirectFor)});
+ assert.deepEqual(recoveryCases,['https://sellerpilot-ai.github.io/sellerpilot-ai/','https://sellerpilot-ai-21c.pages.dev/','https://sellerpilot-ai-21c.pages.dev/',null,null,null,null,null,null]);
+ await redirectPage.close();
+ console.log('PASS V120: exact recovery origin and path selection; unrelated, preview, HTTP and credential-bearing URLs denied; no real email.');
  // V116: serve only the static output, on a distinct local origin, with all external services mocked.
  const runtimeTemp=await mkdtemp(resolve(tmpdir(),'sellerpilot-hosting-'));
  let packageServer,packagePage;
