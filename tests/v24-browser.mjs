@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
 import { chromium } from 'playwright';
 
-const root=process.cwd(), types={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css'};
+const root=process.cwd(), types={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.svg':'image/svg+xml'};
 const server=createServer(async(req,res)=>{
  try {
   const requested=new URL(req.url,'http://localhost').pathname;const path=resolve(root,'.'+(requested==='/'?'/index.html':requested));
@@ -28,6 +29,10 @@ export function createClient(){return{
  };return q}
 }}
 `;
+const artwork=await readFile(resolve(root,'assets/sellerpilot-logo.svg'),'utf8');
+const embedded=artwork.match(/data:image\/png;base64,([A-Za-z0-9+/=]+)"/);
+assert.ok(embedded,'Approved logo must embed the original pack PNG');
+assert.equal(createHash('sha256').update(Buffer.from(embedded[1],'base64')).digest('hex'),'f2ff3f96addc3a69a5ac36e3b7e573bc6daf3269993a42f6ae4d985774c62f7d');
 let browser;
 try {
  browser=await chromium.launch({headless:true});
@@ -43,6 +48,8 @@ try {
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
  await page.goto(origin+'/app.html');await ready();assert.match(await page.title(),/v69/);assert.match(await page.locator('.top-pill').innerText(),/SELLERPILOT V69/);assert.match(await page.locator('.footer-note').innerText(),/SellerPilot AI v69/);assert.match(await page.locator('.sidebar-foot').textContent(),/v69 · Listing intelligence beta/);
+ await page.waitForFunction(()=>{const i=document.querySelector('.brand-mark img');return i?.complete&&i.naturalWidth===32;});
+ assert.equal(await page.locator('link[rel="icon"]').getAttribute('href'),'./assets/sellerpilot-logo.svg');
  assert.equal(await page.locator('#v63-operator-tools').isHidden(),true);assert.equal(await page.locator('#v55-home').isHidden(),true);assert.equal(await page.evaluate(()=>Number(localStorage.getItem('test-v63-sandbox-requests')||0)),0);
  await page.locator('[data-view="settings"]:visible').first().click();assert.equal(await page.locator('#v40-stripe-check').isHidden(),true);
  await page.goto(origin+'/index.html?operator=1');await ready();assert.equal(await page.locator('#v63-operator-tools').getAttribute('hidden'),null);
@@ -77,12 +84,24 @@ try {
  await page.locator('#v57-results [data-v60-cloud-keyword]').first().click();await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')||'{}').data?.keywords?.length===1&&!document.querySelector('[data-v60-cloud-keyword]').disabled);
  assert.equal(await page.locator('#v67-run').isDisabled(),true);
  await page.locator('#v67-status-check').click();await page.waitForFunction(()=>document.querySelector('#v67-status')?.textContent.includes('enabled for this private account'));
- await page.locator('#v67-keywords').fill('gold bracelet\nsilver bracelet');assert.equal(await page.locator('#v67-run').isDisabled(),true);
+ await page.locator('#v67-keywords').fill('x'.repeat(81));await page.locator('#v67-consent').check();assert.equal(await page.locator('#v67-run').isDisabled(),true);assert.match(await page.locator('#v75-phrase-count').innerText(),/80-character limit/);
+ await page.locator('#v67-keywords').fill('gold bracelet\nsilver bracelet');assert.equal(await page.locator('#v67-run').isDisabled(),true);assert.match(await page.locator('#v75-phrase-count').innerText(),/2 \/ 20 phrases/);
  await page.locator('#v67-consent').check();await page.locator('#v67-run').click();await page.waitForFunction(()=>document.querySelector('#v67-status')?.textContent.includes('Research ready'));
  assert.match(await page.locator('#v67-results').innerText(),/Google Ads via DataForSEO/);assert.match(await page.locator('#v67-results').innerText(),/120/);assert.match(await page.locator('#v67-results').innerText(),/Not available/);assert.equal(await page.locator('#v67-consent').isChecked(),false);
  await page.locator('#v68-product').selectOption('fixture-product');assert.match(await page.locator('#v67-results').innerText(),/Local word coverage/);
  await page.locator('#v68-sort').selectOption('alpha');await page.locator('#v68-filter').fill('gold');assert.equal(await page.locator('#v67-results article').count(),1);
  await page.locator('[data-v68-trend="gold bracelet"]').click();assert.match(await page.locator('#v68-trend').innerText(),/2026-10/);assert.match(await page.locator('#v68-trend').innerText(),/100 searches/);assert.equal(await page.locator('#v68-trend .v68-bar-row').count(),2);
+ assert.equal(await page.evaluate(()=>document.activeElement?.id),'v68-trend');
+ const googleCSV=page.waitForEvent('download');await page.locator('[data-v71-export]').click();const googleDownload=await googleCSV;assert.equal(googleDownload.suggestedFilename(),'sellerpilot-google-research.csv');
+ const googleText=await readFile(await googleDownload.path(),'utf8');assert.match(googleText,/gold bracelet/);assert.doesNotMatch(googleText,/silver bracelet/);
+ const beforePreview=await page.evaluate(()=>localStorage.getItem('test-fixture'));
+ const previewButton=page.locator('[data-v72-tag="gold bracelet"]');assert.equal(await previewButton.count(),1);
+ page.once('dialog',async d=>{await d.dismiss()});await previewButton.click();assert.equal(await page.locator('#view-keywords').isVisible(),true);
+ page.once('dialog',async d=>{await d.accept()});await previewButton.click();await page.locator('#view-intelligence').waitFor({state:'visible'});
+ assert.equal(await page.locator('#edit-tags').inputValue(),'bracelet, gold jewellery, bracelet, gold bracelet');
+ assert.equal(await page.evaluate(()=>localStorage.getItem('test-fixture')),beforePreview);
+ await page.locator('[data-view="keywords"]:visible, [data-go="keywords"]:visible').first().click();await page.locator('#v67-results article').first().waitFor({state:'visible'});
+ console.log('PASS V71/V72 filtered download, cancel/accept tag preview without saving; V73/V75 focus and input guard; V76 logo asset');
  await page.locator('#v68-filter').fill('');await page.locator('[data-v68-prepare]').click();assert.equal(await page.locator('#v67-region').inputValue(),'US');assert.equal(await page.locator('#v67-consent').isChecked(),false);assert.equal(await page.locator('#v67-run').isDisabled(),true);
  await page.locator('#v67-consent').check();await page.locator('#v67-run').click();await page.waitForFunction(()=>document.querySelector('#v67-status')?.textContent.includes('Research ready'));assert.match(await page.locator('.v68-comparison').innerText(),/UK: 120/);assert.match(await page.locator('.v68-comparison').innerText(),/US: 240/);
  await page.locator('[data-v68-region="UK"]').click();assert.match(await page.locator('#v67-results').innerText(),/Google demand · United Kingdom/);
@@ -246,7 +265,7 @@ try {
  await page.locator('#demo-fix').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/62\/100/);await page.locator('#demo-reset').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.goto(origin+'/help.html');assert.match(await page.locator('h1').innerText(),/Help & tutorials/);await page.locator('summary').filter({hasText:'Discover keywords'}).click();assert.equal(await page.locator('details').filter({hasText:'4. Discover keywords'}).getAttribute('open'),'');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
  await page.setViewportSize({width:1280,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);await page.setViewportSize({width:393,height:852});
- await page.goto(origin+'/');assert.match(await page.locator('h1').innerText(),/Know what to improve/);assert.equal(await page.locator('#view-auth').count(),0);assert.equal(await page.locator('.hero a[href="./app.html"]').count(),1);await page.goto(origin+'/home.html');assert.match(await page.locator('h1').innerText(),/Know what to improve/);await page.locator('.hero a[href="./beta.html"]').click();assert.match(await page.locator('h1').innerText(),/Join the private beta/);assert.match(await page.locator('main').innerText(),/not accepting applications online/);await page.locator('#beta-prepare input').first().check();const invitation=page.waitForEvent('download');await page.locator('#beta-download').click();assert.equal((await invitation).suggestedFilename(),'sellerpilot-beta-checklist.txt');assert.match(await page.locator('#beta-status').innerText(),/No information was sent/);
+ await page.goto(origin+'/');await page.waitForFunction(()=>{const i=document.querySelector('.public-brand img');return i?.complete&&i.naturalWidth===32;});assert.match(await page.locator('h1').innerText(),/Know what to improve/);assert.equal(await page.locator('#view-auth').count(),0);assert.equal(await page.locator('.hero a[href="./app.html"]').count(),1);await page.goto(origin+'/home.html');assert.match(await page.locator('h1').innerText(),/Know what to improve/);await page.locator('.hero a[href="./beta.html"]').click();assert.match(await page.locator('h1').innerText(),/Join the private beta/);assert.match(await page.locator('main').innerText(),/not accepting applications online/);await page.locator('#beta-prepare input').first().check();const invitation=page.waitForEvent('download');await page.locator('#beta-download').click();assert.equal((await invitation).suggestedFilename(),'sellerpilot-beta-checklist.txt');assert.match(await page.locator('#beta-status').innerText(),/No information was sent/);
  assert.equal(await page.locator('a[href="./demo.html"]').count()>0,true);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
  await page.locator('a[href="./privacy.html"]').first().click();assert.match(await page.locator('.notice').innerText(),/Not a final privacy notice/);
