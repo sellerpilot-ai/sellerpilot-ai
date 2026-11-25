@@ -14,6 +14,13 @@ try{
   await page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Offline fixture synced'));
   assert.match(await page.locator('#preview-notice').innerText(),/fictional data only/);
   assert.match(await page.locator('#v60-queue').innerText(),/Minimalist Gold Tone Bracelet/);
+  await page.locator('[data-view="products"]:visible').first().click();
+  const cards=await page.locator('#product-mobile .product-card').count();assert.equal(cards,3);
+  assert.equal(await page.locator('#product-table tr').count(),3);
+  assert.equal(await page.locator('#product-mobile').isVisible(),width===390);
+  assert.equal(await page.locator('#product-table').isVisible(),width!==390);
+  assert.match(await page.locator('#product-count').innerText(),/Showing 3 of 3/);
+  await page.locator('[data-view="overview"]:visible').first().click();
   await page.locator('#v95-directory summary').click();
   await page.locator('#v95-search').fill('profit calculator');
   await page.locator('#v95-tools [data-v61-go="profits"]').click();
@@ -21,6 +28,7 @@ try{
   await page.locator('[data-view="overview"]:visible').first().click();
   await page.locator('#v60-queue [data-v60-review="preview-1"]').click();
   assert.equal(await page.locator('#v59-plan').isVisible(),true);
+  await page.locator('[data-v108-scroll="edit-tags"]').click();assert.equal(await page.locator('#edit-tags').evaluate(el=>document.activeElement===el),true);
   await page.locator('#save-product').click();
   await page.waitForFunction(()=>document.querySelector('#editor-state')?.textContent==='Saved in cloud');
   await page.locator('#preview-restart').click();
