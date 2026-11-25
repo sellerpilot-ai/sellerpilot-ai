@@ -33,21 +33,22 @@ function demandMonthChart(row){
 }
 function drawDemand(){
  const report=demandCurrent();if(!report)return;
+ const discovery=report.mode==='discover';
  const product=demandProduct(),rows=sortRows(report.rows,$('v68-sort').value,product,$('v68-filter').value),entry=demandReports[report.region];
  const comp=compareReports(demandReports.UK?.report,demandReports.US?.report);
  if(!rows.some(r=>r.keyword===demandSelected))demandSelected=rows[0]?.keyword||null;
  const row=rows.find(r=>r.keyword===demandSelected);
  const productLabel=product?'<p class="mini">Local keyword-word coverage against '+esc(product.title)+'. This measures wording overlap, not verified relevance, ranking or sales likelihood. Review product facts before using any phrase.</p>':'<p class="mini">Choose a saved product above to compare local keyword-word coverage.</p>';
  const comparison=comp.length?'<details open><summary>UK / US comparison ('+comp.length+' shared phrases)</summary><p class="mini">Separate Google Ads snapshots; UK retrieved '+esc(new Date(demandReports.UK.report.retrieved_at).toLocaleString())+'; US retrieved '+esc(new Date(demandReports.US.report.retrieved_at).toLocaleString())+'. Compare exact shared phrases only.</p><div class="v68-comparison">'+comp.map(r=>'<div><b>'+esc(r.keyword)+'</b><span>UK: '+metric(r.UK)+'</span><span>US: '+metric(r.US)+'</span></div>').join('')+'</div></details>':'<p class="mini">To compare markets, research the same keyword batch in the other region. A new uncached batch uses one trial task.</p>';
- $('v67-results').innerHTML='<div class="result-strip"><b>Google demand · '+(report.region==='UK'?'United Kingdom':'United States')+'</b><p class="mini">'+esc(report.source)+' · Retrieved '+esc(new Date(report.retrieved_at).toLocaleString())+' · '+(entry.cached?'Cached result; no new provider task':'Research result')+'. Google estimates, not Etsy search volumes.</p><div class="form-actions">'+Object.keys(demandReports).sort().map(region=>'<button class="button secondary sm" type="button" data-v68-region="'+region+'" '+(region===report.region?'disabled':'')+'>Show '+region+'</button>').join('')+'<button class="button ghost sm" type="button" data-v68-prepare>Prepare same batch for '+(report.region==='UK'?'US':'UK')+'</button></div></div>'+productLabel+
+ $('v67-results').innerHTML='<div class="result-strip"><b>Google demand · '+(report.region==='UK'?'United Kingdom':'United States')+'</b><p class="mini">'+esc(report.source)+' · Retrieved '+esc(new Date(report.retrieved_at).toLocaleString())+' · '+(entry.cached?'Cached result; no new provider task':'Research result')+'. Google estimates, not Etsy search volumes.</p>'+(discovery?'<p class="mini"><b>Related keyword discovery</b> · Seed: '+esc(report.seeds[0])+' · Up to 20 distinct valid suggestions returned by Google Ads, not an exhaustive list. Review relevance and accuracy before use.</p>':'')+'<div class="form-actions">'+Object.keys(demandReports).sort().map(region=>'<button class="button secondary sm" type="button" data-v68-region="'+region+'" '+(region===report.region?'disabled':'')+'>Show '+region+'</button>').join('')+'<button class="button ghost sm" type="button" data-v68-prepare>Prepare same '+(discovery?'seed':'batch')+' for '+(report.region==='UK'?'US':'UK')+'</button></div></div>'+productLabel+
  '<p class="mini">'+rows.length+' of '+report.rows.length+' keywords shown</p><div class="stack">'+rows.map(r=>'<article class="v57-row"><div class="row" style="flex-wrap:wrap"><b>'+esc(r.keyword)+'</b><span class="pill">'+metric(r.average_monthly_searches)+' Google searches/mo</span></div><p class="mini">Google Ads competition: '+esc(r.ads_competition||'Not available')+' · Peak: '+(r.season.peak===null?'Not available':esc(r.season.peaks.join(', '))+' ('+metric(r.season.peak)+')')+'</p>'+(r.relevance?'<p class="mini">Local word coverage: '+r.relevance.matched+'/'+r.relevance.total+' ('+r.relevance.score+'%) · '+(r.relevance.exactTitle?'In title':'Not in title')+' · '+(r.relevance.exactTag?'Exact tag present':'No exact tag')+' · '+(r.relevance.tagEligible?'Fits 20-character tag limit':'Longer phrase')+'</p>':'')+'<button type="button" class="button secondary sm" data-v68-trend="'+esc(r.keyword)+'">View trend</button> <button type="button" class="button ghost sm" data-v68-save="'+esc(r.keyword)+'">Save phrase</button>'+(product&&r.relevance?.matched>0?'<button type="button" class="button ghost sm" data-v68-audit="'+esc(r.keyword)+'">Review in listing audit</button>':'')+'</article>').join('')+'</div>'+
- (row?'<div class="result-strip" id="v68-trend" style="margin-top:12px"><b>Monthly trend: '+esc(row.keyword)+'</b>'+demandMonthChart(row)+'</div>':'<p class="mini">No matching keywords.</p>')+comparison;
+ (row?'<div class="result-strip" id="v68-trend" style="margin-top:12px"><b>Monthly trend: '+esc(row.keyword)+'</b>'+demandMonthChart(row)+'</div>':'<p class="mini">'+(report.rows.length?'No matching keywords.':'No verified related phrases returned; no estimates invented.')+'</p>')+comparison;
 }
 function demandAction(e){
  const report=demandCurrent();if(!report||demandPending)return;
  const button=e.target.closest('button');if(!button)return;
  if(button.hasAttribute('data-v68-region')){const region=button.dataset.v68Region;if(demandReports[region]){demandActive=region;demandSelected=null;drawDemand();}return;}
- if(button.hasAttribute('data-v68-prepare')){$('v67-region').value=report.region==='UK'?'US':'UK';$('v67-keywords').value=report.rows.map(r=>r.keyword).join('\n');$('v67-consent').checked=false;v67Button();$('v67-status').textContent='Other market prepared. Review consent and choose Research to send a request; nothing was sent.';$('v67-region').scrollIntoView({block:'center'});return;}
+ if(button.hasAttribute('data-v68-prepare')){$('v67-region').value=report.region==='UK'?'US':'UK';$('v69-mode').value=report.mode==='discover'?'discover':'research';$('v67-keywords').value=(report.seeds||report.rows.map(r=>r.keyword)).join('\n');demandMode();$('v67-consent').checked=false;v67Button();$('v67-status').textContent='Other market prepared. Review consent and choose Research to send a request; nothing was sent.';$('v67-region').scrollIntoView({block:'center'});return;}
  const keyword=button.dataset.v68Trend||button.dataset.v68Save||button.dataset.v68Audit;
  if(!report.rows.some(r=>r.keyword===keyword))return;
  if(button.hasAttribute('data-v68-trend')){demandSelected=keyword;drawDemand();$('v68-trend')?.scrollIntoView({block:'nearest'});return;}
@@ -59,8 +60,19 @@ let demandSerial=0,demandPending=false,demandEnabled=false;
 export function v67Reset(){
  demandSerial++;demandPending=false;demandEnabled=false;demandReports={};demandActive=null;demandOwner=null;demandSelected=null;
  if(!$('v67-run'))return;
- $('v68-product').value='';$('v68-sort').value='volume';$('v68-filter').value='';
+ $('v69-mode').value='research';$('v69-variant').textContent='';demandMode();$('v68-product').value='';$('v68-sort').value='volume';$('v68-filter').value='';
  $('v67-region').value='UK';$('v67-keywords').value='';$('v67-consent').checked=false;$('v67-results').replaceChildren();$('v67-status').textContent='Check availability to start.';$('v67-run').disabled=true;$('v67-status-check').disabled=false;
+}
+function demandMode(){
+ const discover=$('v69-mode').value==='discover';$('v67-run').textContent=discover?'Discover related keywords':'Research Google demand';$('v69-input-hint').textContent=discover?'Enter one seed phrase. Up to 20 related results are shown.':'Enter 1–20 phrases, one per line.';
+ $('v67-consent').checked=false;$('v69-variant').textContent='';v67Button();
+}
+function suggestVariant(){
+ const seed=$('v67-keywords').value.trim();if(!seed||seed.includes('\n')){$('v69-variant').textContent='Enter one phrase to check regional wording.';return;}
+ const pairs={personalised:'personalized',personalisation:'personalization',jewellery:'jewelry',colour:'color',favourite:'favorite',customised:'customized',customisation:'customization'};
+ const us=$('v67-region').value==='US',map=us?pairs:Object.fromEntries(Object.entries(pairs).map(([a,b])=>[b,a]));
+ const suggestion=seed.toLowerCase().replace(/\b[a-z]+\b/g,w=>map[w]||w);
+ $('v69-variant').textContent=suggestion!==seed.toLowerCase()?'Local spelling suggestion (unmeasured): '+suggestion+' — edit the seed manually if appropriate. No request sent.':'No supported spelling changes found. No request sent.';
 }
 function v67Button(){ $('v67-run').disabled=!demandEnabled||demandPending||!$('v67-consent').checked;$('v67-status-check').disabled=demandPending; }
 async function v67Invoke(body){
@@ -78,16 +90,17 @@ async function v67Check(){
 }
 export function v67RenderReport(report,cached){
  const validated=validateReport(report);if(!state.uid||!state.ready)return;
- if(demandOwner!==state.uid){demandReports={};demandOwner=state.uid;}
+ if(demandOwner!==state.uid||Object.values(demandReports).some(x=>x.report.mode!==validated.mode||validated.mode==='discover'&&JSON.stringify(x.report.seeds)!==JSON.stringify(validated.seeds))){demandReports={};demandOwner=state.uid;}
  demandReports[validated.region]={report:validated,cached:cached===true};demandActive=validated.region;demandSelected=null;drawDemand();
 }
 async function v67Run(){
  if(!state.ready||!state.uid||!demandEnabled||demandPending||!$('v67-consent').checked)return;
- const keywords=$('v67-keywords').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean),region=$('v67-region').value;
+ const keywords=$('v67-keywords').value.split(/\r?\n/).map(x=>x.trim()).filter(Boolean),region=$('v67-region').value,action=$('v69-mode').value;
+ if(action==='discover'&&keywords.length!==1){toast('Enter exactly one seed phrase.',true);return;}
  if(!keywords.length||keywords.length>20||keywords.some(x=>x.length>80)){toast('Enter 1–20 phrases, at most 80 characters each.',true);return;}
  const uid=state.uid,serial=++demandSerial;demandPending=true;$('v67-consent').checked=false;v67Button();$('v67-status').textContent='Researching Google demand…';
- try{await verifiedUser();if(serial!==demandSerial||uid!==state.uid)return;const data=await v67Invoke({action:'research',region,keywords,consent:true});if(serial!==demandSerial||uid!==state.uid)return;if(data.report?.region!==region)throw Error('Unexpected research region.');v67RenderReport(data.report,data.cached===true);$('v67-status').textContent='Research ready. No listing has been changed.';}
+ try{await verifiedUser();if(serial!==demandSerial||uid!==state.uid)return;const data=await v67Invoke({action,region,keywords,consent:true});if(serial!==demandSerial||uid!==state.uid)return;if(data.report?.region!==region||(action==='discover'?data.report?.mode!=='discover':data.report?.mode!==undefined))throw Error('Unexpected research report.');v67RenderReport(data.report,data.cached===true);$('v67-status').textContent='Research ready. No listing has been changed.';}
  catch(e){if(serial===demandSerial&&uid===state.uid)$('v67-status').textContent=e.message;}
  finally{if(serial===demandSerial&&uid===state.uid){demandPending=false;v67Button();}}
 }
-export function v67Init(){if(!$('v67-run'))return;v67Reset();$('v67-consent').onchange=v67Button;$('v67-status-check').onclick=v67Check;$('v67-run').onclick=v67Run;$('v68-sort').onchange=drawDemand;$('v68-filter').oninput=drawDemand;$('v68-product').onchange=drawDemand;$('v67-results').addEventListener('click',demandAction);demandProducts();}
+export function v67Init(){if(!$('v67-run'))return;v67Reset();$('v67-consent').onchange=v67Button;$('v69-mode').onchange=demandMode;$('v69-spelling').onclick=suggestVariant;for(const id of ['v67-region','v67-keywords'])$(id).addEventListener(id==='v67-region'?'change':'input',()=>{$('v67-consent').checked=false;$('v69-variant').textContent='';v67Button();});$('v67-status-check').onclick=v67Check;$('v67-run').onclick=v67Run;$('v68-sort').onchange=drawDemand;$('v68-filter').oninput=drawDemand;$('v68-product').onchange=drawDemand;$('v67-results').addEventListener('click',demandAction);demandProducts();}
