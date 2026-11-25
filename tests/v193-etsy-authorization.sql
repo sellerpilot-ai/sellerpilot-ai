@@ -41,8 +41,39 @@ begin
  update sellerpilot_etsy_private.authorization set quota_day=quota_day-1 where user_id=a;
  if public.sellerpilot_etsy_begin(a,repeat('8',64),v) is distinct from true then raise exception 'next UTC day'; end if;
 end $$;
+-- V198: cleanup removes old inactive quota records but leaves fresh state and quota intact.
+do $
+declare a uuid:='11111111-1111-4111-8111-111111111111'; b uuid:='22222222-2222-4222-8222-222222222222';
+begin
+ update sellerpilot_etsy_private.authorization set quota_day=quota_day-2 where user_id=b;
+ perform public.sellerpilot_etsy_cleanup();
+ perform public.sellerpilot_etsy_cleanup();
+ if exists(select 1 from sellerpilot_etsy_private.authorization where user_id=b) then raise exception 'old inactive quota retained'; end if;
+ if not exists(select 1 from sellerpilot_etsy_private.authorization where user_id=a and attempts=1 and state_hash=repeat('8',64) and verifier=repeat('a',64) and expires_at>clock_timestamp()) then raise exception 'fresh state or quota lost during cleanup'; end if;
+end $;
 reset role;
 -- Account deletion removes pending material.
 delete from auth.users where id='11111111-1111-4111-8111-111111111111';
 do $$ begin if exists(select 1 from sellerpilot_etsy_private.authorization where user_id='11111111-1111-4111-8111-111111111111') then raise exception 'account cascade'; end if; end $$;
 \echo PASS V193: permissions, expiry, ownership, replay, replacement, daily quota, cleanup, account deletion
+
+-- V199: test the narrow rollback from the installation review, with unrelated objects present.
+create table public.unrelated_fixture(id integer primary key);
+insert into public.unrelated_fixture values (42);
+begin;
+drop function public.sellerpilot_etsy_cleanup();
+drop function public.sellerpilot_etsy_consume(uuid,text);
+drop function public.sellerpilot_etsy_begin(uuid,text,text);
+drop table sellerpilot_etsy_private.authorization;
+drop schema sellerpilot_etsy_private;
+commit;
+do $$
+begin
+ if to_regnamespace('sellerpilot_etsy_private') is not null
+ or to_regprocedure('public.sellerpilot_etsy_begin(uuid,text,text)') is not null
+ or to_regprocedure('public.sellerpilot_etsy_consume(uuid,text)') is not null
+ or to_regprocedure('public.sellerpilot_etsy_cleanup()') is not null then raise exception 'rollback left preview objects'; end if;
+ if not exists(select 1 from public.unrelated_fixture where id=42)
+ or not exists(select 1 from auth.users where id='22222222-2222-4222-8222-222222222222') then raise exception 'rollback damaged unrelated data'; end if;
+end $$;
+\echo PASS V198/V199: idempotent cleanup preserves fresh state, prunes old quota, scoped rollback preserves unrelated data
