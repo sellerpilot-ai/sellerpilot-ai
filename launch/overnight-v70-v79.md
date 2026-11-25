@@ -1,4 +1,4 @@
-# V70–V100 review checklist
+# V70–V105 review checklist
 
 Review branch: overnight-v70-v79; draft PR #48. Production baseline V69. All work here is review-only. No automatic publication, paid provider calls, new subscription activation, real Etsy authentication, production database/credential changes, or production deployment are authorised.
 
@@ -24,7 +24,8 @@ Review branch: overnight-v70-v79; draft PR #48. Production baseline V69. All wor
 - [x] V94 head 129771cb: offline (45574508863) and full mock browser regression (45574508832) passed.
 - [x] Independently checked the approved logo pack 32px PNG SHA-256 matches the digest pinned in the passing browser regression: f2ff3f96addc3a69a5ac36e3b7e573bc6daf3269993a42f6ae4d985774c62f7d.
 - [x] V99 head bafd0a39: offline (45574809101) and full mock browser regression (45574809123) passed; credential-pattern screening passed.
-- [ ] Verify both workflows on the exact final V100 candidate.
+- [x] V100 head 2d293195: offline (45575219441) and full browser (45575219439) passed.
+- [ ] Verify both workflows at the exact V105 acceptance candidate.
 - [ ] Check final branch CI, no merge conflicts, no credential exposure, and confirm manual desktop/mobile visual QA.
 - [ ] Keep the draft PR unmerged; no production or live billing changes without explicit owner approval.
 - [ ] Etsy integration remains disabled pending official app approval, exact registered callback configuration, durable atomic user-bound state, secure encrypted token storage, authorised shop identity verification, rate limits, and review of applicable Etsy API restrictions. Do not enable live authentication or data access as part of this review.
@@ -71,3 +72,17 @@ Offline command: `node --experimental-default-type=module tests/v70-opportunity.
 - Performance: local keyword reports bounded to 20 rows, catalogue review queue paginated five at a time, grouping computed from cached audit summaries, no new provider calls for local tools. No measured production latency, large-catalogue benchmark or real-device profiling yet.
 - Feature completeness: local listing audit, keyword/tag planner, research notebook, catalogue issues, action centre and reports are implemented; Google estimates are not Etsy volume, and commercial marketplace API access, live billing, public signup and support operations remain out of scope. No claim of parity with paid competitors.
 - Decision: candidate for manual private-beta acceptance testing only, not public/commercial launch. Final-head CI, real desktop/mobile visual QA, security review of live account isolation, support/privacy/rollback readiness and explicit owner approval remain required before release. Retain V69 production labels until approved version change; keep PR draft/unmerged.
+
+## V101–V105 private beta acceptance
+- V101: automated viewport and horizontal-overflow checks at 1440×900 desktop and 390×844 mobile for Command Centre, Profit Planner and Keyword Lab. Keyboard activation of tool directory and navigation is tested. This is not manual visual inspection or an accessibility certification.
+- V102: deterministic synthetic 10,000-listing local summary, grouping and filtering benchmark with a generous 5-second CI guard, plus full 20-row research report and rejection of a 21-row report. Not a production database or network latency test; 10,000 fixtures do not imply supported live catalogue capacity.
+- V103: isolated mock sessions verify no external network except intercepted client module, no implicit research consent, no sandbox request, no stored fixture mutation from tool navigation, and private state reset. Prior credential scan and security regression retained; live account isolation/RLS and independent security review remain outstanding.
+- V104: customer acceptance smoke path from signed-in Command Centre through tool discovery, keyboard navigation, profit planning and keyword tools, followed by sign-out state reset. No live testers or customer satisfaction claims.
+- V105: release decision and owner checklist below; all code remains in draft PR #48, no public sign-up, production deployment, payment activation or live Etsy data access.
+
+### Private beta owner acceptance checklist
+- [ ] Final-head CI green. Confirm actual device readability, focus, touch targets, layout and branding on desktop and phone.
+- [ ] Review representative catalogue import, listing audit, tag preview, explicit private save, review task, export and account switching using authorized test accounts and non-sensitive data. Verify live tenant isolation and rollback separately; no new paid requests unless approved.
+- [ ] Confirm provider gates and budgets, verified support contact, beta terms/privacy notice, data export/deletion process, and invited tester scope. Keep external integrations and real payments disabled.
+- [ ] Decide release version label and cache-key update together, approve merge and deployment explicitly. Retain the known V69 base commit 03b01085f3d6ae5cb86f7b79d5a1e37f03371893 for rollback planning; verify deployment/rollback procedure before release. No rollback or release has been performed.
+- [ ] After authorized private deployment, verify deployed commit, smoke tests, error logs and budget controls before expanding tester access. Public commercial readiness is a separate decision.
