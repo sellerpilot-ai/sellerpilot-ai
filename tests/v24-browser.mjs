@@ -444,6 +444,39 @@ try {
  assert.deepEqual(isolationExternal,[]);
  await isolationPage.close();
  console.log('PASS V113: rejected foreign catalogue response and foreign editor/save/delete/duplicate targets (mock only).');
+ // V118: verify a response initiated before sign-out cannot reopen the previous editor.
+ for(const outcome of ['success','error']){
+  const stalePage=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true});
+  const external=[];
+  await stalePage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin)return route.continue();if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});external.push(u.origin);return route.abort()});
+  await stalePage.goto(origin+'/app.html');
+  await stalePage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
+  const result=await stalePage.evaluate(async outcome=>{
+   const {state}=await import('./js/core.js?v=106');
+   const {editProduct,saveProduct}=await import('./js/product-editor.js?v=106');
+   const {accountIdentity}=await import('./js/supabase-client.js?v=106');
+   const own=state.products[0];editProduct(own.id);
+   let release,started;
+   const pending=new Promise(r=>{release=r}),entered=new Promise(r=>{started=r});
+   const original=state.client.from;
+   let requests=0;
+   state.client.from=(...args)=>{
+    requests++;
+    const query={update(){return query},eq(){return query},select(){return query},async maybeSingle(){started();await pending;if(outcome==='error')throw Error('Old account private fixture error');return{data:{...own,title:'Stale response sentinel'},error:null}}};
+    return query;
+   };
+   try{
+    const saving=saveProduct();await entered;accountIdentity(null);
+    release();await saving;
+    return {requests,uid:state.uid,editing:state.editing,products:state.products.length,banner:document.querySelector('#cloud-status').textContent,editor:document.querySelector('#edit-title').value,ready:state.ready};
+   }finally{state.client.from=original;release()}
+  },outcome);
+  assert.equal(result.requests,1);assert.equal(result.uid,null);assert.equal(result.editing,null);assert.equal(result.products,0);assert.equal(result.ready,false);assert.equal(result.editor,'');
+  assert.match(result.banner,/Sign in to access/);
+  assert.equal(await stalePage.locator('#view-auth.active').isVisible(),true);
+  assert.deepEqual(external,[]);await stalePage.close();
+ }
+ console.log('PASS V118: late success and thrown error from prior account generation do not reopen editor, expose data or overwrite sign-in status (mock only).');
  // V116: serve only the static output, on a distinct local origin, with all external services mocked.
  const runtimeTemp=await mkdtemp(resolve(tmpdir(),'sellerpilot-hosting-'));
  let packageServer,packagePage;
