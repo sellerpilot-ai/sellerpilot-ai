@@ -1,11 +1,12 @@
 // Server-side primitives only; no route, storage or network requests.
 import {randomBytes, createHash} from 'node:crypto';
 export function createPendingAuthorization(userId, now=Date.now()) {
- if(typeof userId!=='string'||!userId.trim()||!Number.isSafeInteger(now)||now<0) throw Error('Invalid authorization context');
+ if(typeof userId!=='string'||!userId.trim()||!Number.isSafeInteger(now)||now<0||now>Number.MAX_SAFE_INTEGER-600000) throw Error('Invalid authorization context');
  const verifier=randomBytes(32).toString('base64url');
- return {userId, state:randomBytes(32).toString('base64url'), verifier, challenge:createHash('sha256').update(verifier).digest('base64url'), expiresAt:now+600000};
+ return {userId, state:randomBytes(32).toString('base64url'), verifier, challenge:createHash('sha256').update(verifier).digest('base64url'), issuedAt:now, expiresAt:now+600000};
 }
 export function authorizationUrl(pending, clientId, redirectUri) {
+ if(!pending||!validCallback(pending,pending.userId,pending.state,pending.issuedAt)||!/^[-_A-Za-z0-9]{43}$/.test(pending.verifier)||pending.challenge!==createHash('sha256').update(pending.verifier).digest('base64url')) throw Error('Invalid pending authorization');
  const redirect=new URL(redirectUri);
  if(redirect.protocol!=='https:'||redirect.username||redirect.password||redirect.hash||typeof clientId!=='string'||!clientId.trim()) throw Error('Invalid OAuth configuration');
  const url=new URL('https://www.etsy.com/oauth/connect');
@@ -14,7 +15,7 @@ export function authorizationUrl(pending, clientId, redirectUri) {
 }
 // Caller MUST atomically consume the stored state for this authenticated user before exchanging a code.
 export function validCallback(pending,userId,state,now=Date.now()) {
- return !!pending&&typeof state==='string'&&state.length===43&&pending.state===state&&pending.userId===userId&&Number.isSafeInteger(now)&&now>=0&&now<pending.expiresAt;
+ return !!pending&&typeof state==='string'&&/^[-_A-Za-z0-9]{43}$/.test(state)&&pending.state===state&&typeof userId==='string'&&!!userId.trim()&&pending.userId===userId&&Number.isSafeInteger(pending.issuedAt)&&pending.issuedAt>=0&&Number.isSafeInteger(pending.expiresAt)&&pending.expiresAt-pending.issuedAt===600000&&Number.isSafeInteger(now)&&now>=pending.issuedAt&&now<pending.expiresAt;
 }
 
 // Offline prototype only. Production requires durable atomic storage across instances.
