@@ -1,4 +1,4 @@
-# V70–V79 review checklist
+# V70–V84 review checklist
 
 Review branch: overnight-v70-v79; draft PR #48. Production baseline V69. All work here is review-only. No automatic publication, paid provider calls, new subscription activation, real Etsy authentication, production database/credential changes, or production deployment are authorised.
 
@@ -18,9 +18,17 @@ Review branch: overnight-v70-v79; draft PR #48. Production baseline V69. All wor
 - [x] Checkpoint c61aff11: offline and existing mock browser workflows passed.
 - [x] c969e309: offline and existing mock browser workflows passed after first customer-facing fixes.
 - [x] a8f520da: expanded offline keyword, OAuth and catalogue fixtures passed.
-- [ ] Confirm full expanded mock browser workflow at final code head, including new V71–V76 checks.
+- [x] V79 code head 8364abe8: both offline (45573450749) and expanded mock browser (45573450637) passed, including direct mobile return navigation and unchanged cloud product.
+- [ ] Confirm offline and full mock browser workflows at the latest V84 head.
 - [ ] Check final branch CI, no merge conflicts, no credential exposure, and confirm manual desktop/mobile visual QA.
 - [ ] Keep the draft PR unmerged; no production or live billing changes without explicit owner approval.
 - [ ] Etsy integration remains disabled pending official app approval, exact registered callback configuration, durable atomic user-bound state, secure encrypted token storage, authorised shop identity verification, rate limits, and review of applicable Etsy API restrictions. Do not enable live authentication or data access as part of this review.
 
 Offline command: `node --experimental-default-type=module tests/v70-opportunity.mjs`; run the existing offline Etsy tests and existing browser regression in a mocked environment. GitHub Actions is authoritative for per-commit results. Do not mark pending tests as passed based on an earlier head.
+
+## V80–V84 customer-facing batch
+- V80: bounded local multi-tag plan from already retrieved, currently filtered research; evaluate each suggestion against original listing wording, reject duplicates, unsupported phrases and over-capacity selections.
+- V81: accessible multi-select panel in Keyword Lab with free slots and candidate count; selection resets when results redraw.
+- V82: live before/after tag preview and clear selection; no provider request or storage write.
+- V83: explicit confirmation opens the editor with the proposed tags; no automatic cloud save or marketplace publication. Existing edits may be replaced only after confirmation.
+- V84: offline fixtures for duplicate/over-capacity/unknown rows, immutable original and marketplace restrictions; mocked browser checks for multi-selection, clear, cancel, preview, return and no cloud save. Final-head CI and manual visual QA still required.
