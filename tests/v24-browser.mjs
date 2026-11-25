@@ -544,6 +544,14 @@ try {
   }
   const publicResponse=await fetch(packageOrigin+'/');for(const [key,value] of Object.entries(securityHeaders))assert.equal(publicResponse.headers.get(key),value);
   console.log('PASS V122: 54-file Cloudflare package, clean URL and query preservation, security headers and explicit 404 in local simulation.');
+  const cspResult=await packagePage.evaluate(async()=>{
+   const violation=new Promise(resolve=>document.addEventListener('securitypolicyviolation',e=>{if(e.effectiveDirective==='connect-src')resolve(e.effectiveDirective)},{once:true}));
+   let denied=false;try{await fetch('https://unapproved.invalid/fixture')}catch{denied=true}
+   return {denied,directive:await Promise.race([violation,new Promise(r=>setTimeout(()=>r('missing'),1500))])};
+  });
+  assert.deepEqual(cspResult,{denied:true,directive:'connect-src'});
+  assert.deepEqual(external,[]);
+  console.log('PASS V123: browser CSP blocks an unapproved connection without external network traffic; existing mock workspace loads.');
   console.log('PASS V116: packaged frontend startup, catalogue and editor on independent local origin; private paths absent; zero external requests (mock only).');
  }finally{if(packagePage)await packagePage.close();if(packageServer)await new Promise(r=>packageServer.close(r));await rm(runtimeTemp,{recursive:true,force:true})}
  const failurePage=await browser.newPage();
