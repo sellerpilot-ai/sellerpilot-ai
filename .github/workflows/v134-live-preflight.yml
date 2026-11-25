@@ -18,7 +18,7 @@ jobs:
               def redirect_request(self, *args, **kwargs):
                   return None
           opener = urllib.request.build_opener(NoRedirect)
-          url = 'https://aczqdgjyeztaexsxmdww.supabase.co/functions/v1/sellerpilot-google-demand'
+          url = 'https://aczqdgjyeztaexsxmdww.supabase.co/functions/v1/sellerpilot-ai-copy'
           old = 'https://sellerpilot-ai.github.io'
           new = 'https://sellerpilot-ai-21c.pages.dev'
           origins = [old, new, 'https://example.invalid', 'https://preview.sellerpilot-ai-21c.pages.dev', 'http://sellerpilot-ai-21c.pages.dev', 'null']
