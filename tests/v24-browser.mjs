@@ -513,6 +513,26 @@ try {
   assert.deepEqual(external,[]);await workspacePage.close();
  }
  console.log('PASS V181: stale workspace success, returned error, rejection and stale invocation cannot overwrite newer session state (mock only).');
+ // V187: validate returned Etsy authorization URLs for both exact canonical app hosts.
+ const etsyUrlPage=await browser.newPage();
+ await etsyUrlPage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin)return route.continue();if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});return route.abort()});
+ await etsyUrlPage.goto(origin+'/app.html');
+ await etsyUrlPage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
+ const etsyChecks=await etsyUrlPage.evaluate(async()=>{
+  const {etsyCallbackFor,validateEtsyAuthorization}=await import('./js/etsy-preview.js?v=106');
+  const old='https://sellerpilot-ai.github.io/sellerpilot-ai/',next='https://sellerpilot-ai-21c.pages.dev/';
+  const make=base=>{const u=new URL('https://www.etsy.com/oauth/connect');u.search=new URLSearchParams({response_type:'code',scope:'listings_r',redirect_uri:base+'etsy-return.html',code_challenge_method:'S256',state:'a'.repeat(64),code_challenge:'a'.repeat(43),client_id:'fixture'});return u};
+  const rejected=(url,host)=>{try{validateEtsyAuthorization(url,host);return false}catch{return true}};
+  const duplicate=make(next);duplicate.searchParams.append('scope','listings_w');
+  const forged=make(next);forged.hostname='www.etsy.com.evil.invalid';
+  const wrongScope=make(next);wrongScope.searchParams.set('scope','listings_w');
+  const fragment=make(next);fragment.hash='bad';
+  const wrongState=make(next);wrongState.searchParams.set('state','bad');
+  const badChallenge=make(next);badChallenge.searchParams.set('code_challenge','bad');
+  return [validateEtsyAuthorization(make(old).href,old+'app.html').origin==='https://www.etsy.com',validateEtsyAuthorization(make(next).href,next+'app').origin==='https://www.etsy.com',etsyCallbackFor('https://preview.sellerpilot-ai-21c.pages.dev/')===null,rejected(make(old).href,next),rejected(duplicate.href,next),rejected(forged.href,next),rejected(wrongScope.href,next),rejected(fragment.href,next),rejected(wrongState.href,next),rejected(badChallenge.href,next)];
+ });
+ assert.deepEqual(etsyChecks,Array(10).fill(true));await etsyUrlPage.close();
+ console.log('PASS V187: Etsy authorization address validation for both hosts and malicious/mismatched URLs.');
  // V120: explicit recovery origins only; never send real email.
  const redirectPage=await browser.newPage();
  await redirectPage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin)return route.continue();if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});return route.abort()});
