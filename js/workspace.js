@@ -12,6 +12,7 @@ export function v19Defaults(){return {keywords:[],competitors:[],ranks:[],profit
 export function v19Reset(){v19Store.loaded=false;v19Store.data=v19Defaults();v19Store.updatedAt=null;v19Store.error='';}
 export function v19SafeArray(value,max=250){return Array.isArray(value)?value.filter(x=>x&&typeof x==='object').slice(0,max):[]}
 export async function v19Load(uid,serial){
+ if(!uid||state.uid!==uid||state.serial!==serial)return;
  v19Reset();try{
   const {data,error}=await state.client.from('sellerpilot_workspace_v19').select('data,updated_at').eq('user_id',uid).maybeSingle();
   if(error)throw error;if(state.uid!==uid||state.serial!==serial)return;
@@ -21,7 +22,7 @@ export async function v19Load(uid,serial){
   base.monitoring={enabled:raw.monitoring?.enabled===true};
   base.prefs={...base.prefs,...(raw.prefs&&typeof raw.prefs==='object'&&!Array.isArray(raw.prefs)?raw.prefs:{})};base.notes=String(raw.notes||'').slice(0,3000);
   v19Store.data=base;v19Store.loaded=true;v19Store.updatedAt=data?.updated_at||null;v19Store.error='';
- }catch(e){v19Store.error=e.message||'Workspace data inaccessible';v19Store.loaded=false;toast('Research workspace unavailable: '+v19Store.error,true)}
+ }catch(e){if(state.uid!==uid||state.serial!==serial)return;v19Store.error=e.message||'Workspace data inaccessible';v19Store.loaded=false;toast('Research workspace unavailable: '+v19Store.error,true)}
  if(state.uid!==uid||state.serial!==serial)return;
  if(v19Store.loaded&&state.ready&&autoSnapshotDue(v19Store.data.monitoring,v19Store.data.weekly,state.products)){
   try{const next=JSON.parse(JSON.stringify(v19Store.data));next.weekly=saveWeek(next.weekly,{...healthReport(state.products),source:'auto'});await v19Commit(next)}
