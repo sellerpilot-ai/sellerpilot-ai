@@ -31,7 +31,7 @@ async function refresh(){
  if(pending)return;pending=true;$('refresh').disabled=true;clear();$('status').textContent='Checking your private test account…';
  try{
   if(!client){const {createClient}=await import('https://esm.sh/@supabase/supabase-js@2.119.2');client=createClient(project,pk,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:false,flowType:'implicit'}});}
-  const {data:session,error:authError}=await client.auth.getUser();if(authError||!session?.user?.id)throw Error('Sign in on the SellerPilot workspace in this same browser, then return here.');
+  const {data:session,error:authError}=await client.auth.getUser();if(authError||!session?.user?.id)throw Error('Sign in on the YuviList workspace in this same browser, then return here.');
   const {data,error}=await client.functions.invoke('sellerpilot-stripe-access',{body:{action:'dashboard'}});
   if(error){let detail='';try{detail=(await error.context?.json())?.detail||''}catch{}throw Error(detail||'Subscription dashboard unavailable.');}
   const checked=validate(data);
