@@ -73,9 +73,18 @@ export function researchExportRows(report,rows){
 }
 
 export function previewResearchTag(product,phrase){
- if(!product||typeof phrase!=='string'||!phrase.trim()||phrase.includes(','))return null;
+ if(!product||typeof phrase!=='string'||!phrase.trim()||/[\u0000-\u001f\u007f,]/u.test(phrase))return null;
+ const market=product.attributes?.sellerpilot?.market;if(market&&market!=='Etsy')return null;
  const candidate=phrase.trim();
  const tags=String(product.tags||'').split(',').map(t=>t.trim()).filter(Boolean);
  if(tags.length>=13||!opportunity({keyword:candidate,average_monthly_searches:null,monthly:[]},product,0).reviewCandidate)return null;
  return {before:String(product.tags||''),after:[...tags,candidate].join(', '),candidate};
+}
+
+// Resolve exactly one supported research action against the current account's validated report.
+export function researchActionKeyword(report,dataset){
+ const values=['v68Trend','v68Save','v68Audit','v72Tag'].filter(k=>Object.hasOwn(dataset,k));
+ if(values.length!==1)return null;
+ const keyword=dataset[values[0]];
+ return typeof keyword==='string'&&report?.rows?.some(r=>r.keyword===keyword)?keyword:null;
 }
