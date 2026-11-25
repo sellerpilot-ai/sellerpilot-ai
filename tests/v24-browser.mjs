@@ -1,10 +1,25 @@
 import assert from 'node:assert/strict';
 import {createHash} from 'node:crypto';
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdtemp, rm, readdir } from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {buildStaticPackage} from './v115-static-package.mjs';
 import { resolve, extname, sep } from 'node:path';
 import { chromium } from 'playwright';
 
+const packageTemp=await mkdtemp(resolve(tmpdir(),'sellerpilot-static-'));
+try{
+ const destination=resolve(packageTemp,'frontend');
+ const files=await buildStaticPackage(process.cwd(),destination);
+ assert.ok(files.includes('app.html')&&files.includes('js/supabase-client.js'));
+ assert.ok(files.includes('assets/sellerpilot-logo.svg'));
+ assert.ok(files.every(f=>!f.startsWith('tests/')&&!f.startsWith('supabase/')&&!f.startsWith('.')));
+ const top=await readdir(destination);
+ assert.ok(!top.includes('tests')&&!top.includes('supabase')&&!top.includes('.git'));
+ for(const file of files)assert.deepEqual(await readFile(resolve(destination,file)),await readFile(resolve(process.cwd(),file)));
+ await assert.rejects(()=>buildStaticPackage(process.cwd(),destination),/EEXIST/);
+ console.log('PASS V115: '+files.length+' allowlisted frontend files, byte-identical, no test/backend output, overwrite refused.');
+}finally{await rm(packageTemp,{recursive:true,force:true})}
 const root=process.cwd(), types={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.svg':'image/svg+xml'};
 const server=createServer(async(req,res)=>{
  try {
