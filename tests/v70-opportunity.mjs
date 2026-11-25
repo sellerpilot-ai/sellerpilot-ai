@@ -101,3 +101,12 @@ assert.equal(researchReviewTask(product,fullReport,['solid gold bracelet']),null
 assert.equal(researchReviewTask(product,fullReport,[]),null);
 assert.equal(product.tags,'bracelet');
 console.log('PASS V85–V89 explicit research library plan, provenance, capacity, review-task draft and no listing mutation');
+
+ // Bounded research fixture at the maximum supported report size.
+ const twenty=Array.from({length:20},(_,i)=>row('bracelet '+i,i,[{month:'2026-01',searches:i}]));
+ const full=sortRows(twenty,'opportunity',product);
+ assert.equal(full.length,20);
+ assert.equal(researchExportRows(report,full).length,20);
+ assert.equal(researchLibraryPlan([], {...report,rows:twenty}, twenty.map(r=>r.keyword)).additions.length,20);
+ assert.throws(()=>researchLibraryPlan([], {...report,rows:[...twenty,row('extra')]}, ['extra']));
+ console.log('PASS V102: full 20-row research report and oversized report rejection');
