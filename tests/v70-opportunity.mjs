@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {researchExportRows,sortRows,opportunity,filterOpportunities} from '../js/demand-intelligence.js';
+import {previewResearchTag,researchExportRows,sortRows,opportunity,filterOpportunities} from '../js/demand-intelligence.js';
 const product={title:'Gold plated bracelet',description:'Gold plated chain bracelet',tags:'bracelet'};
 const row=(keyword,volume=100,monthly=[])=>({keyword,average_monthly_searches:volume,monthly});
 assert.equal(opportunity(row('gold bracelet'),product,100).score,100);
@@ -39,3 +39,14 @@ assert.equal(exported.find(r=>r[0]==='bracelet')[4],0);
 assert.deepEqual(researchExportRows(report,[]),[]);
 assert.equal(researchExportRows(report,exportRows.slice(0,1)).length,1);
 console.log('PASS V71 export row fixtures');
+
+assert.deepEqual(previewResearchTag(product,'gold bracelet'),{before:'bracelet',after:'bracelet, gold bracelet',candidate:'gold bracelet'});
+assert.equal(previewResearchTag(product,'bracelet'),null);
+assert.equal(previewResearchTag(product,'solid gold bracelet'),null);
+assert.equal(previewResearchTag(product,'cartier bracelet'),null);
+assert.equal(previewResearchTag(product,'gold, bracelet'),null);
+assert.equal(previewResearchTag({...product,tags:Array.from({length:13},(_,i)=>'tag'+i).join(',')},'gold bracelet'),null);
+assert.equal(previewResearchTag(product,'gold plated chain bracelet'),null);
+assert.equal(previewResearchTag(null,'gold bracelet'),null);
+assert.equal(product.tags,'bracelet');
+console.log('PASS V72 tag preview fixtures');
