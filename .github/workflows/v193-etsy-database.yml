@@ -1,0 +1,25 @@
+name: V193 disposable PostgreSQL authorization tests
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'launch/v192-etsy-authorization-draft.sql'
+      - 'tests/v193-etsy-authorization.sql'
+      - '.github/workflows/v193-etsy-database.yml'
+permissions:
+  contents: read
+jobs:
+  isolated-postgres:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Run in disposable runner database only
+        run: |
+          set -euo pipefail
+          sudo systemctl start postgresql
+          sudo -u postgres createdb sellerpilot_v193_fixture
+          trap 'sudo -u postgres dropdb --if-exists sellerpilot_v193_fixture' EXIT
+          sudo -u postgres psql -X -v ON_ERROR_STOP=1 -d sellerpilot_v193_fixture -f "$GITHUB_WORKSPACE/tests/v193-etsy-authorization.sql"
