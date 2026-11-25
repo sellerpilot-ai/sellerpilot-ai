@@ -15,3 +15,4 @@ jobs:
       - run: node --experimental-default-type=module tests/v70-opportunity.mjs
       - run: node --experimental-default-type=module --check js/keyword-lab.js
       - run: node --experimental-default-type=module tests/v74-etsy-preview.mjs
+      - run: node tests/v73-etsy-oauth.mjs
