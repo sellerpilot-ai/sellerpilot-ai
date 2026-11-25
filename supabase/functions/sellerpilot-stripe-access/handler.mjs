@@ -1,7 +1,8 @@
 // V43 isolated sandbox access simulation. Never calls AI or grants production access.
 const origin='https://sellerpilot-ai.github.io';
 const cloudOrigin='https://sellerpilot-ai-21c.pages.dev';
-const allowedOrigin=from=>from===origin||from===cloudOrigin;
+const yuviOrigin='https://yuvilist.com';
+const allowedOrigin=from=>from===origin||from===cloudOrigin||from===yuviOrigin;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const sid=/^sub_[A-Za-z0-9]{8,160}$/,cid=/^cus_[A-Za-z0-9]{8,160}$/,pid=/^price_[A-Za-z0-9]{8,160}$/;
 const limits={starter:{monthly:30,daily:5,amount:999},professional:{monthly:100,daily:15,amount:1999}};
