@@ -127,6 +127,13 @@ jobs:
           print('PASS V125: ZIP contains exactly the 54 manifest-verified frontend assets; no deployment.')
           print('ZIP SHA-256: ' + hashlib.sha256(output.read_bytes()).hexdigest())
           PY
+      - name: Independently verify candidate archive and manifest
+        if: github.head_ref == 'overnight-v70-v79' || github.head_ref == 'development/v176-report-clarity'
+        env:
+          EXPECTED_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          python3 tests/yuvilist-verify-release.py --self-test
+          python3 tests/yuvilist-verify-release.py "$RUNNER_TEMP/SellerPilot-Cloudflare-CANDIDATE-NOT-APPROVED.zip" "$RUNNER_TEMP/sellerpilot-release-evidence/manifest.json" "$EXPECTED_CANDIDATE_SHA"
       - name: Retain verified candidate ZIP for owner approval only
         if: github.head_ref == 'overnight-v70-v79'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
