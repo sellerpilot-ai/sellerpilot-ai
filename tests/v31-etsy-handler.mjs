@@ -75,3 +75,20 @@ assert.equal((await call({action:'finish',state,code:'sample'})).status,503);
 assert.ok(calls.slice(beforeMismatch).every(u=>u.endsWith('/auth/v1/user')));
 assert.equal((await call({action:'finish',state,code:'sample'},true,newOrigin)).status,200);
 console.log('PASS V186: exact CORS origins, explicit callback configuration, same-origin token exchange, hostile and unconfigured origins rejected.');
+ // V197: a state issued on one callback must not be exchangeable on another even if configuration changes.
+ env.SELLERPILOT_ETSY_PREVIEW_REDIRECT_URI=oldCallback;
+ state=await begin(oldOrigin);
+ const originalHash=pending.p_state_hash;
+ assert.match(originalHash,/^[a-f0-9]{64}$/);
+ assert.notEqual(originalHash,state);
+ const beforeSwitch=calls.filter(u=>u.endsWith('/oauth/token')).length;
+ env.SELLERPILOT_ETSY_PREVIEW_REDIRECT_URI=newCallback;
+ assert.equal((await call({action:'finish',state,code:'sample'},true,newOrigin)).status,400);
+ assert.equal(pending.p_state_hash,originalHash);
+ assert.equal(calls.filter(u=>u.endsWith('/oauth/token')).length,beforeSwitch);
+ env.SELLERPILOT_ETSY_PREVIEW_REDIRECT_URI=oldCallback;
+ assert.equal((await call({action:'finish',state,code:'sample'},true,oldOrigin)).status,200);
+ assert.equal(calls.filter(u=>u.endsWith('/oauth/token')).length,beforeSwitch+1);
+ assert.equal((await call({action:'finish',state,code:'sample'},true,oldOrigin)).status,400);
+ console.log('PASS V197: durable state digest binds exact callback; reconfigured host rejected without consuming state or contacting Etsy.');
+
