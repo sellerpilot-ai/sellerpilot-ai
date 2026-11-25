@@ -24,7 +24,8 @@ export function createHandler(env,fetcher){
    if(!uuid.test(user.id||"")||!user.email_confirmed_at||user.is_anonymous===true)return fail(401,"Verified account required.");
    let body;try{const reader=req.body?.getReader();if(!reader)return fail(400,"Invalid request.");let n=0,s="",decoder=new TextDecoder();while(true){const {done,value}=await reader.read();if(done)break;n+=value.byteLength;if(n>8192){await reader.cancel();return fail(413,"Request too large.")}s+=decoder.decode(value,{stream:true})}body=JSON.parse(s+decoder.decode())}catch{return fail(400,"Invalid request.")}
    const key=env("SELLERPILOT_ETSY_KEYSTRING"),secret=env("SELLERPILOT_ETSY_SHARED_SECRET");
-   const enabled=env("SELLERPILOT_ETSY_PREVIEW_ENABLED")==="true"&&!!key&&!!secret&&!!service;
+   const allowed=String(env("SELLERPILOT_MARKETPLACE_BETA_USER_IDS")||"").split(",").map(x=>x.trim()).includes(user.id);
+   const enabled=allowed&&env("SELLERPILOT_ETSY_APPROVED")==="true"&&env("SELLERPILOT_ETSY_PREVIEW_ENABLED")==="true"&&!!key&&!!secret&&!!service;
    if(body?.action==="status")return reply(200,{ok:true,enabled});
    if(!enabled)return fail(503,"Etsy authorisation is not enabled. CSV import remains available.");
    const admin={apikey:service,Authorization:"Bearer "+service,"Content-Type":"application/json"};
