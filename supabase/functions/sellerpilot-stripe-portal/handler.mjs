@@ -1,19 +1,21 @@
 // Sandbox-only portal. No subscription entitlement or direct billing changes.
 const origin='https://sellerpilot-ai.github.io';
+const cloudOrigin='https://sellerpilot-ai-21c.pages.dev';
+const allowedOrigin=from=>from===origin||from===cloudOrigin;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const sid=/^sub_[A-Za-z0-9]{8,160}$/,cid=/^cus_[A-Za-z0-9]{8,160}$/,pid=/^price_[A-Za-z0-9]{8,160}$/;
 function runtimeKey(env,name,legacy){try{const k=JSON.parse(env(name)||'{}').default;if(typeof k==='string'&&k)return k}catch{}return env(legacy)}
 async function read(req){const reader=req.body?.getReader();if(!reader)throw Error('missing body');let total=0,s='';const d=new TextDecoder();try{while(true){const {done,value}=await reader.read();if(done)break;total+=value.byteLength;if(total>1024){await reader.cancel();throw Error('too large')}s+=d.decode(value,{stream:true})}return JSON.parse(s+d.decode())}finally{reader.releaseLock()}}
 
 const bpc=/^bpc_[A-Za-z0-9]{8,160}$/;
-const returnURL=origin+'/sellerpilot-ai/?v=44&billing=portal-return';
+const returnURLFor=from=>(from===cloudOrigin?cloudOrigin+'/':origin+'/sellerpilot-ai/')+'?v=44&billing=portal-return';
 export function safePortalURL(raw){try{if(typeof raw!=='string'||raw.length>8192||raw!==raw.trim()||/[\u0000-\u0020\u007f\\]/.test(raw))return false;const u=new URL(raw);return u.origin==='https://billing.stripe.com'&&!u.username&&!u.password&&u.pathname!=='/'&&!/^\/p\/session\/live_/i.test(u.pathname)}catch{return false}}
 export function safeConfig(c,id){const f=c?.features;return c?.object==='billing_portal.configuration'&&c.id===id&&c.livemode===false&&c.active===true&&c.login_page?.enabled===false&&f?.invoice_history?.enabled===true&&f.payment_method_update?.enabled===true&&f.subscription_cancel?.enabled===true&&f.subscription_cancel.mode==='at_period_end'&&f.subscription_cancel.proration_behavior==='none'&&f.subscription_update?.enabled===false&&f.customer_update?.enabled===false}
 export function ownsSubscription(sub,user,customer,prices){const plan=sub?.metadata?.sellerpilot_plan,expected=plan==='starter'?999:plan==='professional'?1999:0,items=sub?.items?.data,item=Array.isArray(items)&&items.length===1&&sub.items.has_more===false?items[0]:null,p=item?.price;return sub?.object==='subscription'&&sid.test(sub.id||'')&&sub.livemode===false&&sub.customer===customer&&sub.metadata?.sellerpilot_mode==='sandbox'&&sub.metadata?.sellerpilot_user_id===user&&expected>0&&item?.quantity===1&&p?.id===prices[plan]&&p.livemode===false&&p.currency==='gbp'&&p.unit_amount===expected&&p.recurring?.interval==='month'&&p.recurring?.interval_count===1}
 export function createHandler(env,fetcher){return async req=>{
- const from=req.headers.get('origin'),headers={'Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin',...(from===origin?{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS'}:{})};
+ const from=req.headers.get('origin'),headers={'Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin',...(allowedOrigin(from)?{'Access-Control-Allow-Origin':from,'Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS'}:{})};
  const reply=(status,data)=>new Response(JSON.stringify(data),{status,headers}),fail=(status,detail)=>reply(status,{ok:false,detail,production_access:false});
- if(from&&from!==origin)return fail(403,'Origin not permitted.');
+ if(from&&!allowedOrigin(from))return fail(403,'Origin not permitted.');
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers});
  if(req.method!=='POST')return fail(405,'POST required.');
  const auth=req.headers.get('authorization')||'',base=env('SUPABASE_URL'),pk=runtimeKey(env,'SUPABASE_PUBLISHABLE_KEYS','SUPABASE_ANON_KEY');
@@ -43,6 +45,7 @@ export function createHandler(env,fetcher){return async req=>{
  const c=await stripe('billing_portal/configurations/'+encodeURIComponent(config));
  if(!safeConfig(c,config))return fail(409,'Sandbox portal configuration does not match the approved test settings.');
  if(input.action==='status')return reply(200,{ok:true,sandbox:true,enabled:true,production_access:false});
+ const returnURL=returnURLFor(from);
  const session=await stripe('billing_portal/sessions',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({customer,configuration:config,return_url:returnURL})});
  const issue=session?.object!=='billing_portal.session'?'object':session.livemode!==false?'sandbox mode':session.customer!==customer?'customer':session.configuration!==config?'configuration':session.return_url!==returnURL?'return URL':!safePortalURL(session.url)?'hosted URL':null;
  if(issue)return fail(502,'Unexpected portal response ('+issue+').');
