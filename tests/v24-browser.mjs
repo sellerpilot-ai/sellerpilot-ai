@@ -326,6 +326,45 @@ try {
  await page.locator('a[href="./privacy.html"]').first().click();assert.match(await page.locator('.notice').innerText(),/Not a final privacy notice/);
  await page.locator('a[href="./terms.html"]').first().click();assert.match(await page.locator('.notice').innerText(),/Not final commercial terms/);
  assert.deepEqual(errors,[]);
+ // V101/V103/V104: independent desktop and narrow-mobile sessions, fixture network only.
+ for(const viewport of [{width:1440,height:900},{width:390,height:844}]){
+  const desktop=viewport.width>1000;
+  const acceptance=await browser.newPage({viewport,isMobile:!desktop,hasTouch:!desktop,reducedMotion:'reduce'});
+  const blocked=[],acceptErrors=[];
+  acceptance.on('pageerror',e=>acceptErrors.push(e.message));
+  await acceptance.route('**/*',async route=>{
+   const u=new URL(route.request().url());
+   if(u.origin===origin)return route.continue();
+   if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});
+   blocked.push(u.origin);return route.abort();
+  });
+  const fits=async()=>assert.equal(await acceptance.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+2),true,'Horizontal page overflow at '+viewport.width);
+  await acceptance.goto(origin+'/app.html');
+  await acceptance.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
+  await fits();
+  await acceptance.locator('#v95-directory summary').focus();await acceptance.keyboard.press('Enter');
+  assert.equal(await acceptance.locator('#v95-directory').getAttribute('open'),'');
+  await acceptance.locator('#v95-search').fill('profit calculator');
+  assert.equal(await acceptance.locator('#v95-tools [data-v61-go]').count(),1);
+  await acceptance.locator('#v95-tools [data-v61-go="profits"]').focus();await acceptance.keyboard.press('Enter');
+  assert.equal(await acceptance.locator('#view-profits').isVisible(),true);await fits();
+  await acceptance.locator('[data-view="overview"]:visible').first().click();
+  await acceptance.locator('#v95-search').fill('keyword lab');
+  await acceptance.locator('#v95-tools [data-v61-go="keywords"]').click();
+  assert.equal(await acceptance.locator('#view-keywords').isVisible(),true);await fits();
+  assert.equal(await acceptance.locator('#v67-run').isDisabled(),true);
+  assert.equal(await acceptance.locator('#v67-consent').isChecked(),false);
+  assert.equal(await acceptance.evaluate(()=>localStorage.getItem('test-fixture')),null);
+  assert.equal(await acceptance.evaluate(()=>localStorage.getItem('test-weekly-workspace')),null);
+  assert.equal(await acceptance.evaluate(()=>Number(localStorage.getItem('test-v63-sandbox-requests')||0)),0);
+  await acceptance.evaluate(async()=>{const {clearWorkspace}=await import('./js/ui.js?v=69');clearWorkspace()});
+  assert.equal(await acceptance.locator('#view-auth').isVisible(),true);
+  assert.equal(await acceptance.locator('#v95-tools').textContent(),'');
+  assert.equal(await acceptance.locator('#v67-results').textContent(),'');
+  assert.deepEqual(blocked,[]);assert.deepEqual(acceptErrors,[]);
+  await acceptance.close();
+  console.log('PASS V101/V103/V104: '+viewport.width+'px viewport, keyboard tool navigation, overflow, explicit consent and private-state reset (mock only)');
+ }
  const failurePage=await browser.newPage();
  await failurePage.route('**/*',async route=>{const url=new URL(route.request().url());if(url.pathname.endsWith('/keyword-discovery.js'))return route.abort();if(url.origin===origin)return route.continue();return route.abort()});
  await failurePage.goto(origin+'/app.html?v=69');await failurePage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Workspace startup failed'));
