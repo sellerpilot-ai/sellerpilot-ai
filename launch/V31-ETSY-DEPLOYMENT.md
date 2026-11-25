@@ -1,7 +1,0 @@
-# V31 — deployment candidate, not activated
-
-One-time seller-authorised listing preview, not persistent synchronisation. Uses listings_r only, PKCE S256, user-bound one-time state expiring in ten minutes, maximum five starts/user/day and 100 globally. No access or refresh tokens persisted or returned. Up to 50 active listing titles/IDs, verified against shop owner. No writes, buyer data or AI processing. Browser callback URL: https://sellerpilot-ai.github.io/sellerpilot-ai/etsy-return.html.
-
-Before activation: obtain approved Etsy access for the intended multi-seller use; confirm terms permit these processing activities and required attribution; register exact callback; apply and test the reviewed service-only SQL migration; deploy Edge Function with verified JWT; store keystring and shared secret in Supabase secrets; set SELLERPILOT_ETSY_PREVIEW_ENABLED only after real end-to-end testing and approval. Do not enter secret values in the browser. Pending records are cleaned on new starts; arrange scheduled expiry cleanup and verify account deletion. Existing public research and shop lookup functions need separate current-authentication compatibility review before enabling. No automatic import, background sync or publishing yet.
-
-Official references: https://developers.etsy.com/documentation/essentials/authentication/ and https://developer.etsy.com/documentation/reference (getShopByOwnerUserId; getListingsByShop).

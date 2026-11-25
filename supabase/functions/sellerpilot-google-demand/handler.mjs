@@ -29,7 +29,7 @@ export function transform(data,input,now=new Date()){
 }
 export function createHandler(env,fetcher=fetch){
  return async req=>{
- const origin=req.headers.get("origin"),allowed=[ "https://sellerpilot-ai.github.io", "https://sellerpilot-ai-21c.pages.dev" ].includes(origin);
+ const origin=req.headers.get("origin"),allowed=origin==="https://sellerpilot-ai.github.io";
  const headers={"Content-Type":"application/json","Cache-Control":"no-store","Vary":"Origin",...(allowed?{"Access-Control-Allow-Origin":origin,"Access-Control-Allow-Headers":"authorization,apikey,content-type,x-client-info","Access-Control-Allow-Methods":"POST,OPTIONS"}:{})};
  const reply=(status,body)=>new Response(JSON.stringify(body),{status,headers}),fail=(status,detail)=>reply(status,{ok:false,detail});
  if(origin&&!allowed)return fail(403,"Origin not permitted.");

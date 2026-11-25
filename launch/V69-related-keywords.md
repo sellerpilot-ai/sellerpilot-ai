@@ -1,5 +1,0 @@
-V69 — related keyword research
-
-Official endpoint: https://docs.dataforseo.com/v3/keywords_data-google_ads-keywords_for_keywords-live/ . Published Google Ads Live pricing: https://dataforseo.com/pricing/keywords-data/google-ads ($0.09/task estimate; account billing not inspected).
-
-One explicitly authorised seed; Google Ads relevance-order first 20 valid distinct returned phrases, UK/US, English, search partners and adult keywords disabled. 16 MiB response ceiling; no retry. Existing private account gate, same lifetime five-task counter, separate discovery cache key; existing exact-batch keys preserved. Empty or invalid provider results must not be presented as invented demand. Regional spelling helper is local, unmeasured and does not change the seed automatically. Reports for different discovery seeds or modes are not combined. Existing listing audit handoff and saved phrase actions remain optional. No schema migration or new secret required. Backend deployment and live discovery verification remain pending after CI. Existing 2/5 trial tasks used as of V68.

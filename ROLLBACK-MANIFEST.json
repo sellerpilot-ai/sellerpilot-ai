@@ -1,0 +1,88 @@
+{
+  "captured": "2026-11-25",
+  "candidate": "68fd4c0a3e19ec0cada3b3419c175dd62193189a",
+  "purpose": "Pre-migration source backup; never merge or deploy as a frontend. No environment secret values captured. Webhook unchanged and excluded. Redeploy individual saved bundles only after explicit rollback approval.",
+  "functions": [
+    {
+      "slug": "sellerpilot-ai-copy",
+      "version": 20,
+      "verify_jwt": true,
+      "source_bundle_hash": "d56a43facd9a483284fdacb3df4d67b755835dabcc8d173487e79b0bea4c0241",
+      "files": [
+        "index.ts",
+        "handler.mjs",
+        "image.mjs"
+      ]
+    },
+    {
+      "slug": "sellerpilot-competitor-search",
+      "version": 21,
+      "verify_jwt": true,
+      "source_bundle_hash": "bad8b0ae079cf3c652f0fadc0f28abdd1d43ec6019f90e381d5a8441660c7fc9",
+      "files": [
+        "index.ts",
+        "provider-access.mjs"
+      ]
+    },
+    {
+      "slug": "sellerpilot-google-demand",
+      "version": 6,
+      "verify_jwt": true,
+      "source_bundle_hash": "b60a22253ae33de661260201ee57e41b4d334980754f2153fc3a9f5b971342b1",
+      "files": [
+        "index.ts",
+        "handler.mjs"
+      ]
+    },
+    {
+      "slug": "sellerpilot-shop-listings",
+      "version": 21,
+      "verify_jwt": true,
+      "source_bundle_hash": "da80f05eb37b5318ba6331d5ae6a5a4cb147d8c249a6b388a81db24318ac312b",
+      "files": [
+        "index.ts",
+        "provider-access.mjs"
+      ]
+    },
+    {
+      "slug": "sellerpilot-stripe-access",
+      "version": 14,
+      "verify_jwt": true,
+      "source_bundle_hash": "0b9407158d7b16074034f50aa7e2d12c8d18bc9e25a63b474c585a00da1f6f7c",
+      "files": [
+        "index.ts",
+        "handler.mjs"
+      ]
+    },
+    {
+      "slug": "sellerpilot-stripe-checkout",
+      "version": 15,
+      "verify_jwt": true,
+      "source_bundle_hash": "ca6386fff6131106910f0738c997304c2270ce6f377db13f242436e2cb5217ae",
+      "files": [
+        "index.ts",
+        "handler.mjs"
+      ]
+    },
+    {
+      "slug": "sellerpilot-stripe-portal",
+      "version": 13,
+      "verify_jwt": true,
+      "source_bundle_hash": "ba22ca4b394755361d6d73a3b2f1a5d93870346e91791567c94213fe08d95439",
+      "files": [
+        "index.ts",
+        "handler.mjs"
+      ]
+    },
+    {
+      "slug": "sellerpilot-stripe-test",
+      "version": 14,
+      "verify_jwt": true,
+      "source_bundle_hash": "75f486c980636f23a56d04f31a03ce710c5be1f48af6c9577e24cf0a046af885",
+      "files": [
+        "index.ts",
+        "handler.mjs"
+      ]
+    }
+  ]
+}
