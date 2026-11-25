@@ -100,7 +100,7 @@ try {
  page.once('dialog',async d=>{await d.accept()});await previewButton.click();await page.locator('#view-intelligence').waitFor({state:'visible'});
  assert.equal(await page.locator('#edit-tags').inputValue(),'bracelet, gold jewellery, bracelet, gold bracelet');
  assert.equal(await page.evaluate(()=>localStorage.getItem('test-fixture')),beforePreview);
- await page.locator('[data-view="keywords"]:visible, [data-go="keywords"]:visible').first().click();await page.locator('#v67-results article').first().waitFor({state:'visible'});
+ await page.locator('#v79-return-keywords').click();await page.locator('#view-keywords').waitFor({state:'visible'});await page.locator('#v67-results article').first().waitFor({state:'visible'});assert.equal(await page.locator('#edit-tags').inputValue(),'bracelet, gold jewellery, bracelet, gold bracelet');assert.equal(await page.evaluate(()=>localStorage.getItem('test-fixture')),beforePreview);
  console.log('PASS V71/V72 filtered download, cancel/accept tag preview without saving; V73/V75 focus and input guard; V76 logo asset');
  await page.locator('#v68-filter').fill('');await page.locator('[data-v68-prepare]').click();assert.equal(await page.locator('#v67-region').inputValue(),'US');assert.equal(await page.locator('#v67-consent').isChecked(),false);assert.equal(await page.locator('#v67-run').isDisabled(),true);
  await page.locator('#v67-consent').check();await page.locator('#v67-run').click();await page.waitForFunction(()=>document.querySelector('#v67-status')?.textContent.includes('Research ready'));assert.match(await page.locator('.v68-comparison').innerText(),/UK: 120/);assert.match(await page.locator('.v68-comparison').innerText(),/US: 240/);
