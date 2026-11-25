@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {previewResearchTag,researchTagPlan,researchActionKeyword,researchExportRows,sortRows,opportunity,filterOpportunities} from '../js/demand-intelligence.js';
+import {previewResearchTag,researchTagPlan,researchLibraryPlan,researchReviewTask,researchActionKeyword,researchExportRows,sortRows,opportunity,filterOpportunities} from '../js/demand-intelligence.js';
 const product={title:'Gold plated bracelet',description:'Gold plated chain bracelet',tags:'bracelet'};
 const row=(keyword,volume=100,monthly=[])=>({keyword,average_monthly_searches:volume,monthly});
 assert.equal(opportunity(row('gold bracelet'),product,100).score,100);
@@ -82,3 +82,22 @@ console.log('PASS V80–V84 multi-tag plan, eligibility, slot count, duplicates,
 
 assert.equal(researchTagPlan(product,planRows,Array(14).fill('gold bracelet')).valid,false);
 assert.equal(researchTagPlan(product,planRows,Array(21).fill('gold bracelet')),null);
+
+const fullReport={...report,rows:planRows};
+const library=researchLibraryPlan([{phrase:'GOLD BRACELET',notes:'Existing notes'}],fullReport,['gold bracelet','chain bracelet','Gold Bracelet']);
+assert.equal(library.additions.length,1);
+assert.equal(library.skipped,2);
+assert.equal(library.additions[0].phrase,'chain bracelet');
+assert.match(library.additions[0].notes,/UK.*2026-11-25.*not Etsy demand/);
+assert.throws(()=>researchLibraryPlan([],fullReport,['unknown']));
+assert.equal(researchLibraryPlan(Array.from({length:250},(_,i)=>({phrase:'other '+i})),fullReport,['chain bracelet']).valid,false);
+assert.equal(researchLibraryPlan([],fullReport,[]).additions.length,0);
+const task=researchReviewTask(product,fullReport,['gold bracelet','chain bracelet']);
+assert.match(task.title,/Review tags: Gold plated bracelet/);
+assert.match(task.notes,/gold bracelet, chain bracelet/);
+assert.equal(task.done,false);
+assert.equal(task.date,'');
+assert.equal(researchReviewTask(product,fullReport,['solid gold bracelet']),null);
+assert.equal(researchReviewTask(product,fullReport,[]),null);
+assert.equal(product.tags,'bracelet');
+console.log('PASS V85–V89 explicit research library plan, provenance, capacity, review-task draft and no listing mutation');
