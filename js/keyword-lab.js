@@ -19,7 +19,7 @@ export function v57Init(){if(!$('v57-generate'))return;for(const id of ['v57-pro
 
 /* V67: explicit private Google demand requests; never send catalogue data automatically. */
 import {verifiedUser} from './supabase-client.js';
-import {validateReport,sortRows,compareReports,seasonal,filterOpportunities} from './demand-intelligence.js';
+import {researchExportRows,validateReport,sortRows,compareReports,seasonal,filterOpportunities} from './demand-intelligence.js';
 import {editProduct} from './product-editor.js';
 let demandReports={},demandActive=null,demandOwner=null,demandSelected=null;
 const metric=n=>n===null||n===undefined?'Not available':n.toLocaleString('en-GB');
@@ -54,8 +54,7 @@ function demandAction(e){
  if(button.hasAttribute('data-v71-export')){
  const rows=filterOpportunities(sortRows(report.rows,$('v68-sort').value,demandProduct(),$('v68-filter').value),$('v70-opportunity-filter')?.value||'all');
  if(!rows.length)return;
- const safe=v=>typeof v==='string'&&/^[\s\u0000-\u001f]*[=+\-@]|^[\t\r\n]/u.test(v)?"'"+v:v??'';
- v19CSV('sellerpilot-google-research.csv',['keyword','source','region','retrieved_at','google_average_monthly_searches','google_ads_competition','local_word_coverage','review_priority','historical_peak_signal','warnings'],rows.map(r=>[r.keyword,report.source,report.region,report.retrieved_at,r.average_monthly_searches,r.ads_competition,r.relevance?.score,r.opportunity.score,r.opportunity.seasonalSignal,r.opportunity.warnings.join('; ')].map(safe)));return;
+ v19CSV('sellerpilot-google-research.csv',['keyword','source','region','retrieved_at','google_average_monthly_searches','google_ads_competition','local_word_coverage','review_priority','historical_peak_signal','warnings'],researchExportRows(report,rows));return;
  }
  if(button.hasAttribute('data-v68-region')){const region=button.dataset.v68Region;if(demandReports[region]){demandActive=region;demandSelected=null;drawDemand();}return;}
  if(button.hasAttribute('data-v68-prepare')){$('v67-region').value=report.region==='UK'?'US':'UK';$('v69-mode').value=report.mode==='discover'?'discover':'research';$('v67-keywords').value=(report.seeds||report.rows.map(r=>r.keyword)).join('\n');demandMode();$('v67-consent').checked=false;v67Button();$('v67-status').textContent='Other market prepared. Review consent and choose Research to send a request; nothing was sent.';$('v67-region').scrollIntoView({block:'center'});return;}
