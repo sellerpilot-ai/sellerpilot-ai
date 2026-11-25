@@ -19,7 +19,7 @@ export function v57Init(){if(!$('v57-generate'))return;for(const id of ['v57-pro
 
 /* V67: explicit private Google demand requests; never send catalogue data automatically. */
 import {verifiedUser} from './supabase-client.js';
-import {validateReport,sortRows,compareReports,seasonal} from './demand-intelligence.js';
+import {validateReport,sortRows,compareReports,seasonal,filterOpportunities} from './demand-intelligence.js';
 import {editProduct} from './product-editor.js';
 let demandReports={},demandActive=null,demandOwner=null,demandSelected=null;
 const metric=n=>n===null||n===undefined?'Not available':n.toLocaleString('en-GB');
@@ -34,7 +34,11 @@ function demandMonthChart(row){
 function drawDemand(){
  const report=demandCurrent();if(!report)return;
  const discovery=report.mode==='discover';
- const product=demandProduct(),rows=sortRows(report.rows,$('v68-sort').value,product,$('v68-filter').value),entry=demandReports[report.region];
+ const sort=$('v68-sort'), filter=$('v68-filter');
+ if(!Array.from(sort.options).some(o=>o.value==='opportunity'))sort.add(new Option('Review priority','opportunity'));
+ let advanced=$('v70-opportunity-filter');
+ if(!advanced){const label=document.createElement('label');label.textContent='Opportunity filter';advanced=document.createElement('select');advanced.id='v70-opportunity-filter';for(const [value,name] of [['all','All keywords'],['long','Long-tail'],['seasonal','Historical peak signal'],['warnings','Potential warnings'],['candidates','Tag candidates']])advanced.add(new Option(name,value));label.append(advanced);filter.insertAdjacentElement('afterend',label);advanced.onchange=drawDemand;}
+ const product=demandProduct(),rows=filterOpportunities(sortRows(report.rows,sort.value,product,filter.value),advanced.value),entry=demandReports[report.region];
  const comp=compareReports(demandReports.UK?.report,demandReports.US?.report);
  if(!rows.some(r=>r.keyword===demandSelected))demandSelected=rows[0]?.keyword||null;
  const row=rows.find(r=>r.keyword===demandSelected);
@@ -60,7 +64,7 @@ let demandSerial=0,demandPending=false,demandEnabled=false;
 export function v67Reset(){
  demandSerial++;demandPending=false;demandEnabled=false;demandReports={};demandActive=null;demandOwner=null;demandSelected=null;
  if(!$('v67-run'))return;
- $('v69-mode').value='research';$('v69-variant').textContent='';demandMode();$('v68-product').value='';$('v68-sort').value='volume';$('v68-filter').value='';
+ $('v69-mode').value='research';$('v69-variant').textContent='';demandMode();$('v68-product').value='';$('v68-sort').value='volume';$('v68-filter').value='';if($('v70-opportunity-filter'))$('v70-opportunity-filter').value='all';
  $('v67-region').value='UK';$('v67-keywords').value='';$('v67-consent').checked=false;$('v67-results').replaceChildren();$('v67-status').textContent='Check availability to start.';$('v67-run').disabled=true;$('v67-status-check').disabled=false;
 }
 function demandMode(){
