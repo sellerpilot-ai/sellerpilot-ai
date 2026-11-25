@@ -1,0 +1,47 @@
+name: V134 live OPTIONS verification
+on:
+  pull_request:
+    branches: [overnight-v70-v79]
+    paths: ['.github/workflows/v134-live-preflight.yml']
+permissions:
+  contents: read
+jobs:
+  canary:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Check canary using credential-free OPTIONS only
+        run: |
+          python3 - <<'PY'
+          import urllib.request, urllib.error
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, *args, **kwargs):
+                  return None
+          opener = urllib.request.build_opener(NoRedirect)
+          url = 'https://aczqdgjyeztaexsxmdww.supabase.co/functions/v1/sellerpilot-competitor-search'
+          old = 'https://sellerpilot-ai.github.io'
+          new = 'https://sellerpilot-ai-21c.pages.dev'
+          origins = [old, new, 'https://example.invalid', 'https://preview.sellerpilot-ai-21c.pages.dev', 'http://sellerpilot-ai-21c.pages.dev', 'null']
+          for origin in origins:
+              req = urllib.request.Request(url, method='OPTIONS', headers={'Origin':origin, 'Access-Control-Request-Method':'POST', 'Access-Control-Request-Headers':'authorization,apikey,content-type,x-client-info'})
+              try:
+                  response = opener.open(req, timeout=10)
+              except urllib.error.HTTPError as error:
+                  response = error
+              with response as res:
+                  status = res.code
+                  allow = res.headers.get('Access-Control-Allow-Origin')
+                  vary = res.headers.get('Vary','')
+                  print(f'OPTIONS {origin} status={status} allow={allow} vary={vary}', flush=True)
+                  if origin in (old, new):
+                      assert status == 204 and allow == origin
+                      assert 'origin' in [v.strip().lower() for v in vary.split(',')]
+                      assert 'POST' in res.headers.get('Access-Control-Allow-Methods','')
+                      headers = res.headers.get('Access-Control-Allow-Headers','').lower().split(',')
+                      assert set(['authorization','apikey','content-type','x-client-info']).issubset({h.strip() for h in headers})
+                  else:
+                      assert status in (204,403) and allow is None
+                  if origin == new:
+                      print('CANARY_MODE=' + ('dual-origin' if allow == new else 'legacy'), flush=True)
+          print('PASS: credential-free OPTIONS only; no provider requests.')
+          PY
