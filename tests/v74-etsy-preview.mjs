@@ -14,3 +14,12 @@ assert.throws(()=>preview({results:[{...row,tags:[1]}]},1));
 assert.throws(()=>preview({results:[{...row,title:null}]},1));
 assert.throws(()=>preview({results:Array(101).fill(row)},1));
 console.log('PASS Etsy offline preview fixtures');
+
+assert.throws(()=>preview({results:[{...row,title:' '}]},1));
+assert.throws(()=>preview({results:[{...row,title:'Bad\u0000 title'}]},1));
+assert.throws(()=>preview({results:[{...row,tags:[' ']}]},1));
+assert.throws(()=>preview({results:[{...row,tags:['gift\nother']} ]},1));
+assert.throws(()=>preview({results:[row,{...row,shop_id:2,listing_id:3}]},1));
+assert.throws(()=>preview({results:[{...row,listing_id:Number.MAX_SAFE_INTEGER+1}]},1));
+assert.equal(result[0].secret,undefined);
+console.log('PASS V78 catalogue invalid text, cross-shop and field minimisation fixtures');
