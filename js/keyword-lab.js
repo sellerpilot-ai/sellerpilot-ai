@@ -125,7 +125,7 @@ function v67Button(){
  const valid=phrases.length>0&&phrases.length<=(discovery?1:20)&&phrases.every(x=>x.length<=80);
  const count=$('v75-phrase-count');if(count)count.textContent=phrases.length+' / '+(discovery?1:20)+' phrases · '+(!valid&&phrases.length?'Check phrase count and 80-character limit.':'No request until you choose Research.');
  $('v67-run').disabled=!demandEnabled||demandPending||!$('v67-consent').checked||!valid;
- $('v67-status-check').disabled=demandPending;
+ $('v67-status-check').disabled=demandPending;updateTagPlanner();
 }
 async function v67Invoke(body){
  const {data,error}=await state.client.functions.invoke('sellerpilot-google-demand',{body});
