@@ -20,6 +20,14 @@ try{
   assert.equal(await page.locator('#product-mobile').isVisible(),width===390);
   assert.equal(await page.locator('#product-table').isVisible(),width!==390);
   assert.match(await page.locator('#product-count').innerText(),/Showing 3 of 3/);
+  const identities=await page.locator('#product-mobile .product-card').evaluateAll(rows=>rows.map(r=>[r.dataset.productId,r.dataset.productPosition]));
+  assert.deepEqual(identities,[['preview-1','1'],['preview-2','2'],['preview-3','3']]);
+  await page.locator('#product-search').fill('Gift mug');assert.equal(await page.locator('#product-mobile .product-card').count(),1);
+  await page.locator('#product-search').fill('');assert.equal(await page.locator('#product-mobile .product-card').count(),3);
+  await page.locator('[data-view="shop"]:visible').first().click();
+  assert.equal(await page.evaluate(()=>!!(document.querySelector('#v21-cloud-list').compareDocumentPosition(document.querySelector('#v109-etsy-connection'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);
+  assert.equal(await page.evaluate(()=>!!(document.querySelector('#v21-manual-title').compareDocumentPosition(document.querySelector('#v21-shop-url'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);
+  await page.locator('[data-view="products"]:visible').first().click();assert.equal(await page.locator('#product-mobile .product-card').count(),3);
   await page.locator('[data-view="overview"]:visible').first().click();
   await page.locator('#v95-directory summary').click();
   await page.locator('#v95-search').fill('profit calculator');
