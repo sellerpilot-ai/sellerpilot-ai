@@ -88,8 +88,17 @@ try {
  await page.locator('#v61-start summary').click();assert.equal(await page.locator('#v61-checklist .v61-step').count(),4);
  await page.locator('#v61-checklist [data-v61-go="audit"]').click();assert.equal(await page.locator('#v59-plan').isVisible(),true);
  await page.locator('[data-view="overview"]:visible').first().click();
- await page.locator('#v95-directory summary').click();
+ await page.locator('#v61-start [data-v61-go="directory"]').click();
+ assert.equal(await page.locator('#view-overview.active #v95-directory').getAttribute('open'),'');
+ assert.equal(await page.evaluate(()=>document.activeElement===document.querySelector('#v95-search')),true);
  assert.match(await page.locator('#v95-tool-count').innerText(),/14 tools found/);
+ await page.locator('#v95-search').fill('audit');
+ await page.locator('[data-view="settings"]:visible').first().click();
+ await page.locator('#view-settings [data-v61-go="directory"]').click();
+ assert.equal(await page.locator('#view-overview.active #v95-directory').getAttribute('open'),'');
+ assert.equal(await page.locator('#v95-search').inputValue(),'');
+ assert.equal(await page.evaluate(()=>document.activeElement===document.querySelector('#v95-search')),true);
+ assert.equal(await page.locator('#v95-tools [data-v61-go]').count(),14);
  await page.locator('#v95-search').fill('shop assistant');assert.equal(await page.locator('#v95-tool-count').innerText(),'1 tool found');await page.locator('#v95-tools [data-v61-go="assistant"]').click();assert.equal(await page.locator('#view-overview.active #v60-assistant').isVisible(),true);assert.equal(await page.evaluate(()=>document.activeElement===document.querySelector('#v60-assistant h2')),true);
  await page.locator('[data-view="settings"]:visible').first().click();await page.locator('#view-settings [data-v61-go="assistant"]').click();assert.equal(await page.locator('#view-overview.active #v60-assistant').isVisible(),true);
  await page.locator('#v95-search').fill('profit calculator');assert.equal(await page.locator('#v95-tools [data-v61-go]').count(),1);
