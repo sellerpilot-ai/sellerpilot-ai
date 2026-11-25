@@ -32,3 +32,12 @@ const expired=store.issue('user-a',2000);
 assert.equal(store.consume('user-a',expired.state,602000),null);
 assert.ok(store.issue('user-b',602000));
 console.log('PASS V73 single-use state fixtures');
+
+assert.equal(validCallback(p,'user-a',p.state,999),false);
+assert.equal(validCallback({...p,expiresAt:p.expiresAt+1},'user-a',p.state,1001),false);
+assert.throws(()=>createPendingAuthorization('user-a',Number.MAX_SAFE_INTEGER));
+assert.throws(()=>authorizationUrl({...p,challenge:'forged'},'mock-client',uri));
+assert.throws(()=>authorizationUrl({...p,verifier:'invalid'},'mock-client',uri));
+assert.throws(()=>authorizationUrl(p,'mock-client','https://user:pass@example.invalid/callback'));
+assert.throws(()=>authorizationUrl(p,'mock-client','https://example.invalid/callback#fragment'));
+console.log('PASS V77/V78 OAuth context, timestamp and PKCE integrity fixtures');
