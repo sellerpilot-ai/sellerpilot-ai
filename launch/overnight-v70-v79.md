@@ -86,3 +86,9 @@ Offline command: `node --experimental-default-type=module tests/v70-opportunity.
 - [ ] Confirm provider gates and budgets, verified support contact, beta terms/privacy notice, data export/deletion process, and invited tester scope. Keep external integrations and real payments disabled.
 - [ ] Decide release version label and cache-key update together, approve merge and deployment explicitly. Retain the known V69 base commit 03b01085f3d6ae5cb86f7b79d5a1e37f03371893 for rollback planning; verify deployment/rollback procedure before release. No rollback or release has been performed.
 - [ ] After authorized private deployment, verify deployed commit, smoke tests, error logs and budget controls before expanding tester access. Public commercial readiness is a separate decision.
+
+## V106 release candidate preparation
+- V105 exact head d7f50d8a: offline 45575723814 and full mock browser 45575723695 passed. Synthetic 10,000-listing grouping/filter benchmark 26.5 ms on CI; mocked 1440px and 390px viewport checks passed. Not a production benchmark or manual inspection.
+- Prepare V106 version labels, app/demo module cache keys, legacy workspace redirect, sync status and regression assertions. Historical feature IDs (including v69 research controls), billing version identifiers and stored data keys remain unchanged. Existing stylesheets are unchanged in this batch.
+- Require both workflows at the final V106 head; inspect real phone/desktop and confirm live account isolation using authorized test accounts before private beta expansion. Verify support/privacy/rollback and deployment procedure. No production merge, public sign-up, live payments, paid provider requests or Etsy activation authorized.
+- Keep rollback reference V69 base 03b01085f3d6ae5cb86f7b79d5a1e37f03371893 and tested V105 head d7f50d8a22729b3b49cc8dcc946b478cf98e0bb0. No rollback performed. Release checklist in PR #48 remains the approval gate.
