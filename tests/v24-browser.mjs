@@ -584,12 +584,12 @@ try {
   const check=root.querySelector('input[type=checkbox]');check.checked=true;check.dispatchEvent(new Event('change'));
   const individual=status().startsWith('1 of 2');
   root.querySelectorAll('button')[0].click();const all=status().startsWith('2 of 2');
-  root.querySelectorAll('button')[1].click();const cleared=status().startsWith('0 of 2');const search=root.querySelector('input[type=search]');search.value='bracelet';search.dispatchEvent(new Event('input'));root.querySelectorAll('button')[0].click();const filtered=status().startsWith('1 of 2')&&status().includes('1 shown');root.querySelectorAll('button')[2].click();const reviewed=status().includes('1 shown')&&root.querySelectorAll('button')[2].getAttribute('aria-pressed')==='true';
+  root.querySelectorAll('button')[1].click();const cleared=status().startsWith('0 of 2');const search=root.querySelector('input[type=search]');search.value='bracelet';search.dispatchEvent(new Event('input'));root.querySelectorAll('button')[0].click();const filtered=status().startsWith('1 of 2')&&status().includes('1 shown');root.querySelectorAll('button')[2].click();const reviewed=status().includes('1 shown')&&root.querySelectorAll('button')[2].getAttribute('aria-pressed')==='true';root.querySelectorAll('button')[2].click();const sort=root.querySelector('select');sort.value='za';sort.dispatchEvent(new Event('change'));const sorted=root.querySelector('.etsy-preview-row b').textContent==='Fixture bracelet'&&status().startsWith('1 of 2');sort.value='latest';sort.dispatchEvent(new Event('change'));const restored=root.querySelector('.etsy-preview-row b').textContent===rows[0].title;
   renderEtsySelection(root,{...data,listings:[],total:0});const empty=root.textContent==='No active listings returned.'&&!root.querySelector('input');
   let rejected=false;try{renderEtsySelection(root,{...data,listings:[rows[0],rows[0]]})}catch{rejected=true}
-  return [start,individual,all,cleared,filtered,reviewed,empty,rejected,etsyCallbackFor('https://yuvilist.com/app')==='https://yuvilist.com/etsy-return.html'];
+  return [start,individual,all,cleared,filtered,reviewed,sorted,restored,empty,rejected,etsyCallbackFor('https://yuvilist.com/app')==='https://yuvilist.com/etsy-return.html'];
  });
- assert.deepEqual(selectionChecks,Array(9).fill(true));await etsyUrlPage.close();
+ assert.deepEqual(selectionChecks,Array(11).fill(true));await etsyUrlPage.close();
  console.log('PASS Etsy temporary manual selection, safe text rendering, clear, empty, duplicate rejection and canonical YuviList callback.');
  console.log('PASS V187: Etsy authorization address validation for both hosts and malicious/mismatched URLs.');
  // V120: explicit recovery origins only; never send real email.
@@ -640,7 +640,7 @@ try {
  try{
   const destination=resolve(runtimeTemp,'frontend');
   const files=new Set(await buildCloudflarePackage(process.cwd(),destination));
-  assert.equal(files.size,54);
+  assert.equal(files.size,55);
   assert.equal(await readFile(resolve(destination,'_headers'),'utf8'),pagesHeaders);
   packageServer=createServer(async(req,res)=>{
    try{

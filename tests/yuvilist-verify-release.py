@@ -65,7 +65,7 @@ def verify(archive, manifest_path, expected_sha):
 
 def self_test():
     sha = "a" * 40
-    files = {p: p.encode() for p in ["index.html", "app.html", "_headers", "404.html"] + [f"js/fixture-{i}.js" for i in range(50)]}
+    files = {p: p.encode() for p in ["index.html", "app.html", "_headers", "404.html"] + [f"js/fixture-{i}.js" for i in range(COUNT - 4)]}
     with tempfile.TemporaryDirectory() as tmp:
         root = pathlib.Path(tmp)
         archive, mp = root / "candidate.zip", root / "manifest.json"

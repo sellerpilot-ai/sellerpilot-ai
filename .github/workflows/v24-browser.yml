@@ -107,7 +107,7 @@ jobs:
           manifest = json.loads((temp / 'sellerpilot-release-evidence' / 'manifest.json').read_text())
           expected = {row['path']: row for row in manifest['files']}
           actual = {p.relative_to(root).as_posix() for p in root.rglob('*') if p.is_file()}
-          assert len(expected) == manifest['file_count'] == 54
+          assert len(expected) == manifest['file_count'] == 55
           assert actual == set(expected)
           assert {'index.html', '_headers', '404.html'} <= actual
           output = temp / 'SellerPilot-Cloudflare-CANDIDATE-NOT-APPROVED.zip'
@@ -124,7 +124,7 @@ jobs:
               assert len(z.namelist()) == len(expected) and set(z.namelist()) == set(expected)
               for path in expected:
                   assert hashlib.sha256(z.read(path)).hexdigest() == expected[path]['sha256']
-          print('PASS V125: ZIP contains exactly the 54 manifest-verified frontend assets; no deployment.')
+          print('PASS V125: ZIP contains exactly the 55 manifest-verified frontend assets; no deployment.')
           print('ZIP SHA-256: ' + hashlib.sha256(output.read_bytes()).hexdigest())
           PY
       - name: Independently verify candidate archive and manifest
