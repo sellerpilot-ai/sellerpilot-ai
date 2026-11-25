@@ -33,7 +33,7 @@ jobs:
                   allow = res.headers.get('Access-Control-Allow-Origin')
                   vary = res.headers.get('Vary','')
                   print(f'OPTIONS {origin} status={status} allow={allow} vary={vary}', flush=True)
-                  if origin == old or (origin == new and allow == new):
+                  if origin in (old, new):
                       assert status == 204 and allow == origin
                       assert 'origin' in [v.strip().lower() for v in vary.split(',')]
                       assert 'POST' in res.headers.get('Access-Control-Allow-Methods','')
