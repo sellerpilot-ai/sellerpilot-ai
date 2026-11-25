@@ -11,16 +11,17 @@ Candidate f35097c97e39d4bb1e26951649e704aaaae283c2; four GitHub workflows passed
 - Mobile sign-out and recovery: recovery message received from branded transactional sender; owner reported successful password change and login. Old password rejection not separately verified.
 - Support: dedicated Resend inbox sent branded email to external mailbox and received its reply through Cloudflare forwarding in same thread. Existing verified Gmail destination retained as manual fallback, not automatic dual delivery. No incoming MX migration.
 - Etsy approval email observed. Approved scope, app identity, limits and live OAuth still need independent verification. No integration activation in this acceptance batch.
-- Real payment activation and paid provider calls were not requested.
+- Owner confirmed live workspace JSON download; contents not inspected to avoid exposing private data.
+- Live AI status displayed three of three personal requests available; no generation requested. Google demand status displayed enabled for private account; no external search requested.
+- Live subscription dashboard displayed verified Starter test subscription, five of five daily simulated credits, scheduled cancellation, production access OFF. No checkout or real payment requested.
 
 ## Recovery and deletion
 Organization plan confirmed Free using read-only connector. Supabase documentation states automatic daily backups are paid-plan features; manual logical exports are recommended for Free. See https://supabase.com/docs/guides/platform/backups and https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore.
-A synthetic local dump/restore check is added to the disposable lifecycle workflow; it does not back up the hosted database, copy real accounts, or establish production recovery guarantees. A secure operator-held logical backup and isolated recovery exercise remain necessary. Never store live dump files, account data or credentials in GitHub.
+Synthetic local dump/restore check passed in workflow 45699305113 (checksum, recovery, ownership, RLS metadata and cascade). All four workflows passed at b104cbeaece47ce08ed949ebea56095ec92e5f88. The check it does not back up the hosted database, copy real accounts, or establish production recovery guarantees. A secure operator-held logical backup and isolated recovery exercise remain necessary. Never store live dump files, account data or credentials in GitHub.
 The existing six-cascade lifecycle model passed. No actual hosted account deletion or live restore has been attempted. Require an explicitly approved disposable account, documented session revocation/expiry and scoped deletion review. Never delete existing accounts.
 
 ## Outstanding before external invitation
-- Live workspace JSON export and separate-account isolation acceptance.
-- Read-only AI/research and sandbox status checks; no generation or paid lookup.
+- Separate-account live isolation acceptance and inspection of downloaded export locally by owner if needed.
 - Secure manual database backup and restore plan (no paid upgrade without approval).
 - Disposable account closure rehearsal and policy/processor review; confirm legal operator, terms, privacy and retention.
 - Confirm current release ID and retain private release ZIP.
