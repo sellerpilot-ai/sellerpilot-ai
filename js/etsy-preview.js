@@ -7,6 +7,26 @@ function output(s){const el=$('v31-status');if(el)el.textContent=s}
 function controls(){if(!$('v31-check'))return;$('v31-check').disabled=busy;$('v31-start').disabled=busy||!available||!$('v31-consent').checked;$('v31-finish').disabled=busy||!pending();$('v31-consent').disabled=busy||!available}
 function clearResults(){if($('v31-results'))$('v31-results').replaceChildren()}
 async function invoke(body){await verifiedUser();const {data,error}=await state.client.functions.invoke('sellerpilot-etsy-preview',{body});if(error||data?.ok!==true)throw Error('Authorised preview unavailable. API approval and backend activation must be confirmed. CSV import remains available.');return data}
+export function etsyCallbackFor(href){
+ try{
+  const u=new URL(href);
+  if(u.username||u.password)return null;
+  for(const base of ['https://sellerpilot-ai.github.io/sellerpilot-ai/','https://sellerpilot-ai-21c.pages.dev/']){
+   const b=new URL(base);
+   if(u.origin===b.origin&&[b.pathname,b.pathname+'index.html',b.pathname+'app.html',b.pathname+'app'].includes(u.pathname))return base+'etsy-return.html';
+  }
+ }catch{}
+ return null;
+}
+export function validateEtsyAuthorization(address,href){
+ const callback=etsyCallbackFor(href);
+ if(!callback)throw Error('Unexpected authorisation address.');
+ const u=new URL(address);
+ const required={response_type:'code',scope:'listings_r',redirect_uri:callback,code_challenge_method:'S256'};
+ if(u.origin!=='https://www.etsy.com'||u.pathname!=='/oauth/connect'||u.username||u.password||u.hash||Object.entries(required).some(([k,v])=>u.searchParams.getAll(k).length!==1||u.searchParams.get(k)!==v))throw Error('Unexpected authorisation address.');
+ for(const [k,pattern] of [['state',/^[a-f0-9]{64}$/],['code_challenge',/^[A-Za-z0-9_-]{43}$/],['client_id',/^[A-Za-z0-9_-]{1,200}$/]])if(u.searchParams.getAll(k).length!==1||!pattern.test(u.searchParams.get(k)))throw Error('Unexpected authorisation address.');
+ return u;
+}
 export function validatePreview(d){
  if(typeof d.shop_name!=='string'||!d.shop_name.trim()||d.shop_name.length>120||!Array.isArray(d.listings)||d.listings.length>50||!Number.isFinite(Date.parse(d.retrieved_at))||!(d.total===null||Number.isSafeInteger(d.total)&&d.total>=d.listings.length))throw Error('Invalid preview response. Nothing was saved.');
  const ids=new Set();for(const x of d.listings){if(!/^[1-9]\d{0,18}$/.test(x?.listing_id||'')||ids.has(x.listing_id)||typeof x.title!=='string'||!x.title.trim()||x.title.length>250||x.state!=='active')throw Error('Invalid listing preview. Nothing was saved.');ids.add(x.listing_id)}return d;
@@ -18,7 +38,7 @@ export function v31Init(){
  const run=async fn=>{if(!state.ready||busy)return;const n=++request,uid=state.uid;const current=()=>n===request&&uid===state.uid&&state.ready;busy=true;controls();try{await fn(current)}catch(e){if(current()){available=false;clearResults();output(e.message)}}finally{if(current()){busy=false;controls()}}};
  $('v31-consent').onchange=controls;
  $('v31-check').onclick=()=>run(async current=>{available=false;clearResults();$('v31-consent').checked=false;output('Checking secure preview availability…');const d=await invoke({action:'status'});if(!current())return;if(typeof d.enabled!=='boolean')throw Error('Invalid availability response.');available=d.enabled===true;output(available?'Read-only preview available. Confirm consent to continue.':'Not enabled. Etsy approval and backend activation required. Use CSV import instead.')});
- $('v31-start').onclick=()=>run(async current=>{if(!available){output('Check availability first.');return}if(!$('v31-consent').checked){output('Confirm read-only access first.');return}output('Preparing secure Etsy authorisation…');const d=await invoke({action:'begin',consent:true});if(!current())return;const u=new URL(d.authorization_url);if(u.origin!=='https://www.etsy.com'||u.pathname!=='/oauth/connect'||u.searchParams.get('scope')!=='listings_r'||u.searchParams.get('redirect_uri')!=='https://sellerpilot-ai.github.io/sellerpilot-ai/etsy-return.html')throw Error('Unexpected authorisation address.');sessionStorage.removeItem(key);location.assign(u.href)});
+ $('v31-start').onclick=()=>run(async current=>{if(!available){output('Check availability first.');return}if(!$('v31-consent').checked){output('Confirm read-only access first.');return}output('Preparing secure Etsy authorisation…');const d=await invoke({action:'begin',consent:true});if(!current())return;const u=validateEtsyAuthorization(d.authorization_url,location.href);sessionStorage.removeItem(key);location.assign(u.href)});
  $('v31-finish').onclick=()=>run(async current=>{const p=pending();if(!p){output('No recent Etsy authorisation.');return}sessionStorage.removeItem(key);clearResults();if(p.cancelled){output('Authorisation was cancelled.');return}output('Verifying your shop and active listings…');const d=validatePreview(await invoke({action:'finish',state:p.state,code:p.code}));if(!current())return;output('Verified shop: '+d.shop_name+' · '+d.listings.length+(d.total===null?'':' of '+d.total)+' active listings shown · Retrieved '+new Date(d.retrieved_at).toLocaleString('en-GB',{timeZone:'UTC'})+' UTC. Preview only; nothing saved.');$('v31-results').innerHTML=d.listings.map(x=>'<div class="list-card"><span class="detail"><b>'+esc(x.title)+'</b><span>Listing '+esc(x.listing_id)+' · Active</span></span></div>').join('')||'<p class="mini">No active listings returned.</p>'});
  controls();
 }
