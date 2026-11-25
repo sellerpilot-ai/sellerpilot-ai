@@ -89,14 +89,16 @@ try {
  await page.locator('#v61-checklist [data-v61-go="audit"]').click();assert.equal(await page.locator('#v59-plan').isVisible(),true);
  await page.locator('[data-view="overview"]:visible').first().click();
  await page.locator('#v95-directory summary').click();
- assert.match(await page.locator('#v95-tool-count').innerText(),/13 tools found/);
+ assert.match(await page.locator('#v95-tool-count').innerText(),/14 tools found/);
+ await page.locator('#v95-search').fill('shop assistant');assert.equal(await page.locator('#v95-tool-count').innerText(),'1 tool found');await page.locator('#v95-tools [data-v61-go="assistant"]').click();assert.equal(await page.locator('#view-overview.active #v60-assistant').isVisible(),true);assert.equal(await page.evaluate(()=>document.activeElement===document.querySelector('#v60-assistant h2')),true);
+ await page.locator('[data-view="settings"]:visible').first().click();await page.locator('#view-settings [data-v61-go="assistant"]').click();assert.equal(await page.locator('#view-overview.active #v60-assistant').isVisible(),true);
  await page.locator('#v95-search').fill('profit calculator');assert.equal(await page.locator('#v95-tools [data-v61-go]').count(),1);
  await page.locator('#v95-tools [data-v61-go="profits"]').click();assert.equal(await page.locator('#view-profits').isVisible(),true);
  await page.locator('[data-view="overview"]:visible').first().click();
  await page.locator('#v95-search').fill('no matching tool 987');assert.match(await page.locator('#v95-tools').innerText(),/No matching tools/);
- await page.locator('#v95-search').fill('');assert.equal(await page.locator('#v95-tools [data-v61-go]').count(),13);
+ await page.locator('#v95-search').fill('');assert.equal(await page.locator('#v95-tools [data-v61-go]').count(),14);
  assert.match(await page.locator('#v96-next').textContent(),/Review your listing quality/);
- const toolSearch=await page.evaluate(async()=>{const {findTools}=await import('./js/beta-onboarding.js');return [findTools('PROFIT calculator').map(t=>t.id),findTools('not-a-tool').length,findTools('').length]});assert.deepEqual(toolSearch,[['profits'],0,13]);
+ const toolSearch=await page.evaluate(async()=>{const {findTools}=await import('./js/beta-onboarding.js');return [findTools('PROFIT calculator').map(t=>t.id),findTools('not-a-tool').length,findTools('').length]});assert.deepEqual(toolSearch,[['profits'],0,14]);
  const setup=await page.evaluate(async()=>{const {v61Checklist}=await import('./js/beta-onboarding.js');return [v61Checklist([],null).filter(x=>x.done).length,v61Checklist([{attributes:{sellerpilot:{auditHistory:[{}]}}}],{keywords:[{}],weekly:[{}]}).filter(x=>x.done).length]});assert.deepEqual(setup,[0,4]);
 
  assert.match(await page.locator('#v60-metrics').innerText(),/51\/100/);
@@ -288,7 +290,7 @@ try {
  await page.locator('[data-view="settings"]:visible').first().click();await page.locator('#view-settings [data-go="reports"]').click();
  await page.locator('[data-v19-action="save-week"]').waitFor({state:'visible'});await page.locator('[data-v19-action="save-week"]').click();
  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')||'{}').data?.weekly?.length===1);
- assert.match(await page.locator('#v30-history').innerText(),/1 listings/);assert.match(await page.locator('#v30-history').innerText(),/62\/100/);
+ assert.match(await page.locator('#v30-history').innerText(),/1 listings/);assert.match(await page.locator('#v30-history').innerText(),/1 below 70/);assert.equal(await page.getByText('Listings below 70',{exact:true}).isVisible(),true);assert.equal(await page.getByText('1 flag',{exact:true}).first().isVisible(),true);assert.match(await page.locator('#v30-history').innerText(),/62\/100/);
  await page.locator('[data-v19-action="save-week"]').click();await page.waitForFunction(()=>document.querySelector('#v30-week-status')?.textContent.includes('Saved for this week'));
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.weekly.length),1);
  await page.reload();await ready();await page.locator('[data-view="settings"]:visible').first().click();await page.locator('#view-settings [data-go="reports"]').click();await page.locator('#v30-history').waitFor({state:'visible'});assert.match(await page.locator('#v30-history').innerText(),/62\/100/);
