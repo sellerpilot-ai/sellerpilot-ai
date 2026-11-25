@@ -19,7 +19,7 @@ export function v57Init(){if(!$('v57-generate'))return;for(const id of ['v57-pro
 
 /* V67: explicit private Google demand requests; never send catalogue data automatically. */
 import {verifiedUser} from './supabase-client.js';
-import {previewResearchTag,researchTagPlan,researchActionKeyword,researchExportRows,validateReport,sortRows,compareReports,seasonal,filterOpportunities} from './demand-intelligence.js';
+import {previewResearchTag,researchTagPlan,researchLibraryPlan,researchReviewTask,researchActionKeyword,researchExportRows,validateReport,sortRows,compareReports,seasonal,filterOpportunities} from './demand-intelligence.js';
 import {editProduct} from './product-editor.js';
 let demandReports={},demandActive=null,demandOwner=null,demandSelected=null;
 const metric=n=>n===null||n===undefined?'Not available':n.toLocaleString('en-GB');
@@ -34,12 +34,33 @@ function demandMonthChart(row){
 function visibleDemandRows(report,product){
  return filterOpportunities(sortRows(report.rows,$('v68-sort').value,product,$('v68-filter').value),$('v70-opportunity-filter')?.value||'all');
 }
+function researchSavePlan(report,rows){
+ if(!v19Store.loaded||!Array.isArray(v19Store.data?.keywords))return null;
+ try{return researchLibraryPlan(v19Store.data.keywords,report,rows.map(r=>r.keyword))}catch{return null}
+}
+function researchLibraryControls(report,rows){
+ const plan=researchSavePlan(report,rows);
+ return '<div class="form-actions"><button type="button" class="button secondary sm" data-v85-save '+(!plan?.valid||!plan.additions.length?'disabled':'')+'>Save displayed phrases to research library</button></div><p class="mini" id="v85-save-status" role="status">'+(plan?plan.additions.length+' new · '+plan.skipped+' already saved · '+plan.remaining+' library slots remaining. '+(!plan.valid?'Remove old records or narrow the filter first.':'Explicit confirmation saves private phrase notes, not demand metrics.'):'Private research library unavailable or current selection invalid.')+'</p>';
+}
+async function saveResearchPhrases(report,rows){
+ const plan=researchSavePlan(report,rows);
+ if(!plan?.valid||!plan.additions.length||state.busy)return;
+ const requested=rows.map(r=>r.keyword);
+ if(!confirm('Save '+plan.additions.length+' new keyword phrase(s) and source notes to your private research library? Existing notes are kept. No provider request or listing change.'))return;
+ const uid=state.uid,serial=state.serial;
+ await v19Mutate(next=>{
+  const fresh=researchLibraryPlan(next.keywords,report,requested);
+  if(!fresh.valid||!fresh.additions.length)throw Error('No new phrases or research library capacity exceeded.');
+  next.keywords.unshift(...fresh.additions.map(k=>({...k,id:v19Id(),at:new Date().toISOString()})));
+ },'Keyword phrases saved to your private research library');
+ if(state.ready&&state.uid===uid&&state.serial===serial&&demandCurrent())drawDemand();
+}
 function tagPlanner(product,rows){
  const plan=researchTagPlan(product,rows);
  if(!plan)return '';
  return '<details class="v57-row" id="v80-tag-plan" data-product="'+esc(product.id)+'" style="margin:12px 0"><summary><b>Plan multiple Etsy tags</b> · '+plan.remaining+' free slots</summary><p class="mini">Using saved listing wording and the currently filtered research results only. Verify every phrase against actual product facts. No provider request, cloud save or Etsy change. Selection resets when research or filters change.</p>'+
  (plan.candidates.length?'<div class="stack">'+plan.candidates.map(c=>'<label class="v25-toggle"><input type="checkbox" data-v80-choice value="'+esc(c.keyword)+'"> '+esc(c.tag)+'</label>').join('')+'</div>':'<p class="mini">No eligible additional tags in the current results. Existing tags are retained.</p>')+
- '<p class="mini" id="v80-count" role="status">0 selected · '+plan.remaining+' free slots</p><p class="mini"><b>Current saved tags:</b> '+esc(plan.before||'None')+'</p><p class="mini" id="v80-after"></p><div class="form-actions"><button class="button secondary sm" type="button" data-v80-clear disabled>Clear selection</button><button class="button sm" type="button" data-v80-preview disabled>Open combined preview in editor</button></div></details>';
+ '<p class="mini" id="v80-count" role="status">0 selected · '+plan.remaining+' free slots</p><p class="mini"><b>Current saved tags:</b> '+esc(plan.before||'None')+'</p><p class="mini" id="v80-after"></p><div class="form-actions"><button class="button secondary sm" type="button" data-v80-clear disabled>Clear selection</button><button class="button sm" type="button" data-v80-preview disabled>Open combined preview in editor</button><button class="button secondary sm" type="button" data-v88-task disabled>Save as review task</button></div></details>';
 }
 function currentTagPlan(){
  const report=demandCurrent(),product=demandProduct(),panel=$('v80-tag-plan');
@@ -55,6 +76,7 @@ function updateTagPlanner(){
  $('v80-after').textContent=plan.valid&&plan.additions.length?'Proposed tags: '+plan.after:'';
  panel.querySelector('[data-v80-preview]').disabled=!plan.valid||!plan.additions.length||demandPending;
  panel.querySelector('[data-v80-clear]').disabled=!selected.length;
+ panel.querySelector('[data-v88-task]').disabled=!plan.valid||!plan.additions.length||demandPending||!v19Store.loaded||state.busy;
 }
 function drawDemand(){
  const report=demandCurrent();if(!report)return;
@@ -69,13 +91,25 @@ function drawDemand(){
  const row=rows.find(r=>r.keyword===demandSelected);
  const productLabel=product?'<p class="mini">Local keyword-word coverage against '+esc(product.title)+'. This measures wording overlap, not verified relevance, ranking or sales likelihood. Review product facts before using any phrase.</p>':'<p class="mini">Choose a saved product above to compare local keyword-word coverage.</p>';
  const comparison=comp.length?'<details open><summary>UK / US comparison ('+comp.length+' shared phrases)</summary><p class="mini">Separate Google Ads snapshots; UK retrieved '+esc(new Date(demandReports.UK.report.retrieved_at).toLocaleString())+'; US retrieved '+esc(new Date(demandReports.US.report.retrieved_at).toLocaleString())+'. Compare exact shared phrases only.</p><div class="v68-comparison">'+comp.map(r=>'<div><b>'+esc(r.keyword)+'</b><span>UK: '+metric(r.UK)+'</span><span>US: '+metric(r.US)+'</span></div>').join('')+'</div></details>':'<p class="mini">To compare markets, research the same keyword batch in the other region. A new uncached batch uses one trial task.</p>';
- $('v67-results').innerHTML='<div class="result-strip"><b>Google demand · '+(report.region==='UK'?'United Kingdom':'United States')+'</b><p class="mini">'+esc(report.source)+' · Retrieved '+esc(new Date(report.retrieved_at).toLocaleString())+' · '+(entry.cached?'Cached result; no new provider task':'Research result')+'. Google estimates, not Etsy search volumes.</p>'+(discovery?'<p class="mini"><b>Related keyword discovery</b> · Seed: '+esc(report.seeds[0])+' · Up to 20 distinct valid suggestions returned by Google Ads, not an exhaustive list. Review relevance and accuracy before use.</p>':'')+'<div class="form-actions">'+Object.keys(demandReports).sort().map(region=>'<button class="button secondary sm" type="button" data-v68-region="'+region+'" '+(region===report.region?'disabled':'')+'>Show '+region+'</button>').join('')+'<button class="button ghost sm" type="button" data-v68-prepare>Prepare same '+(discovery?'seed':'batch')+' for '+(report.region==='UK'?'US':'UK')+'</button></div></div>'+productLabel+tagPlanner(product,rows)+
+ $('v67-results').innerHTML='<div class="result-strip"><b>Google demand · '+(report.region==='UK'?'United Kingdom':'United States')+'</b><p class="mini">'+esc(report.source)+' · Retrieved '+esc(new Date(report.retrieved_at).toLocaleString())+' · '+(entry.cached?'Cached result; no new provider task':'Research result')+'. Google estimates, not Etsy search volumes.</p>'+(discovery?'<p class="mini"><b>Related keyword discovery</b> · Seed: '+esc(report.seeds[0])+' · Up to 20 distinct valid suggestions returned by Google Ads, not an exhaustive list. Review relevance and accuracy before use.</p>':'')+'<div class="form-actions">'+Object.keys(demandReports).sort().map(region=>'<button class="button secondary sm" type="button" data-v68-region="'+region+'" '+(region===report.region?'disabled':'')+'>Show '+region+'</button>').join('')+'<button class="button ghost sm" type="button" data-v68-prepare>Prepare same '+(discovery?'seed':'batch')+' for '+(report.region==='UK'?'US':'UK')+'</button></div></div>'+productLabel+tagPlanner(product,rows)+researchLibraryControls(report,rows)+
  '<p class="mini">'+rows.length+' of '+report.rows.length+' keywords shown</p><button type="button" class="button ghost sm" data-v71-export '+(!rows.length?'disabled':'')+'>Export filtered Google research CSV</button><div class="stack">'+rows.map(r=>'<article class="v57-row"><div class="row" style="flex-wrap:wrap"><b>'+esc(r.keyword)+'</b><span class="pill">'+metric(r.average_monthly_searches)+' Google searches/mo</span></div><p class="mini">Google Ads competition: '+esc(r.ads_competition||'Not available')+' · Peak: '+(r.season.peak===null?'Not available':esc(r.season.peaks.join(', '))+' ('+metric(r.season.peak)+')')+'</p>'+(r.relevance?'<p class="mini">Local word coverage: '+r.relevance.matched+'/'+r.relevance.total+' ('+r.relevance.score+'%) · '+(r.relevance.exactTitle?'In title':'Not in title')+' · '+(r.relevance.exactTag?'Exact tag present':'No exact tag')+' · '+(r.relevance.tagEligible?'Fits 20-character tag limit':'Longer phrase')+'</p>':'')+'<p class="mini">Review priority: '+(r.opportunity.score===null?'Not available':r.opportunity.score+'/100 (70% local word coverage, 30% relative log Google demand)')+' · '+(r.opportunity.longTail?'Long-tail phrase · ':'')+(r.opportunity.seasonalSignal?'Historical peak signal · ':'')+(r.opportunity.reviewCandidate?'Potential tag candidate; review product facts.':'Review manually.')+'</p>'+r.opportunity.warnings.map(w=>'<p class="mini">'+esc(w)+'</p>').join('')+'<button type="button" class="button secondary sm" data-v68-trend="'+esc(r.keyword)+'">View trend</button> <button type="button" class="button ghost sm" data-v68-save="'+esc(r.keyword)+'">Save phrase</button>'+(product&&r.relevance?.matched>0?'<button type="button" class="button ghost sm" data-v68-audit="'+esc(r.keyword)+'">Review in listing audit</button>':'')+(previewResearchTag(product,r.keyword)?'<button type="button" class="button ghost sm" data-v72-tag="'+esc(r.keyword)+'" data-v72-product="'+esc(product.id)+'">Preview tag addition</button>':'')+'</article>').join('')+'</div>'+
  (row?'<div class="result-strip" id="v68-trend" tabindex="-1" style="margin-top:12px"><b>Monthly trend: '+esc(row.keyword)+'</b>'+demandMonthChart(row)+'</div>':'<p class="mini">'+(report.rows.length?'No matching keywords.':'No verified related phrases returned; no estimates invented.')+'</p>')+comparison;
 }
 function demandAction(e){
  const report=demandCurrent();if(!report||demandPending)return;
  const button=e.target.closest('button');if(!button)return;
+ if(button.hasAttribute('data-v85-save')){void saveResearchPhrases(report,visibleDemandRows(report,demandProduct()));return;}
+ if(button.hasAttribute('data-v88-task')){
+  const current=currentTagPlan();if(!current?.plan.valid||!current.plan.additions.length||!v19Store.loaded||state.busy)return;
+  const task=researchReviewTask(current.product,report,current.selected);
+  if(!task||!confirm('Save a private review task for these '+current.plan.additions.length+' proposed tags? No listing will be edited.'))return;
+  void v19Mutate(next=>{
+   if(next.tasks.length>=250)throw Error('Review task library is full. Remove old tasks first.');
+   if(next.tasks.some(t=>!t.done&&t.title===task.title&&t.notes===task.notes))throw Error('This review task is already open.');
+   next.tasks.unshift({...task,id:v19Id()});
+  },'Tag review task saved to your private action centre');
+  return;
+ }
  if(button.hasAttribute('data-v80-clear')){
   const panel=$('v80-tag-plan');if(!panel)return;
   for(const c of panel.querySelectorAll('[data-v80-choice]'))c.checked=false;
