@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {transform} from 'esbuild';
-const old='https://sellerpilot-ai.github.io',next='https://sellerpilot-ai-21c.pages.dev';
+const old='https://sellerpilot-ai.github.io',next='https://sellerpilot-ai-21c.pages.dev',yuvi='https://yuvilist.com';
 const roots=['ai-copy','google-demand','stripe-test','stripe-access','stripe-checkout','stripe-portal'];
 let calls=0;
 const blocked=()=>{calls++;throw Error('Unexpected network call')};
@@ -24,13 +24,13 @@ for(const name of ['shop-listings','competitor-search']){
  handlers.push([name,handler]);
 }
 for(const [name,handler] of handlers){
- for(const origin of [old,next]){
+ for(const origin of [old,next,yuvi]){
   const pre=await handler(new Request('https://fixture.invalid',{method:'OPTIONS',headers:{origin}}));
   assert.equal(pre.status,204,name);
   assert.equal(pre.headers.get('access-control-allow-origin'),origin,name);
   assert.equal(pre.headers.get('vary'),'Origin',name);
  }
- for(const origin of ['https://evil.invalid',next+'.evil.invalid','https://preview.sellerpilot-ai-21c.pages.dev','http://sellerpilot-ai-21c.pages.dev','null']){
+ for(const origin of ['https://evil.invalid',next+'.evil.invalid','https://preview.sellerpilot-ai-21c.pages.dev','http://sellerpilot-ai-21c.pages.dev','https://yuvilist.com.evil.invalid','https://www.yuvilist.com','http://yuvilist.com','https://yuvilist.com:8443','null']){
   const pre=await handler(new Request('https://fixture.invalid',{method:'OPTIONS',headers:{origin}}));
   assert.ok([204,403].includes(pre.status),name);
   assert.equal(pre.headers.get('access-control-allow-origin'),null,name);
@@ -40,4 +40,4 @@ for(const [name,handler] of handlers){
  }
 }
 assert.equal(calls,0);
-console.log('PASS V121: eight browser functions accept both exact hosting origins; hostile origins denied, no external calls.');
+console.log('PASS V121: eight browser functions accept all three exact hosting origins; hostile origins denied, no external calls.');
