@@ -6,13 +6,19 @@ permissions:
   contents: read
 jobs:
   offline:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          node-version: '22'
+          persist-credentials: false
+      - name: Verify runner Node version
+        run: node -e "if (Number(process.versions.node.split('.')[0]) < 22) process.exit(1); console.log(process.version)"
       - run: node --experimental-default-type=module tests/v70-opportunity.mjs
       - run: node --experimental-default-type=module --check js/keyword-lab.js
       - run: node --experimental-default-type=module tests/v74-etsy-preview.mjs
       - run: node tests/v73-etsy-oauth.mjs
+      - run: node tests/v68-demand-intelligence.mjs
+      - run: node tests/v60-shop-assistant.mjs
+      - run: node --experimental-default-type=module --check js/beta-onboarding.js
+      - run: node --experimental-default-type=module --check js/shop-assistant-workspace.js
