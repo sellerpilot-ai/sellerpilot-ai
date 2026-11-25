@@ -1,14 +1,15 @@
 // Sandbox-only portal. No subscription entitlement or direct billing changes.
 const origin='https://sellerpilot-ai.github.io';
 const cloudOrigin='https://sellerpilot-ai-21c.pages.dev';
-const allowedOrigin=from=>from===origin||from===cloudOrigin;
+const yuviOrigin='https://yuvilist.com';
+const allowedOrigin=from=>from===origin||from===cloudOrigin||from===yuviOrigin;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const sid=/^sub_[A-Za-z0-9]{8,160}$/,cid=/^cus_[A-Za-z0-9]{8,160}$/,pid=/^price_[A-Za-z0-9]{8,160}$/;
 function runtimeKey(env,name,legacy){try{const k=JSON.parse(env(name)||'{}').default;if(typeof k==='string'&&k)return k}catch{}return env(legacy)}
 async function read(req){const reader=req.body?.getReader();if(!reader)throw Error('missing body');let total=0,s='';const d=new TextDecoder();try{while(true){const {done,value}=await reader.read();if(done)break;total+=value.byteLength;if(total>1024){await reader.cancel();throw Error('too large')}s+=d.decode(value,{stream:true})}return JSON.parse(s+d.decode())}finally{reader.releaseLock()}}
 
 const bpc=/^bpc_[A-Za-z0-9]{8,160}$/;
-const returnURLFor=from=>(from===cloudOrigin?cloudOrigin+'/':origin+'/sellerpilot-ai/')+'?v=44&billing=portal-return';
+const returnURLFor=from=>(from===yuviOrigin?yuviOrigin+'/':from===cloudOrigin?cloudOrigin+'/':origin+'/sellerpilot-ai/')+'?v=44&billing=portal-return';
 export function safePortalURL(raw){try{if(typeof raw!=='string'||raw.length>8192||raw!==raw.trim()||/[\u0000-\u0020\u007f\\]/.test(raw))return false;const u=new URL(raw);return u.origin==='https://billing.stripe.com'&&!u.username&&!u.password&&u.pathname!=='/'&&!/^\/p\/session\/live_/i.test(u.pathname)}catch{return false}}
 export function safeConfig(c,id){const f=c?.features;return c?.object==='billing_portal.configuration'&&c.id===id&&c.livemode===false&&c.active===true&&c.login_page?.enabled===false&&f?.invoice_history?.enabled===true&&f.payment_method_update?.enabled===true&&f.subscription_cancel?.enabled===true&&f.subscription_cancel.mode==='at_period_end'&&f.subscription_cancel.proration_behavior==='none'&&f.subscription_update?.enabled===false&&f.customer_update?.enabled===false}
 export function ownsSubscription(sub,user,customer,prices){const plan=sub?.metadata?.sellerpilot_plan,expected=plan==='starter'?999:plan==='professional'?1999:0,items=sub?.items?.data,item=Array.isArray(items)&&items.length===1&&sub.items.has_more===false?items[0]:null,p=item?.price;return sub?.object==='subscription'&&sid.test(sub.id||'')&&sub.livemode===false&&sub.customer===customer&&sub.metadata?.sellerpilot_mode==='sandbox'&&sub.metadata?.sellerpilot_user_id===user&&expected>0&&item?.quantity===1&&p?.id===prices[plan]&&p.livemode===false&&p.currency==='gbp'&&p.unit_amount===expected&&p.recurring?.interval==='month'&&p.recurring?.interval_count===1}
