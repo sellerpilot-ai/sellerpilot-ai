@@ -39,7 +39,12 @@ export function createHandler(env,fetcher=fetch){
  if(!auth.startsWith("Bearer "))return fail(401,"Sign in first.");
  if(!url||!anon)return fail(503,"Secure service unavailable.");
  let reservation=null,user=null,service=null;
- const get=async(u,init,ms=10000)=>{const r=await fetcher(u,{...init,signal:AbortSignal.timeout(ms)});if(!r.ok)throw Error("Request failed");return r.json()};
+ const get=async(u,init,ms=10000)=>{const r=await fetcher(u,{...init,signal:AbortSignal.timeout(ms)});if(!r.ok)throw Error("Request failed");if(u!==discoveryEndpoint)return r.json();
+ // Related-keyword responses can be large; bound memory and never retry a failed task.
+ const limit=16*1024*1024;if(Number(r.headers.get("content-length")||0)>limit)throw Error("Response too large");
+ const reader=r.body?.getReader();if(!reader)throw Error("Empty response");let bytes=0,parts=[];const decoder=new TextDecoder();
+ try{for(;;){const {value,done}=await reader.read();if(done)break;bytes+=value.byteLength;if(bytes>limit){await reader.cancel();throw Error("Response too large");}parts.push(decoder.decode(value,{stream:true}));}parts.push(decoder.decode());return JSON.parse(parts.join(""));}finally{reader.releaseLock();}
+ };
  const rpc=(name,body)=>get(url+"/rest/v1/rpc/"+name,{method:"POST",headers:adminHeaders(service),body:JSON.stringify(body)});
  const finish=async result=>rpc("sellerpilot_demand_finish",{p_user_id:user.id,p_request_id:reservation,p_result:result});
  try{
