@@ -4,3 +4,6 @@ This candidate extends the fictional sample listing detail panel and creates an 
 
 ## Mobile and illustrative preview candidate
 Prior offline prototype workflow 45708289756 passed, as did lifecycle and isolated authorization workflows; browser run 45708289672 not yet completed at review. Added static local SVG illustrations for the three fictional sample products (clearly not product photos), displayed example prices, mobile wrapping and touch-friendly controls. Improved the minimal live selection layout without adding API fields or requests. Browser checks cover mobile horizontal overflow, thumbnail counts, switching sample products, existing score/undo and zero external requests/storage. No actual Etsy imagery, data transfer or deployment. New candidate CI pending.
+
+## Search and import rehearsal
+Added browser-only title/ID filtering, select visible rows, review selected, and a resettable fictional import rehearsal with duplicate/invalid rows excluded and explicit simulated confirmation. The synthetic planner is now packaged solely for the fictional demo, not connected to actual listings or storage. Package count increases by one from 54 to 55. Prior detailed preview browser workflow 45708289672 passed; current candidate CI pending. No live API requests or production changes.

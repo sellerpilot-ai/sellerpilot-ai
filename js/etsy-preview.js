@@ -40,19 +40,23 @@ export function renderEtsySelection(root,preview){
  const all=document.createElement('button');all.type='button';all.className='button secondary';all.textContent='Select all shown';
  const clear=document.createElement('button');clear.type='button';clear.className='button ghost';clear.textContent='Clear selection';
  const status=document.createElement('p');status.className='mini';status.setAttribute('role','status');
- const checks=[];
- const update=()=>{const n=checks.filter(c=>c.checked).length;status.textContent=n+' of '+checks.length+' selected · Preview only; not saved or analysed.';all.disabled=n===checks.length;clear.disabled=n===0};
- tools.append(all,clear);root.append(tools,status);
+ const checks=[],rows=[];
+ const search=document.createElement('input');search.type='search';search.placeholder='Find a listing by title or ID';search.setAttribute('aria-label','Search preview listings');search.maxLength=250;
+ const selectedOnly=document.createElement('button');selectedOnly.type='button';selectedOnly.className='button ghost';selectedOnly.textContent='Review selected';selectedOnly.setAttribute('aria-pressed','false');
+ let only=false;
+ const update=()=>{const term=search.value.trim().toLowerCase();let visible=0;rows.forEach(({row,c,title,id})=>{row.hidden=!!((only&&!c.checked)||(term&&!title.toLowerCase().includes(term)&&!id.includes(term)));row.style.display=row.hidden?'none':'';if(!row.hidden)visible++});const n=checks.filter(c=>c.checked).length;status.textContent=n+' of '+checks.length+' selected · '+visible+' shown · Preview only; not saved or analysed.';all.disabled=!rows.some(({row,c})=>!row.hidden&&!c.checked);clear.disabled=n===0;selectedOnly.disabled=n===0&&!only;selectedOnly.textContent=only?'Show all listings':'Review selected';selectedOnly.setAttribute('aria-pressed',String(only))};
+ search.addEventListener('input',update);selectedOnly.onclick=()=>{only=!only;search.value='';update()};
+ tools.append(all,clear,selectedOnly);root.append(search,tools,status);
  for(const x of d.listings){
   const row=document.createElement('label');row.className='list-card etsy-preview-row';
   const c=document.createElement('input');c.type='checkbox';c.setAttribute('aria-label','Select '+x.title);c.addEventListener('change',update);checks.push(c);
   const detail=document.createElement('span');detail.className='detail';
   const title=document.createElement('b');title.textContent=x.title;
   const meta=document.createElement('span');meta.textContent='Listing '+x.listing_id+' · Active';
-  detail.append(title,meta);row.append(c,detail);root.append(row);
+  detail.append(title,meta);row.append(c,detail);root.append(row);rows.push({row,c,title:x.title,id:String(x.listing_id)});
  }
- all.onclick=()=>{checks.forEach(c=>c.checked=true);update()};
- clear.onclick=()=>{checks.forEach(c=>c.checked=false);update()};
+ all.onclick=()=>{rows.forEach(({row,c})=>{if(!row.hidden)c.checked=true});update()};
+ clear.onclick=()=>{checks.forEach(c=>c.checked=false);only=false;update()};
  update();
 }
 export function v31Reset(){request++;available=false;busy=false;clearResults();if($('v31-consent'))$('v31-consent').checked=false;output('Not verified. Check availability.');controls()}

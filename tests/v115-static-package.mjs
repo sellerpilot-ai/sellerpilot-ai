@@ -18,7 +18,7 @@ export function checkFrontendSource(path,source){
  const forbidden=[/\bsk_(?:live|test)_[A-Za-z0-9]{12,}/,/\bwhsec_[A-Za-z0-9]{12,}/,/\bsb_secret_[A-Za-z0-9_-]{12,}/,/\bsk-(?:proj-|svcacct-)?[A-Za-z0-9_-]{24,}/,/-----BEGIN (?:[A-Z]+ )*PRIVATE KEY-----/];
  if(forbidden.some(pattern=>pattern.test(source)))throw Error('Potential private credential in '+path);
 }
-const fixed=[...pages,'css/styles.css','css/public.css','assets/sellerpilot-logo.svg','js/subscription-dashboard.mjs','js/sandbox-access.mjs'];
+const fixed=[...pages,'css/styles.css','css/public.css','assets/sellerpilot-logo.svg','js/subscription-dashboard.mjs','js/sandbox-access.mjs','js/etsy-import-preview.js'];
 export async function buildStaticPackage(source,output){
  const root=await realpath(source),out=resolve(output);
  assert.notEqual(out,root,'Output must not be repository root');

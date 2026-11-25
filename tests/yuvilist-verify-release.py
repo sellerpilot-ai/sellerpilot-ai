@@ -8,7 +8,7 @@ import stat
 import tempfile
 import zipfile
 
-COUNT = 54
+COUNT = 55
 MAX_FILE = 8 * 1024 * 1024
 MAX_TOTAL = 32 * 1024 * 1024
 HEX = re.compile(r"[0-9a-f]{64}")
