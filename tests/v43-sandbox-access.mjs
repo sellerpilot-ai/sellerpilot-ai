@@ -45,3 +45,15 @@ assert.equal((await call({action:'dashboard',user_id:other})).status,400);
 user=other;assert.equal((await call({action:'dashboard'})).status,403);user=uid;
 assert.equal((await call({action:'dashboard'},{...cfg,SELLERPILOT_STRIPE_ACCESS_ENABLED:'false'})).status,503);
 console.log('PASS: V53 read-only usage, verified account filter, UTC resets, downgrade, Professional limits, truncated response, unauthorized account and disabled flag.');
+
+// A stale payment observation must never override current provider state.
+usageRows=[];usageCount=null;ids=[sid];
+for(const status of ['past_due','unpaid','incomplete','incomplete_expired','paused','canceled','trialing']){
+ sub={...fixture(),status};calls=[];const dashboard=await (await call({action:'dashboard'})).json();
+ assert.equal(dashboard.eligible,false,status);assert.equal(dashboard.usage,null,status);assert.equal(dashboard.production_access,false,status);
+ assert.equal((await call(sim)).status,403,status);assert.ok(!calls.some(x=>x.endsWith('/sellerpilot_v43_simulate_credit')),status);
+}
+sub={...fixture(),latest_invoice:{...fixture().latest_invoice,status:'open',amount_paid:0}};
+assert.equal((await (await call()).json()).eligible,false);assert.equal((await call(sim)).status,403);
+sub=fixture();data=await (await call({action:'dashboard'})).json();assert.equal(data.eligible,true);assert.equal(data.production_access,false);
+console.log('PASS YuviList: failed/unpaid/expired/canceled subscriptions deny simulated credit; fresh verified renewal restores sandbox eligibility only.');
