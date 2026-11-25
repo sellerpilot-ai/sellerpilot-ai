@@ -589,6 +589,20 @@ try {
   location.href
  ].map(recoveryRedirectFor)});
  assert.deepEqual(recoveryCases,['https://sellerpilot-ai.github.io/sellerpilot-ai/','https://sellerpilot-ai-21c.pages.dev/','https://sellerpilot-ai-21c.pages.dev/',null,null,null,null,null,'https://yuvilist.com/','https://yuvilist.com/','https://yuvilist.com/',null,null,null,null,null,null,null]);
+ const catalogueCases=await redirectPage.evaluate(async()=>{
+  const {loadCataloguePages}=await import('./js/supabase-client.js?v=106');
+  const make=(n)=>Array.from({length:n},(_,i)=>({id:'fixture-'+i,user_id:'fixture-owner'}));
+  const run=async(n,mutate)=>{const rows=make(n);if(mutate)mutate(rows);let calls=0;try{const result=await loadCataloguePages(async(a,b)=>{calls++;return {data:rows.slice(a,b+1)}},'fixture-owner');return {length:result.length,calls}}catch(e){return {error:e.message,calls}}};
+  const results=[];
+  for(const n of [0,249,250,1999,2000,2001])results.push(await run(n));
+  results.push(await run(251,rows=>{rows[250].user_id='fixture-other'}));
+  results.push(await run(251,rows=>{rows[250].id=rows[0].id}));
+  let active=true;
+  const stale=await loadCataloguePages(async()=>{active=false;return {data:make(1)}},'fixture-owner',()=>active);
+  return {results,stale};
+ });
+ assert.deepEqual(catalogueCases,{results:[{length:0,calls:1},{length:249,calls:1},{length:250,calls:2},{length:1999,calls:8},{length:2000,calls:9},{error:'The 2,000-product beta limit has been reached.',calls:9},{error:'Account data isolation check failed.',calls:2},{error:'Catalogue changed while loading. Refresh to retry.',calls:2}],stale:null});
+ console.log('PASS YuviList catalogue pagination: exact limit, bounded overflow, owner isolation, duplicate and stale-session rejection.');
  await redirectPage.close();
  console.log('PASS V120: exact recovery origin and path selection; unrelated, preview, HTTP and credential-bearing URLs denied; no real email.');
  // V116: serve only the static output, on a distinct local origin, with all external services mocked.
