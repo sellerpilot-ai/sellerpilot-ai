@@ -2,14 +2,16 @@
 import {writeFile} from 'node:fs/promises';
 import {resolve} from 'node:path';
 import {buildStaticPackage} from './v115-static-package.mjs';
-// Conservative initial CSP: script/connect restrictions require a separate dependency audit.
+// Initial restrictive CSP for existing static UI and pinned CDN dependency.
+// Inline code/styles remain necessary; remote images remain permitted for listing previews.
+// The real CDN dependency graph and live browser behavior require hosting acceptance.
 export const securityHeaders=Object.freeze({
  'X-Content-Type-Options':'nosniff',
  'X-Frame-Options':'DENY',
  'Referrer-Policy':'no-referrer',
  'Permissions-Policy':'camera=(), microphone=(), geolocation=(), payment=()',
  'X-Robots-Tag':'noindex, nofollow',
- 'Content-Security-Policy':"frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
+ 'Content-Security-Policy':"default-src 'self'; script-src 'self' 'unsafe-inline' https://esm.sh; style-src 'self' 'unsafe-inline'; connect-src 'self' https://aczqdgjyeztaexsxmdww.supabase.co; img-src 'self' data: blob: https:; font-src 'self' data:; frame-src 'none'; frame-ancestors 'none'; object-src 'none'; base-uri 'self'; form-action 'self'",
  'Cache-Control':'no-store'
 });
 export const pagesHeaders='/*\n'+Object.entries(securityHeaders).map(([k,v])=>'  '+k+': '+v).join('\n')+'\n';
