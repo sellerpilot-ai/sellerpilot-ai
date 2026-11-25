@@ -16,3 +16,26 @@ export function authorizationUrl(pending, clientId, redirectUri) {
 export function validCallback(pending,userId,state,now=Date.now()) {
  return !!pending&&typeof state==='string'&&state.length===43&&pending.state===state&&pending.userId===userId&&Number.isSafeInteger(now)&&now>=0&&now<pending.expiresAt;
 }
+
+// Offline prototype only. Production requires durable atomic storage across instances.
+export function createMockStateStore(limit=100){
+ if(!Number.isSafeInteger(limit)||limit<1||limit>1000)throw Error('Invalid state limit');
+ const records=new Map();
+ const key=state=>createHash('sha256').update(state).digest('hex');
+ return {
+  issue(userId,now=Date.now()){
+   const pending=createPendingAuthorization(userId,now);
+   for(const [id,record] of records)if(record.expiresAt<=now)records.delete(id);
+   if(records.size>=limit)throw Error('Pending authorization capacity reached');
+   records.set(key(pending.state),{...pending});
+   return pending;
+  },
+  consume(userId,state,now=Date.now()){
+   if(typeof state!=='string'||state.length!==43)return null;
+   const id=key(state),pending=records.get(id);
+   if(!validCallback(pending,userId,state,now))return null;
+   records.delete(id);
+   return {userId:pending.userId,verifier:pending.verifier};
+  }
+ };
+}
