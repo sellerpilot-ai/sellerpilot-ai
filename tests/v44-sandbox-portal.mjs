@@ -37,3 +37,9 @@ response={...session,return_url:expectedReturn};
 res=await call(open,cfg,'https://sellerpilot-ai-21c.pages.dev');assert.equal(res.status,200);
 response={...session,return_url:ret};res=await call(open,cfg,'https://sellerpilot-ai-21c.pages.dev');assert.equal(res.status,502);
 console.log('PASS V121: Cloudflare portal return pinned to approved origin.');
+
+expectedReturn='https://yuvilist.com/?v=44&billing=portal-return';
+response={...session,return_url:expectedReturn};
+res=await call(open,cfg,'https://yuvilist.com');assert.equal(res.status,200);
+response={...session,return_url:ret};res=await call(open,cfg,'https://yuvilist.com');assert.equal(res.status,502);
+console.log('PASS: YuviList sandbox portal return pinned to exact origin.');
