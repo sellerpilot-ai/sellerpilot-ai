@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {sortRows,opportunity,filterOpportunities} from '../js/demand-intelligence.js';
+import {researchExportRows,sortRows,opportunity,filterOpportunities} from '../js/demand-intelligence.js';
 const product={title:'Gold plated bracelet',description:'Gold plated chain bracelet',tags:'bracelet'};
 const row=(keyword,volume=100,monthly=[])=>({keyword,average_monthly_searches:volume,monthly});
 assert.equal(opportunity(row('gold bracelet'),product,100).score,100);
@@ -27,3 +27,15 @@ assert.equal(filterOpportunities(seasonalRows,'seasonal').length,1);
 assert.equal(filterOpportunities(seasonalRows,'candidates')[0].keyword,'chain bracelet');
 assert.equal(filterOpportunities(seasonalRows,'candidates').length,1);
 console.log('PASS V70 local opportunity fixtures');
+
+const report={source:'Google Ads via DataForSEO',region:'UK',retrieved_at:'2026-11-25T00:00:00Z'};
+const exportRows=sortRows([row('=1+1'),row('  @SUM(1)'),row('bracelet',0)],'alpha',product);
+const exported=researchExportRows(report,exportRows);
+assert.equal(exported.length,3);
+assert.ok(exported.some(r=>r[0]==="'=1+1"));
+assert.ok(exported.some(r=>r[0]==="'  @SUM(1)"));
+assert.ok(exported.every(r=>r[1]===report.source&&r[2]==='UK'&&r[3]===report.retrieved_at));
+assert.equal(exported.find(r=>r[0]==='bracelet')[4],0);
+assert.deepEqual(researchExportRows(report,[]),[]);
+assert.equal(researchExportRows(report,exportRows.slice(0,1)).length,1);
+console.log('PASS V71 export row fixtures');
