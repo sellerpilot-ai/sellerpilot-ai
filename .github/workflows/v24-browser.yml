@@ -82,7 +82,7 @@ jobs:
           retention-days: 7
           if-no-files-found: error
       - name: Prepare candidate package and release evidence locally
-        if: github.head_ref == 'overnight-v70-v79'
+        if: github.head_ref == 'overnight-v70-v79' || github.head_ref == 'development/v176-report-clarity'
         env:
           SELLERPILOT_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
@@ -98,7 +98,7 @@ jobs:
           if-no-files-found: error
 
       - name: Build and verify local Cloudflare upload ZIP (not deployed)
-        if: github.head_ref == 'overnight-v70-v79'
+        if: github.head_ref == 'overnight-v70-v79' || github.head_ref == 'development/v176-report-clarity'
         run: |
           python3 - <<'PY'
           import hashlib, json, os, pathlib, zipfile
