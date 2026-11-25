@@ -17,12 +17,12 @@ Candidate f35097c97e39d4bb1e26951649e704aaaae283c2; four GitHub workflows passed
 
 ## Recovery and deletion
 Organization plan confirmed Free using read-only connector. Supabase documentation states automatic daily backups are paid-plan features; manual logical exports are recommended for Free. See https://supabase.com/docs/guides/platform/backups and https://supabase.com/docs/guides/platform/migrating-within-supabase/backup-restore.
-Synthetic local dump/restore check passed in workflow 45699305113 (checksum, recovery, ownership, RLS metadata and cascade). All four workflows passed at b104cbeaece47ce08ed949ebea56095ec92e5f88. The check it does not back up the hosted database, copy real accounts, or establish production recovery guarantees. A secure operator-held logical backup and isolated recovery exercise remain necessary. Never store live dump files, account data or credentials in GitHub.
-The existing six-cascade lifecycle model passed. No actual hosted account deletion or live restore has been attempted. Require an explicitly approved disposable account, documented session revocation/expiry and scoped deletion review. Never delete existing accounts.
+Synthetic local dump/restore check passed in workflow 45699305113 (checksum, recovery, ownership, RLS metadata and cascade). All four workflows passed at b104cbeaece47ce08ed949ebea56095ec92e5f88. The check does not back up the hosted database, copy real accounts, or establish production recovery guarantees. A secure operator-held logical backup and isolated recovery exercise remain necessary. Never store live dump files, account data or credentials in GitHub.
+The existing six-cascade lifecycle model passed. Live disposable account creation, isolation, fictional product creation, export, sign-out and owner-approved deletion completed. Read-only SQL verified zero test sessions before deletion; after deletion zero test account/product/usage records, both original accounts, five original products, one original workspace and zero orphaned records. This tests active database deletion only, not historical logs, provider copies or stale JWT expiry. Live restore remains untested. Never delete existing accounts.
 
 ## Outstanding before external invitation
-- Separate-account live isolation acceptance and inspection of downloaded export locally by owner if needed.
+- Optional local inspection of downloaded export by owner; separate-account live isolation passed.
 - Secure manual database backup and restore plan (no paid upgrade without approval).
-- Disposable account closure rehearsal and policy/processor review; confirm legal operator, terms, privacy and retention.
+- Policy/processor review; confirm legal operator, terms, privacy and retention. Disposable active database closure rehearsal passed.
 - Confirm current release ID and retain private release ZIP.
 - Keep registration closed and billing test-only. External invitations and commercial launch are separate approvals.

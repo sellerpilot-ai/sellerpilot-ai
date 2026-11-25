@@ -11,7 +11,7 @@ export function etsyCallbackFor(href){
  try{
   const u=new URL(href);
   if(u.username||u.password)return null;
-  for(const base of ['https://sellerpilot-ai.github.io/sellerpilot-ai/','https://sellerpilot-ai-21c.pages.dev/']){
+  for(const base of ['https://sellerpilot-ai.github.io/sellerpilot-ai/','https://sellerpilot-ai-21c.pages.dev/','https://yuvilist.com/']){
    const b=new URL(base);
    if(u.origin===b.origin&&[b.pathname,b.pathname+'index.html',b.pathname+'app.html',b.pathname+'app'].includes(u.pathname))return base+'etsy-return.html';
   }

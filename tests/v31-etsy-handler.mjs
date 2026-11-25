@@ -92,3 +92,24 @@ console.log('PASS V186: exact CORS origins, explicit callback configuration, sam
  assert.equal((await call({action:'finish',state,code:'sample'},true,oldOrigin)).status,400);
  console.log('PASS V197: durable state digest binds exact callback; reconfigured host rejected without consuming state or contacting Etsy.');
 
+
+ // YuviList canonical domain: preserve the single configured callback and reject lookalikes.
+ const yuvi='https://yuvilist.com',yuviCallback=yuvi+'/etsy-return.html';
+ const pre=await h(new Request('https://mock.invalid/function',{method:'OPTIONS',headers:{origin:yuvi}}));
+ assert.equal(pre.status,204);assert.equal(pre.headers.get('access-control-allow-origin'),yuvi);
+ for(const origin of ['https://www.yuvilist.com','https://yuvilist.com.evil.invalid','http://yuvilist.com','https://yuvilist.com:8443']){
+  assert.equal((await call({action:'status'},true,origin)).status,403);
+ }
+ env.SELLERPILOT_ETSY_PREVIEW_REDIRECT_URI=yuviCallback;
+ for(const origin of [oldOrigin,newOrigin])assert.equal((await (await call({action:'status'},true,origin)).json()).enabled,false);
+ assert.equal((await (await call({action:'status'},true,yuvi)).json()).enabled,true);
+ env.SELLERPILOT_ETSY_PREVIEW_ENABLED='false';
+ assert.equal((await call({action:'begin',consent:true},true,yuvi)).status,503);
+ env.SELLERPILOT_ETSY_PREVIEW_ENABLED='true';
+ state=await begin(yuvi);
+ env.SELLERPILOT_ETSY_PREVIEW_REDIRECT_URI=newCallback;
+ assert.equal((await call({action:'finish',state,code:'sample'},true,newOrigin)).status,400);
+ env.SELLERPILOT_ETSY_PREVIEW_REDIRECT_URI=yuviCallback;
+ assert.equal((await call({action:'finish',state,code:'sample'},true,yuvi)).status,200);
+ assert.equal((await call({action:'finish',state,code:'sample'},true,yuvi)).status,400);
+ console.log('PASS YuviList exact-origin preview, off-by-default gate, callback binding and replay rejection.');

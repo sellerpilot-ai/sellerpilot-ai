@@ -2,7 +2,8 @@
  * One-time read-only preview. No Etsy access or refresh tokens retained. */
 const callbacks=new Map([
  ["https://sellerpilot-ai.github.io","https://sellerpilot-ai.github.io/sellerpilot-ai/etsy-return.html"],
- ["https://sellerpilot-ai-21c.pages.dev","https://sellerpilot-ai-21c.pages.dev/etsy-return.html"]
+ ["https://sellerpilot-ai-21c.pages.dev","https://sellerpilot-ai-21c.pages.dev/etsy-return.html"],
+ ["https://yuvilist.com","https://yuvilist.com/etsy-return.html"]
 ]);
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const random=()=>Array.from(crypto.getRandomValues(new Uint8Array(32)),v=>v.toString(16).padStart(2,"0")).join("");
