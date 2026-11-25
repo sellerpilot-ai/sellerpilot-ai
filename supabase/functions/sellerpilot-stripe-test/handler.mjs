@@ -1,7 +1,8 @@
 // Read-only sandbox diagnostic. No Checkout, customer, invoice or subscription creation.
 const origin='https://sellerpilot-ai.github.io';
 const cloudOrigin='https://sellerpilot-ai-21c.pages.dev';
-const allowedOrigin=from=>from===origin||from===cloudOrigin;
+const yuviOrigin='https://yuvilist.com';
+const allowedOrigin=from=>from===origin||from===cloudOrigin||from===yuviOrigin;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const priceId=/^price_[A-Za-z0-9]{8,100}$/;
 function publishable(env){try{const k=JSON.parse(env('SUPABASE_PUBLISHABLE_KEYS')||'{}').default;if(typeof k==='string'&&k)return k}catch{}return env('SUPABASE_ANON_KEY')}
