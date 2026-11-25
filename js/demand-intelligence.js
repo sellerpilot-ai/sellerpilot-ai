@@ -31,7 +31,8 @@ export function relevance(product,phrase){
  return {matched,total:target.length,score:Math.round(100*matched/target.length),exactTitle,exactTag,tagEligible:Array.from(phrase).length<=20};
 }
 export function sortRows(rows,sort,product=null,filter=''){
- const term=normal(filter),arr=rows.filter(r=>!term||normal(r.keyword).includes(term)).map(row=>({...row,season:seasonal(row.monthly),relevance:relevance(product,row.keyword)}));
+ const maximum=Math.max(0,...rows.map(r=>number(r.average_monthly_searches)??0));
+ const term=normal(filter),arr=rows.filter(r=>!term||normal(r.keyword).includes(term)).map(row=>({...row,season:seasonal(row.monthly),relevance:relevance(product,row.keyword),opportunity:opportunity(row,product,maximum)}));
  const descending=(a,b)=>a===null?b===null?0:1:b===null?-1:b-a;
  return arr.sort((a,b)=>(sort==='alpha'?0:sort==='peak'?descending(a.season.peak,b.season.peak):sort==='relevance'?descending(a.relevance?.score??null,b.relevance?.score??null)||descending(a.average_monthly_searches,b.average_monthly_searches):descending(a.average_monthly_searches,b.average_monthly_searches))||a.keyword.localeCompare(b.keyword));
 }
@@ -40,4 +41,24 @@ export function compareReports(a,b){
  const uk=a.region==='UK'?a:b,us=a.region==='US'?a:b;
  const map=new Map(us.rows.map(r=>[r.keyword,r]));
  return uk.rows.filter(r=>map.has(r.keyword)).map(r=>({keyword:r.keyword,UK:r.average_monthly_searches,US:map.get(r.keyword).average_monthly_searches}));
+}
+
+/* V70: review priority, not a marketplace prediction. No network or storage. */
+const materialPhrases=['solid gold','gold plated','gold filled','sterling silver','solid silver','white gold','rose gold','14k','18k','24k','diamond','platinum'];
+const brandPhrases=['van cleef','cartier','tiffany','pandora','swarovski','bvlgari','bulgari'];
+const containsPhrase=(text,phrase)=>(' '+normal(text)+' ').includes(' '+normal(phrase)+' ');
+export function opportunity(row,product,maximum){
+ const coverage=relevance(product,row.keyword);
+ const basis=product?[product.title,product.description,product.tags].join(' '):'';
+ const warnings=[];
+ if(brandPhrases.some(p=>containsPhrase(row.keyword,p)))warnings.push('Potential brand reference; verify authorisation and accuracy.');
+ if(materialPhrases.some(p=>containsPhrase(row.keyword,p)&&!containsPhrase(basis,p)))warnings.push('Material or purity wording not confirmed by listing text.');
+ if(containsPhrase(row.keyword,'solid gold')&&['gold plated','gold filled'].some(p=>containsPhrase(basis,p)))warnings.push('Possible solid gold versus plated or filled mismatch.');
+ const volume=number(row.average_monthly_searches);
+ const demand=volume===null||!Number.isFinite(maximum)||maximum<=0?null:Math.round(100*Math.log1p(volume)/Math.log1p(Math.max(maximum,volume)));
+ const score=coverage&&demand!==null?Math.round(.7*coverage.score+.3*demand):null;
+ const known=row.monthly.filter(m=>number(m.searches)!==null);
+ const mean=known.length?known.reduce((s,m)=>s+m.searches,0)/known.length:0;
+ const seasonalSignal=known.length>=6&&mean>0&&Math.max(...known.map(m=>m.searches))>=1.5*mean;
+ return {score,demand,warnings,longTail:words(row.keyword).length>=3,seasonalSignal,reviewCandidate:!!(coverage&&coverage.score===100&&!coverage.exactTag&&coverage.tagEligible&&!warnings.length)};
 }
