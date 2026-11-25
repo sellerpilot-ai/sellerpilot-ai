@@ -50,7 +50,7 @@ begin
  perform public.sellerpilot_etsy_cleanup();
  if exists(select 1 from sellerpilot_etsy_private.authorization where user_id=b) then raise exception 'old inactive quota retained'; end if;
  if not exists(select 1 from sellerpilot_etsy_private.authorization where user_id=a and attempts=1 and state_hash=repeat('8',64) and verifier=repeat('a',64) and expires_at>clock_timestamp()) then raise exception 'fresh state or quota lost during cleanup'; end if;
-end $;
+end $$;
 reset role;
 -- Account deletion removes pending material.
 delete from auth.users where id='11111111-1111-4111-8111-111111111111';
