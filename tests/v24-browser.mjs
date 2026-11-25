@@ -480,6 +480,39 @@ try {
   assert.deepEqual(external,[]);await stalePage.close();
  }
  console.log('PASS V118: late success and thrown error from prior account generation do not reopen editor, expose data or overwrite sign-in status (mock only).');
+ // V181: a prior account's workspace fetch must not reset or poison a newer session.
+ for(const outcome of ['success','error','reject']){
+  const workspacePage=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true});
+  const external=[];
+  await workspacePage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin)return route.continue();if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});external.push(u.origin);return route.abort()});
+  await workspacePage.goto(origin+'/app.html');
+  await workspacePage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
+  const result=await workspacePage.evaluate(async outcome=>{
+   const {state}=await import('./js/core.js?v=106');
+   const {v19Load,v19Store,v19Defaults}=await import('./js/workspace.js?v=106');
+   const {accountIdentity}=await import('./js/supabase-client.js?v=106');
+   const oldUid=state.uid,oldSerial=state.serial;
+   let release,started,requests=0;
+   const pending=new Promise(r=>{release=r}),entered=new Promise(r=>{started=r});
+   const original=state.client.from;
+   state.client.from=()=>{requests++;const query={select(){return query},eq(){return query},async maybeSingle(){started();await pending;if(outcome==='reject')throw Error('Previous private workspace error');if(outcome==='error')return {data:null,error:{message:'Previous private workspace error'}};return {data:{data:{notes:'Previous private workspace sentinel'},updated_at:'2026-01-01T00:00:00Z'},error:null}}};return query;};
+   try{
+    const loading=v19Load(oldUid,oldSerial);await entered;accountIdentity(null);
+    // Seed a fictional second session in memory only; this is not a live login.
+    state.uid='fixture-second-session';state.serial++;state.ready=true;
+    Object.assign(v19Store,{loaded:true,updatedAt:'2026-02-01T00:00:00Z',error:'',data:{...v19Defaults(),notes:'Current session marker'}});
+    document.querySelector('#toast').textContent='Current session notification';
+    release();await loading;
+    const afterLate={loaded:v19Store.loaded,error:v19Store.error,notes:v19Store.data.notes,updatedAt:v19Store.updatedAt,toast:document.querySelector('#toast').textContent};
+    await v19Load(oldUid,oldSerial);
+    return {afterLate,afterStale:{loaded:v19Store.loaded,error:v19Store.error,notes:v19Store.data.notes,updatedAt:v19Store.updatedAt,toast:document.querySelector('#toast').textContent},requests};
+   }finally{state.client.from=original;release()}
+  },outcome);
+  const expected={loaded:true,error:'',notes:'Current session marker',updatedAt:'2026-02-01T00:00:00Z',toast:'Current session notification'};
+  assert.deepEqual(result.afterLate,expected);assert.deepEqual(result.afterStale,expected);assert.equal(result.requests,1);
+  assert.deepEqual(external,[]);await workspacePage.close();
+ }
+ console.log('PASS V181: stale workspace success, returned error, rejection and stale invocation cannot overwrite newer session state (mock only).');
  // V120: explicit recovery origins only; never send real email.
  const redirectPage=await browser.newPage();
  await redirectPage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin)return route.continue();if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});return route.abort()});
