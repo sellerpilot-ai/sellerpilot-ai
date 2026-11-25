@@ -3,7 +3,7 @@ import {createHash} from 'node:crypto';
 import { createServer } from 'node:http';
 import { readFile, mkdtemp, rm, readdir } from 'node:fs/promises';
 import {tmpdir} from 'node:os';
-import {buildStaticPackage} from './v115-static-package.mjs';
+import {buildStaticPackage,packageFingerprint,checkFrontendSource} from './v115-static-package.mjs';
 import { resolve, extname, sep } from 'node:path';
 import { chromium } from 'playwright';
 
@@ -16,7 +16,22 @@ try{
  assert.ok(files.every(f=>!f.startsWith('tests/')&&!f.startsWith('supabase/')&&!f.startsWith('.')));
  const top=await readdir(destination);
  assert.ok(!top.includes('tests')&&!top.includes('supabase')&&!top.includes('.git'));
- for(const file of files)assert.deepEqual(await readFile(resolve(destination,file)),await readFile(resolve(process.cwd(),file)));
+ const entries=[];
+ for(const file of files){
+  const bytes=await readFile(resolve(destination,file));
+  assert.deepEqual(bytes,await readFile(resolve(process.cwd(),file)));
+  entries.push([file,bytes]);
+ }
+ const fingerprint=packageFingerprint(entries);
+ assert.match(fingerprint,/^[a-f0-9]{64}$/);
+ assert.equal(packageFingerprint([...entries].reverse()),fingerprint);
+ const tampered=entries.map(([path,bytes],i)=>[path,i===0?Buffer.concat([bytes,Buffer.from('changed')]):bytes]);
+ assert.notEqual(packageFingerprint(tampered),fingerprint);
+ for(const prefix of ['sk_'+'live_','sk_'+'test_','wh'+'sec_','sb_'+'secret_','sk'+'-proj-']){
+  assert.throws(()=>checkFrontendSource('synthetic.txt',prefix+'X'.repeat(40)),/Potential private credential/);
+ }
+ checkFrontendSource('public.txt','sb_'+'publishable_'+'X'.repeat(40));
+ console.log('PASS V117: deterministic package fingerprint '+fingerprint+'; tampering and synthetic credential patterns detected.');
  await assert.rejects(()=>buildStaticPackage(process.cwd(),destination),/EEXIST/);
  console.log('PASS V115: '+files.length+' allowlisted frontend files, byte-identical, no test/backend output, overwrite refused.');
 }finally{await rm(packageTemp,{recursive:true,force:true})}
