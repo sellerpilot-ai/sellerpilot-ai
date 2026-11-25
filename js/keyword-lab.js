@@ -96,12 +96,12 @@ function drawDemand(){
  (row?'<div class="result-strip" id="v68-trend" tabindex="-1" style="margin-top:12px"><b>Monthly trend: '+esc(row.keyword)+'</b>'+demandMonthChart(row)+'</div>':'<p class="mini">'+(report.rows.length?'No matching keywords.':'No verified related phrases returned; no estimates invented.')+'</p>')+comparison;
 }
 function demandAction(e){
- const report=demandCurrent();if(!report||demandPending)return;
+ const report=demandCurrent();if(!report||demandPending||state.busy)return;
  const button=e.target.closest('button');if(!button)return;
  if(button.hasAttribute('data-v85-save')){void saveResearchPhrases(report,visibleDemandRows(report,demandProduct()));return;}
  if(button.hasAttribute('data-v88-task')){
   const current=currentTagPlan();if(!current?.plan.valid||!current.plan.additions.length||!v19Store.loaded||state.busy)return;
-  const task=researchReviewTask(current.product,report,current.selected);
+  const task=researchReviewTask(current.product,{...report,rows:visibleDemandRows(report,current.product)},current.selected);
   if(!task||!confirm('Save a private review task for these '+current.plan.additions.length+' proposed tags? No listing will be edited.'))return;
   void v19Mutate(next=>{
    if(next.tasks.length>=250)throw Error('Review task library is full. Remove old tasks first.');
