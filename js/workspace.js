@@ -14,8 +14,9 @@ export function v19SafeArray(value,max=250){return Array.isArray(value)?value.fi
 export async function v19Load(uid,serial){
  if(!uid||state.uid!==uid||state.serial!==serial)return;
  v19Reset();try{
-  const {data,error}=await state.client.from('sellerpilot_workspace_v19').select('data,updated_at').eq('user_id',uid).maybeSingle();
+  const {data,error}=await state.client.from('sellerpilot_workspace_v19').select('user_id,data,updated_at').eq('user_id',uid).maybeSingle();
   if(error)throw error;if(state.uid!==uid||state.serial!==serial)return;
+  if(data&&data.user_id!==uid)throw Error('Research workspace owner verification failed.');
   const raw=data?.data||{},base=v19Defaults();
   for(const k of ['keywords','competitors','ranks','profits','tasks'])base[k]=v19SafeArray(raw[k]);
   base.weekly=v19SafeArray(raw.weekly,16).filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x.week||'')).sort((a,b)=>b.week.localeCompare(a.week));

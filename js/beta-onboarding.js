@@ -9,8 +9,8 @@ export function v61Checklist(products,workspace){
  return [
  {label:'Add or import your listings',done:count>0,detail:count?count+' saved listing(s)':'Use Products to add a listing or preview a compatible CSV.',action:'products'},
  {label:'Review your listing quality',done:audits>0,detail:audits?audits+' saved audit snapshot(s)':'Open a listing, analyse it and save an audit snapshot.',action:'audit'},
- {label:'Build your research library',done:!!workspace?.keywords?.length,detail:'Discover relevant phrases and explicitly save one to your research library.',action:'keywords'},
- {label:'Save a shop health baseline',done:!!workspace?.weekly?.length,detail:'Save a weekly health report to compare your catalogue over time.',action:'reports'}
+ {label:'Build your research library',done:!!workspace?.keywords?.length,detail:workspace?'Discover relevant phrases and explicitly save one to your research library.':'Research sync unavailable. Refresh before saving research.',action:'keywords'},
+ {label:'Save a shop health baseline',done:!!workspace?.weekly?.length,detail:workspace?'Save a weekly health report to compare your catalogue over time.':'Research sync unavailable. Refresh before saving a report.',action:'reports'}
  ];
 }
 // Static directory: opening a tool never starts a provider request or changes a listing.
@@ -49,7 +49,7 @@ export function v61Render(){
  $('yuvilist-first-run').hidden=state.products.length!==0;
  const steps=v61Checklist(state.products,v19Store.loaded?v19Store.data:null),done=steps.filter(s=>s.done).length;
  $('v61-start-status').textContent=done+' of '+steps.length+' setup milestones · '+(v19Store.loaded?'Synced workspace':'Research sync unavailable');
- const next=steps.find(s=>!s.done);$('v96-next').innerHTML=next?'<b>Suggested next step:</b> '+esc(next.label)+' '+link('Continue setup',next.action):'<b>Setup milestones complete.</b> '+link('Review shop progress','reports');drawTools();
+ const next=steps.find(s=>!s.done);$('v96-next').innerHTML=next&&!v19Store.loaded&&['keywords','reports'].includes(next.action)?'<b>Research sync unavailable.</b> Open Settings &amp; Account and refresh your cloud workspace. '+link('Open settings','settings'):next?'<b>Suggested next step:</b> '+esc(next.label)+' '+link('Continue setup',next.action):'<b>Setup milestones complete.</b> '+link('Review shop progress','reports');drawTools();
  root.innerHTML=steps.map((s,i)=>'<div class="v61-step"><span class="v61-number" aria-hidden="true">'+(s.done?'✓':i+1)+'</span><div><b>'+esc(s.label)+'</b><span class="mini">'+(s.done?'Completed · ':'')+esc(s.detail)+'</span></div>'+link(s.done?'Revisit':'Open',s.action)+'</div>').join('');
 }
 export function v61Init(){
