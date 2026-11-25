@@ -33,7 +33,7 @@ export function v22RenderHome(){
 export function v22GoToShopListings(){chosenView('shop');const el=document.getElementById('v21-cloud-list');if(el)el.scrollIntoView({block:'center',behavior:'smooth'})}
 export function v22ReviewId(id){const p=state.products.find(x=>x.id===id);if(!p){toast('Choose a saved listing first.',true);return}chosenView('shop');v21.selectedCloud.clear();v21.selectedCloud.add(id);v21SelectionReview()}
 export function v22HandleAction(action){
- if(action==='all-tools'){const d=document.getElementById('v22-dashboard-details');d.open=true;if(document.body.classList.contains('v25-etsy-first')){chosenView('settings');document.querySelector('#view-settings .v19-links')?.scrollIntoView({block:'center',behavior:'smooth'});return}const el=d.querySelector('.v19-links')||d.querySelector('.v22-dashboard-inside');el.scrollIntoView({block:'center',behavior:'smooth'});return}
+ if(action==='all-tools'){const d=document.getElementById('v22-dashboard-details');d.open=true;if(document.body.classList.contains('v25-etsy-first')){chosenView('settings');document.querySelector('#view-settings .v19-links')?.scrollIntoView({block:'start',behavior:'instant'});return}const el=d.querySelector('.v19-links')||d.querySelector('.v22-dashboard-inside');el.scrollIntoView({block:'center',behavior:'smooth'});return}
  if(action==='audit-one'){v22ReviewId(document.getElementById('v22-quick-product').value);return}
  if(action==='review-priority'){const sorted=[...state.products].sort((a,b)=>productQuality(a).score-productQuality(b).score);if(sorted[0])v22ReviewId(sorted[0].id);else chosenView('products');return}
  if(action==='audit-all'){v22GoToShopListings();return}
@@ -49,7 +49,7 @@ export function v22HandleAction(action){
  }
 }
 export function v22Init(){
- document.addEventListener('click',e=>{const mode=e.target.closest('[data-v22-mode]');if(mode){v22Mode(mode.dataset.v22Mode);return}const b=e.target.closest('[data-v22-action]');if(b){e.preventDefault();v22HandleAction(b.dataset.v22Action)}});
+ document.addEventListener('click',e=>{const jump=e.target.closest('[data-v108-scroll]');if(jump){if(state.ready&&state.view==='intelligence'&&['edit-existing','edit-tags','analyse-product'].includes(jump.dataset.v108Scroll)){const el=document.getElementById(jump.dataset.v108Scroll);el?.scrollIntoView({block:'center',behavior:'instant'});el?.focus({preventScroll:true})}return}const mode=e.target.closest('[data-v22-mode]');if(mode){v22Mode(mode.dataset.v22Mode);return}const b=e.target.closest('[data-v22-action]');if(b){e.preventDefault();v22HandleAction(b.dataset.v22Action)}});
  for(const id of ['v22-density','v22-textsize'])document.getElementById(id)?.addEventListener('change',v22StoreDisplay);
  document.getElementById('v22-home-keyword')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();v22HandleAction('keyword')}});
  v22Mode('saved');v22ReadDisplay();
