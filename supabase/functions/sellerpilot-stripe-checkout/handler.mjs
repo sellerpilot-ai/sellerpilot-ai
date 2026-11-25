@@ -1,5 +1,7 @@
 // Private test-only hosted checkout. No production entitlements or live mode.
 const origin='https://sellerpilot-ai.github.io';
+const cloudOrigin='https://sellerpilot-ai-21c.pages.dev';
+const allowedOrigin=from=>from===origin||from===cloudOrigin;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const priceId=/^price_[A-Za-z0-9]{8,100}$/;
 function publishable(env){try{const k=JSON.parse(env('SUPABASE_PUBLISHABLE_KEYS')||'{}').default;if(typeof k==='string'&&k)return k}catch{}return env('SUPABASE_ANON_KEY')}
@@ -9,9 +11,9 @@ async function body(req){const reader=req.body?.getReader();if(!reader)throw Err
 export function safeCheckoutURL(raw,id){try{if(typeof raw!=='string'||raw.length>8192||!/^cs_test_[A-Za-z0-9]{12,180}$/.test(id||''))return false;const u=new URL(raw);return u.origin==='https://checkout.stripe.com'&&!u.username&&!u.password&&u.pathname!=='/'}catch{return false}}
 function openIssue(s,user,selected){if(s?.object!=='checkout.session')return 'object';if(s.livemode!==false)return 'mode safety';if(s.mode!=='subscription'||s.status!=='open'||s.payment_status!=='unpaid')return 'session state';if(s.client_reference_id!==user||s.metadata?.sellerpilot_user_id!==user||s.metadata?.sellerpilot_mode!=='sandbox'||s.metadata?.sellerpilot_plan!==selected[0].toLowerCase())return 'ownership';if(s.amount_total!==selected[2]||s.currency!=='gbp')return 'price';if(!/^cs_test_[A-Za-z0-9]{12,180}$/.test(s.id||''))return 'session identifier';if(s.managed_payments?.enabled!==false||s.adaptive_pricing?.enabled!==false||s.automatic_tax?.enabled!==false||!Array.isArray(s.payment_method_types)||s.payment_method_types.length!==1||s.payment_method_types[0]!=='card')return 'payment configuration';if(!safeCheckoutURL(s.url,s.id))return 'hosted checkout URL';return null}
 export function createHandler(env,fetcher){return async req=>{
- const from=req.headers.get('origin'),headers={'Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin',...(from===origin?{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS'}:{})};
+ const from=req.headers.get('origin'),headers={'Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin',...(allowedOrigin(from)?{'Access-Control-Allow-Origin':from,'Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS'}:{})};
  const reply=(status,data)=>new Response(JSON.stringify(data),{status,headers});const fail=(status,detail)=>reply(status,{ok:false,detail});
- if(from&&from!==origin)return fail(403,'Origin not permitted.');
+ if(from&&!allowedOrigin(from))return fail(403,'Origin not permitted.');
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers});
  if(req.method!=='POST')return fail(405,'POST required.');
  const auth=req.headers.get('authorization')||'',base=env('SUPABASE_URL'),pk=publishable(env);
@@ -69,7 +71,7 @@ export function createHandler(env,fetcher){return async req=>{
    const p=await res.json();if(!validPrice(p,id,amount,name))return fail(409,plan+' does not match the expected active GBP monthly sandbox price.');
   }
   const selected=plans.find(p=>p[0]===planKey);
-  const home='https://sellerpilot-ai.github.io/sellerpilot-ai/';
+  const home=from===cloudOrigin?cloudOrigin+'/':origin+'/sellerpilot-ai/';
   const form=new URLSearchParams({mode:'subscription','line_items[0][price]':selected[1],'line_items[0][quantity]':'1','allowed_payment_method_types[0]':'card','managed_payments[enabled]':'false','adaptive_pricing[enabled]':'false','automatic_tax[enabled]':'false',client_reference_id:user.id,success_url:home+'?v=41&billing=test-return&session_id={CHECKOUT_SESSION_ID}',cancel_url:home+'?v=41&billing=test-cancel','metadata[sellerpilot_user_id]':user.id,'metadata[sellerpilot_mode]':'sandbox','metadata[sellerpilot_plan]':input.plan,'subscription_data[metadata][sellerpilot_user_id]':user.id,'subscription_data[metadata][sellerpilot_mode]':'sandbox','subscription_data[metadata][sellerpilot_plan]':input.plan});
   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('sellerpilot-v48-unmanaged-sandbox:'+user.id+':'+input.request_id));
   const idem=Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');
