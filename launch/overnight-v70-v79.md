@@ -1,4 +1,4 @@
-# V70–V84 review checklist
+# V70–V89 review checklist
 
 Review branch: overnight-v70-v79; draft PR #48. Production baseline V69. All work here is review-only. No automatic publication, paid provider calls, new subscription activation, real Etsy authentication, production database/credential changes, or production deployment are authorised.
 
@@ -19,7 +19,8 @@ Review branch: overnight-v70-v79; draft PR #48. Production baseline V69. All wor
 - [x] c969e309: offline and existing mock browser workflows passed after first customer-facing fixes.
 - [x] a8f520da: expanded offline keyword, OAuth and catalogue fixtures passed.
 - [x] V79 code head 8364abe8: both offline (45573450749) and expanded mock browser (45573450637) passed, including direct mobile return navigation and unchanged cloud product.
-- [ ] Confirm offline and full mock browser workflows at the latest V84 head.
+- [x] V84 head 40d37896: offline (45573808389) and expanded browser regression (45573808395) passed.
+- [ ] Confirm offline and full mock browser workflows at the latest V89 head.
 - [ ] Check final branch CI, no merge conflicts, no credential exposure, and confirm manual desktop/mobile visual QA.
 - [ ] Keep the draft PR unmerged; no production or live billing changes without explicit owner approval.
 - [ ] Etsy integration remains disabled pending official app approval, exact registered callback configuration, durable atomic user-bound state, secure encrypted token storage, authorised shop identity verification, rate limits, and review of applicable Etsy API restrictions. Do not enable live authentication or data access as part of this review.
@@ -32,3 +33,8 @@ Offline command: `node --experimental-default-type=module tests/v70-opportunity.
 - V82: live before/after tag preview and clear selection; no provider request or storage write.
 - V83: explicit confirmation opens the editor with the proposed tags; no automatic cloud save or marketplace publication. Existing edits may be replaced only after confirmation.
 - V84: offline fixtures for duplicate/over-capacity/unknown rows, immutable original and marketplace restrictions; mocked browser checks for multi-selection, clear, cancel, preview, return and no cloud save. Final-head CI and manual visual QA still required.
+
+## V85–V89 private research workflow
+- V85–V87: explicit save of displayed, validated keyword phrases to the existing private research library, with source region and retrieval date in notes. No demand metrics persisted in the library. Preserve existing notes, deduplicate phrases and enforce existing 250-record and workspace limits. No external request.
+- V88: explicit private review task creation from selected tag suggestions, with duplicate and capacity guards and no listing mutation. Direct navigation to saved research and review tasks from Keyword Lab.
+- V89: expanded offline fixtures and mocked browser checks for cancel, save, deduplication, provenance and unchanged listing. Existing guarded cloud-write flow, account checks and optimistic concurrency retained. Final-head automated and manual visual QA remain required.
