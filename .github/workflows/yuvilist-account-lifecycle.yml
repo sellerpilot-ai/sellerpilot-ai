@@ -1,0 +1,24 @@
+name: YuviList disposable account lifecycle
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  lifecycle-model:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Test model in fresh runner database only
+        run: |
+          set -euo pipefail
+          sudo systemctl start postgresql
+          sudo -u postgres createdb yuvilist_lifecycle_fixture
+          fixture_dir=$(mktemp -d /tmp/yuvilist-lifecycle.XXXXXX)
+          trap 'sudo -u postgres dropdb --if-exists yuvilist_lifecycle_fixture; rm -rf "$fixture_dir"' EXIT
+          chmod 0755 "$fixture_dir"
+          install -m 0644 "$GITHUB_WORKSPACE/tests/yuvilist-account-lifecycle.sql" "$fixture_dir/lifecycle.sql"
+          sudo -u postgres psql -X -v ON_ERROR_STOP=1 -d yuvilist_lifecycle_fixture -f "$fixture_dir/lifecycle.sql"
