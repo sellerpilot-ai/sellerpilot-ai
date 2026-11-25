@@ -26,7 +26,7 @@ jobs:
         run: node tests/v63-secret-screen.mjs
       - name: Install test browser
         run: |
-          npm install --no-save --no-package-lock --ignore-scripts playwright@1.51.1
+          npm install --no-save --no-package-lock --ignore-scripts playwright@1.51.1 esbuild@0.25.0
           npx --no-install playwright install --with-deps chromium
       - name: Test isolated AI handler with mock network
         run: node tests/v27-ai-handler.mjs
@@ -66,3 +66,15 @@ jobs:
         run: node tests/v68-demand-intelligence.mjs
       - name: Run browser regression using only mock data
         run: node tests/v24-browser.mjs
+      - name: Build V107 isolated offline preview
+        run: node tests/v107-build-preview.mjs
+      - name: Verify offline preview on desktop and mobile
+        run: node tests/v107-preview-browser.mjs
+      - name: Package owner offline preview
+        if: github.head_ref == 'overnight-v70-v79'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: SellerPilot-V106-offline-preview
+          path: preview-output/
+          retention-days: 7
+          if-no-files-found: error
