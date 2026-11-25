@@ -1,5 +1,7 @@
 // V43 isolated sandbox access simulation. Never calls AI or grants production access.
 const origin='https://sellerpilot-ai.github.io';
+const cloudOrigin='https://sellerpilot-ai-21c.pages.dev';
+const allowedOrigin=from=>from===origin||from===cloudOrigin;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const sid=/^sub_[A-Za-z0-9]{8,160}$/,cid=/^cus_[A-Za-z0-9]{8,160}$/,pid=/^price_[A-Za-z0-9]{8,160}$/;
 const limits={starter:{monthly:30,daily:5,amount:999},professional:{monthly:100,daily:15,amount:1999}};
@@ -13,9 +15,9 @@ export function eligible(sub,user,prices,now){
  return {plan,subscription_id:sub.id,period_end:new Date(period*1000).toISOString(),cancel_at_period_end:sub.cancel_at_period_end===true||(Number.isSafeInteger(period)&&period>0&&period<4102444800&&Number.isSafeInteger(sub.cancel_at)&&sub.cancel_at===period),monthly_credits:l.monthly,daily_credits:l.daily};
 }
 export function createHandler(env,fetcher,clock=Date.now){return async req=>{
- const from=req.headers.get('origin'),headers={'Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin',...(from===origin?{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS'}:{})};
+ const from=req.headers.get('origin'),headers={'Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin',...(allowedOrigin(from)?{'Access-Control-Allow-Origin':from,'Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS'}:{})};
  const reply=(status,data)=>new Response(JSON.stringify(data),{status,headers}),fail=(status,detail)=>reply(status,{ok:false,detail,production_access:false});
- if(from&&from!==origin)return fail(403,'Origin not permitted.');
+ if(from&&!allowedOrigin(from))return fail(403,'Origin not permitted.');
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers});
  if(req.method!=='POST')return fail(405,'POST required.');
  const auth=req.headers.get('authorization')||'',base=env('SUPABASE_URL'),pk=runtimeKey(env,'SUPABASE_PUBLISHABLE_KEYS','SUPABASE_ANON_KEY');

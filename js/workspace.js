@@ -68,9 +68,9 @@ export function v19Init(){
  v19Page('reports','Reports','Verified workspace reporting','Export data you own. No fabricated marketplace sales or demand statistics.',''),
  v19Page('advanced','Advanced Controls','Cloud-backed preferences','Configure workflow, research and cost preferences. These settings sync across signed-in devices.','')].join(''));
  const siteFooter=document.querySelector('.content-main > .footer-note');if(siteFooter)document.querySelector('.content-main').appendChild(siteFooter);
- const linkbar=`<div class="v19-links"><div class="mini" style="font-weight:800;margin-bottom:9px">RESEARCH & OPERATIONS</div><div class="v19-actions">${[['research','Research Hub'],['competitors','Competitors'],['ranks','Rank & Trends'],['profits','Profit Planner'],['tasks','Review Tasks'],['reports','Reports'],['advanced','Advanced Controls']].map(([id,t])=>`<button data-go="${id}" class="button secondary sm">${t}</button>`).join('')}</div></div>`;
+ const linkbar=`<div class="v19-links"><div class="mini" style="font-weight:800;margin-bottom:9px">RESEARCH & OPERATIONS</div><div class="v19-actions">${[['keywords','Keyword Lab'],['research','Research Hub'],['competitors','Competitors'],['ranks','Rank & Trends'],['profits','Profit Planner'],['tasks','Review Tasks'],['reports','Reports'],['advanced','Advanced Controls']].map(([id,t])=>`<button data-go="${id}" class="button secondary sm">${t}</button>`).join('')}</div></div>`;
  $('view-overview').insertAdjacentHTML('beforeend',linkbar);
- $('view-settings').insertAdjacentHTML('beforeend',linkbar);
+ $('view-settings').querySelector('.section-header').insertAdjacentHTML('afterend',linkbar);
  document.querySelector('.sidebar-foot').innerHTML=document.querySelector('.sidebar-foot').innerHTML.replace('v18 · Listing intelligence beta','v39 · Seller workspace');
  document.addEventListener('click',v19Click);
  document.addEventListener('input',e=>{if(e.target.closest('#v19-profit-calc'))v19Calc()});

@@ -28,3 +28,9 @@ assert.deepEqual(compareReports(uk,uk),[]);
 assert.throws(()=>validateReport({...report,source:'Etsy'}));
 assert.throws(()=>validateReport({...report,rows:[report.rows[0],report.rows[0]]}));
 console.log('PASS: source validation, zero/null distinction, ties, chronological history, local word overlap, exact-phrase comparison and sorting.');
+
+assert.throws(()=>validateReport({...report,retrieved_at:0}));
+assert.throws(()=>validateReport({...report,rows:[{...report.rows[0],keyword:'gold\nbracelet'}]}));
+assert.throws(()=>validateReport({...report,rows:[{...report.rows[0],keyword:'gold\u0000bracelet'}]}));
+assert.throws(()=>validateReport({...report,mode:'discover',seeds:['gold\tbracelet']}));
+console.log('PASS V100 strict provenance and single-line provider phrase validation');
