@@ -532,7 +532,8 @@ try {
   await packagePage.goto(packageOrigin+'/app.html?v=106');
   assert.equal(new URL(packagePage.url()).pathname,'/app');
   assert.equal(new URL(packagePage.url()).searchParams.get('v'),'106');
-  await packagePage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
+  // Locator wait avoids Playwright waitForFunction's in-page eval under enforced CSP.
+  await packagePage.locator('#cloud-status').filter({hasText:'Cloud synced'}).waitFor({state:'visible',timeout:15000});
   await packagePage.locator('[data-view="products"]:visible').first().click();
   assert.match(await packagePage.locator('#product-mobile').innerText(),/Minimalist Gold Tone Bracelet/);
   await packagePage.locator('#view-products [data-edit="fixture-product"]:visible').first().click();
@@ -545,7 +546,7 @@ try {
   const publicResponse=await fetch(packageOrigin+'/');for(const [key,value] of Object.entries(securityHeaders))assert.equal(publicResponse.headers.get(key),value);
   console.log('PASS V122: 54-file Cloudflare package, clean URL and query preservation, security headers and explicit 404 in local simulation.');
   const cspResult=await packagePage.evaluate(async()=>{
-   const violation=new Promise(resolve=>document.addEventListener('securitypolicyviolation',e=>{if(e.effectiveDirective==='connect-src')resolve(e.effectiveDirective)},{once:true}));
+   const violation=new Promise(resolve=>{const listener=e=>{if(e.effectiveDirective==='connect-src'&&e.blockedURI.startsWith('https://unapproved.invalid')){document.removeEventListener('securitypolicyviolation',listener);resolve(e.effectiveDirective)}};document.addEventListener('securitypolicyviolation',listener)});
    let denied=false;try{await fetch('https://unapproved.invalid/fixture')}catch{denied=true}
    return {denied,directive:await Promise.race([violation,new Promise(r=>setTimeout(()=>r('missing'),1500))])};
   });
