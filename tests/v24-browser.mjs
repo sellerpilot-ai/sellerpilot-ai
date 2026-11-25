@@ -437,7 +437,9 @@ try {
  await firstRun.evaluate(()=>{localStorage.setItem('test-weekly-workspace',JSON.stringify({user_id:'mock-user',updated_at:'2026-11-25T00:00:00Z',data:{keywords:[{phrase:'Foreign research sentinel'}]}}));localStorage.setItem('test-foreign-workspace','yes')});
  await firstRun.reload();await firstRun.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  assert.match(await firstRun.locator('#v61-start-status').innerText(),/Research sync unavailable/);
- await firstRun.locator('[data-view="research"]:visible').first().click();
+ await firstRun.locator('#v95-directory summary').click();
+ await firstRun.locator('#v95-search').fill('research hub');
+ await firstRun.locator('#v95-tools [data-v61-go="research"]').click();
  assert.match(await firstRun.locator('#v19-content-research').innerText(),/Research workspace owner verification failed/);
  assert.doesNotMatch(await firstRun.locator('#v19-content-research').innerText(),/Foreign research sentinel/);
  await firstRun.locator('[data-view="settings"]:visible').first().click();
