@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {sortRows,opportunity} from '../js/demand-intelligence.js';
+const product={title:'Gold plated bracelet',description:'Gold plated chain bracelet',tags:'bracelet'};
+const row=(keyword,volume=100,monthly=[])=>({keyword,average_monthly_searches:volume,monthly});
+assert.equal(opportunity(row('gold bracelet'),product,100).score,100);
+assert.equal(opportunity(row('gold bracelet'),null,100).score,null);
+assert.equal(opportunity(row('gold bracelet',null),product,100).score,null);
+assert.equal(opportunity(row('solid gold bracelet'),product,100).reviewCandidate,false);
+assert.ok(opportunity(row('solid gold bracelet'),product,100).warnings.length);
+assert.ok(opportunity(row('cartier bracelet'),product,100).warnings.length);
+assert.equal(opportunity(row('gold plated bracelet'),product,100).longTail,true);
+assert.equal(opportunity(row('gold bracelet',100,[{searches:100}]),product,100).seasonalSignal,false);
+const rows=[row('gold bracelet',100),row('chain bracelet',10)];
+assert.equal(sortRows(rows,'volume',product,'chain')[0].opportunity.demand,Math.round(100*Math.log1p(10)/Math.log1p(100)));
+console.log('PASS V70 local opportunity fixtures');
