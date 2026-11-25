@@ -78,7 +78,7 @@ try {
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/app.html');await ready();assert.equal(await page.locator('.v108-mobile-brand img').isVisible(),true);assert.equal(await page.evaluate(()=>!!(document.querySelector('.v22-home-top').compareDocumentPosition(document.querySelector('#v60-assistant'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);assert.match(await page.title(),/v106/);assert.match(await page.locator('.top-pill').innerText(),/SELLERPILOT V106/);assert.match(await page.locator('.footer-note').innerText(),/SellerPilot AI v106/);assert.match(await page.locator('.sidebar-foot').textContent(),/v106 · Listing intelligence beta/);
+ await page.goto(origin+'/app.html');await ready();assert.equal(await page.locator('.v108-mobile-brand img').isVisible(),true);assert.equal(await page.evaluate(()=>!!(document.querySelector('.v22-home-top').compareDocumentPosition(document.querySelector('#v60-assistant'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);assert.match(await page.title(),/v106/);assert.match(await page.locator('.top-pill').innerText(),/SELLERPILOT V106/);assert.match(await page.locator('.footer-note').innerText(),/YuviList v106/);assert.match(await page.locator('.sidebar-foot').textContent(),/v106 · Listing intelligence beta/);
  await page.waitForFunction(()=>{const i=document.querySelector('.brand-mark img');return i?.complete&&i.naturalWidth===32;});
  assert.equal(await page.locator('link[rel="icon"]').getAttribute('href'),'./assets/sellerpilot-logo.svg');
  assert.equal(await page.locator('#v63-operator-tools').isHidden(),true);assert.equal(await page.locator('#v55-home').isHidden(),true);assert.equal(await page.evaluate(()=>Number(localStorage.getItem('test-v63-sandbox-requests')||0)),0);
@@ -597,7 +597,7 @@ try {
   packagePage.on('response',r=>{if(r.url().startsWith(packageOrigin+'/')&&r.status()>=400)missing.push(r.url())});
   await packagePage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===packageOrigin)return route.continue();if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});external.push(u.origin);return route.abort()});
   await packagePage.goto(packageOrigin+'/');
-  assert.match(await packagePage.title(),/SellerPilot AI/);
+  assert.match(await packagePage.title(),/YuviList/);
   await packagePage.goto(packageOrigin+'/app.html?v=106');
   assert.equal(new URL(packagePage.url()).pathname,'/app');
   assert.equal(new URL(packagePage.url()).searchParams.get('v'),'106');
