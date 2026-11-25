@@ -111,6 +111,13 @@ try {
  await page.locator('[data-v80-choice][value="tone bracelet"]').check();
  assert.match(await page.locator('#v80-count').innerText(),/2 selected/);
  assert.match(await page.locator('#v80-after').innerText(),/gold bracelet, tone bracelet/);
+ assert.equal(await page.locator('[data-v88-task]').isDisabled(),false);
+ const priorTaskCount=await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.tasks.length);
+ page.once('dialog',async d=>{await d.dismiss()});await page.locator('[data-v88-task]').click();assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.tasks.length),priorTaskCount);
+ page.once('dialog',async d=>{await d.accept()});await page.locator('[data-v88-task]').click();await page.waitForFunction(n=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.tasks.length===n+1,priorTaskCount);
+ await page.waitForFunction(()=>!document.querySelector('[data-v88-task]').disabled);
+ assert.match(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.tasks[0].notes),/gold bracelet, tone bracelet/);
+ assert.equal(await page.evaluate(()=>localStorage.getItem('test-fixture')),beforePreview);
  await page.locator('[data-v80-clear]').click();assert.equal(await page.locator('[data-v80-preview]').isDisabled(),true);
  await page.locator('[data-v80-choice][value="gold bracelet"]').check();await page.locator('[data-v80-choice][value="tone bracelet"]').check();
  page.once('dialog',async d=>{await d.dismiss()});await page.locator('[data-v80-preview]').click();assert.equal(await page.locator('#view-keywords').isVisible(),true);
@@ -120,6 +127,17 @@ try {
  await page.locator('#v79-return-keywords').click();await page.locator('#view-keywords').waitFor({state:'visible'});
  assert.equal(await page.locator('[data-v80-choice]:checked').count(),0);
  console.log('PASS V80–V84 multiple tag planning, clear, cancel, explicit preview, no cloud save and reset');
+ await page.locator('#v68-filter').fill('tone bracelet');
+ const priorKeywords=await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.keywords.length);
+ // The local keyword generator may already have saved this phrase; use the known absent silver phrase.
+ await page.locator('#v68-filter').fill('silver bracelet');
+ assert.equal(await page.locator('[data-v85-save]').isDisabled(),false);
+ page.once('dialog',async d=>{await d.dismiss()});await page.locator('[data-v85-save]').click();assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.keywords.length),priorKeywords);
+ page.once('dialog',async d=>{await d.accept()});await page.locator('[data-v85-save]').click();await page.waitForFunction(n=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.keywords.length===n+1,priorKeywords);
+ await page.waitForFunction(()=>document.querySelector('[data-v85-save]').disabled);
+ assert.match(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.keywords[0].notes),/UK.*not Etsy demand/);
+ assert.equal(await page.evaluate(()=>localStorage.getItem('test-fixture')),beforePreview);
+ console.log('PASS V85–V89 cancel/save private research notes and review task, deduplication and unchanged listing');
  await page.locator('#v68-filter').fill('');await page.locator('[data-v68-prepare]').click();assert.equal(await page.locator('#v67-region').inputValue(),'US');assert.equal(await page.locator('#v67-consent').isChecked(),false);assert.equal(await page.locator('#v67-run').isDisabled(),true);
  await page.locator('#v67-consent').check();await page.locator('#v67-run').click();await page.waitForFunction(()=>document.querySelector('#v67-status')?.textContent.includes('Research ready'));assert.match(await page.locator('.v68-comparison').innerText(),/UK: 120/);assert.match(await page.locator('.v68-comparison').innerText(),/US: 240/);
  await page.locator('[data-v68-region="UK"]').click();assert.match(await page.locator('#v67-results').innerText(),/Google demand · United Kingdom/);
