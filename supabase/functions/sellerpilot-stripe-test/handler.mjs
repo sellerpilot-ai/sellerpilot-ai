@@ -1,14 +1,17 @@
 // Read-only sandbox diagnostic. No Checkout, customer, invoice or subscription creation.
 const origin='https://sellerpilot-ai.github.io';
+const cloudOrigin='https://sellerpilot-ai-21c.pages.dev';
+const yuviOrigin='https://yuvilist.com';
+const allowedOrigin=from=>from===origin||from===cloudOrigin||from===yuviOrigin;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const priceId=/^price_[A-Za-z0-9]{8,100}$/;
 function publishable(env){try{const k=JSON.parse(env('SUPABASE_PUBLISHABLE_KEYS')||'{}').default;if(typeof k==='string'&&k)return k}catch{}return env('SUPABASE_ANON_KEY')}
 export function validPrice(p,id,amount,name){return p?.object==='price'&&p.id===id&&p.livemode===false&&p.active===true&&p.currency==='gbp'&&p.unit_amount===amount&&p.type==='recurring'&&p.billing_scheme==='per_unit'&&p.recurring?.interval==='month'&&p.recurring?.interval_count===1&&p.recurring?.usage_type==='licensed'&&p.product?.object==='product'&&p.product?.active===true&&p.product?.livemode===false&&p.product?.name===name}
 async function body(req){const reader=req.body?.getReader();if(!reader)throw Error('missing body');let size=0,s='';const d=new TextDecoder();try{while(true){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>1024){await reader.cancel();throw Error('too large')}s+=d.decode(value,{stream:true})}return JSON.parse(s+d.decode())}finally{reader.releaseLock()}}
 export function createHandler(env,fetcher){return async req=>{
- const from=req.headers.get('origin'),headers={'Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin',...(from===origin?{'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS'}:{})};
+ const from=req.headers.get('origin'),headers={'Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin',...(allowedOrigin(from)?{'Access-Control-Allow-Origin':from,'Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info','Access-Control-Allow-Methods':'POST,OPTIONS'}:{})};
  const reply=(status,data)=>new Response(JSON.stringify(data),{status,headers});const fail=(status,detail)=>reply(status,{ok:false,detail});
- if(from&&from!==origin)return fail(403,'Origin not permitted.');
+ if(from&&!allowedOrigin(from))return fail(403,'Origin not permitted.');
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers});
  if(req.method!=='POST')return fail(405,'POST required.');
  const auth=req.headers.get('authorization')||'',base=env('SUPABASE_URL'),pk=publishable(env);

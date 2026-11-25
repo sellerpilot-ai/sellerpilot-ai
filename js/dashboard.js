@@ -22,18 +22,18 @@ export function v22RenderHome(){
  const old=select.value;select.replaceChildren();
  if(!state.ready){const o=new Option('Sign in to see your products','');select.add(o);select.disabled=true;document.getElementById('v22-saved-status').textContent='Sign in to view your private products.';document.getElementById('v22-next-text').textContent='Your saved products appear here after sign in.';return}
  select.disabled=!state.products.length;
- const list=[...state.products].sort((a,b)=>productQuality(a).score-productQuality(b).score);
- if(!list.length){select.add(new Option('No saved listings yet',''));document.getElementById('v22-saved-status').textContent='Create a listing or import a CSV to start.';document.getElementById('v22-next-text').textContent='Create your first cloud product to see a recommendation.';return}
+ const ranked=state.products.map(p=>({p,a:productQuality(p)})).sort((x,y)=>x.a.score-y.a.score);const list=ranked.map(x=>x.p);
+ if(!list.length){select.add(new Option('No saved listings yet',''));document.getElementById('v22-saved-status').textContent='Create a listing or import a CSV to start.';document.getElementById('v22-next-text').textContent='Add an authorised listing or try the fictional sample first. No marketplace connection is required.';return}
  for(const p of list){const o=new Option(p.title,p.id);select.add(o)}
  select.value=list.some(x=>x.id===old)?old:list[0].id;
  document.getElementById('v22-saved-status').textContent=list.length+' private listing'+(list.length===1?'':'s')+' ready to review · Rule-based checks, not marketplace ranking.';
- const most=list[0],a=productQuality(most);
+ const {p:most,a}=ranked[0];
  document.getElementById('v22-next-text').innerHTML='<strong>'+esc(most.title)+'</strong><span class="mini">'+a.score+'/100 · '+esc(a.issues[0]?.heading||'No basic issues flagged')+'</span>';
 }
 export function v22GoToShopListings(){chosenView('shop');const el=document.getElementById('v21-cloud-list');if(el)el.scrollIntoView({block:'center',behavior:'smooth'})}
 export function v22ReviewId(id){const p=state.products.find(x=>x.id===id);if(!p){toast('Choose a saved listing first.',true);return}chosenView('shop');v21.selectedCloud.clear();v21.selectedCloud.add(id);v21SelectionReview()}
 export function v22HandleAction(action){
- if(action==='all-tools'){const d=document.getElementById('v22-dashboard-details');d.open=true;if(document.body.classList.contains('v25-etsy-first')){chosenView('settings');document.querySelector('#view-settings .v19-links')?.scrollIntoView({block:'center',behavior:'smooth'});return}const el=d.querySelector('.v19-links')||d.querySelector('.v22-dashboard-inside');el.scrollIntoView({block:'center',behavior:'smooth'});return}
+ if(action==='all-tools'){const d=document.getElementById('v22-dashboard-details');d.open=true;if(document.body.classList.contains('v25-etsy-first')){chosenView('settings');document.querySelector('#view-settings .v19-links')?.scrollIntoView({block:'start',behavior:'instant'});return}const el=d.querySelector('.v19-links')||d.querySelector('.v22-dashboard-inside');el.scrollIntoView({block:'center',behavior:'smooth'});return}
  if(action==='audit-one'){v22ReviewId(document.getElementById('v22-quick-product').value);return}
  if(action==='review-priority'){const sorted=[...state.products].sort((a,b)=>productQuality(a).score-productQuality(b).score);if(sorted[0])v22ReviewId(sorted[0].id);else chosenView('products');return}
  if(action==='audit-all'){v22GoToShopListings();return}
@@ -49,7 +49,7 @@ export function v22HandleAction(action){
  }
 }
 export function v22Init(){
- document.addEventListener('click',e=>{const mode=e.target.closest('[data-v22-mode]');if(mode){v22Mode(mode.dataset.v22Mode);return}const b=e.target.closest('[data-v22-action]');if(b){e.preventDefault();v22HandleAction(b.dataset.v22Action)}});
+ document.addEventListener('click',e=>{const jump=e.target.closest('[data-v108-scroll]');if(jump){if(state.ready&&state.view==='intelligence'&&['edit-existing','edit-tags','analyse-product'].includes(jump.dataset.v108Scroll)){const el=document.getElementById(jump.dataset.v108Scroll);el?.scrollIntoView({block:'center',behavior:'instant'});el?.focus({preventScroll:true})}return}const mode=e.target.closest('[data-v22-mode]');if(mode){v22Mode(mode.dataset.v22Mode);return}const b=e.target.closest('[data-v22-action]');if(b){e.preventDefault();v22HandleAction(b.dataset.v22Action)}});
  for(const id of ['v22-density','v22-textsize'])document.getElementById(id)?.addEventListener('change',v22StoreDisplay);
  document.getElementById('v22-home-keyword')?.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();v22HandleAction('keyword')}});
  v22Mode('saved');v22ReadDisplay();

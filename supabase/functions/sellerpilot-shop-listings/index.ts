@@ -2,7 +2,7 @@ import { providerAccess } from './provider-access.mjs';
 
 import { createClient } from "npm:@supabase/supabase-js@2.57.0";
 const env=(s:string)=>(Deno.env.get(s)||"").trim();
-const allowed=(s:string|null)=>s==="https://sellerpilot-ai.github.io"||(/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(s||""));
+const allowed=(s:string|null)=>[ "https://sellerpilot-ai.github.io", "https://sellerpilot-ai-21c.pages.dev", "https://yuvilist.com" ].includes(s||"")||(/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(s||""));
 const headers=(o:string|null)=>({"Content-Type":"application/json","Cache-Control":"no-store","Vary":"Origin",...(allowed(o)&&o?{"Access-Control-Allow-Origin":o,"Access-Control-Allow-Headers":"authorization,apikey,content-type,x-client-info","Access-Control-Allow-Methods":"GET,POST,OPTIONS"}:{})});
 const reply=(o:string|null,obj:object,status=200)=>new Response(JSON.stringify(obj),{status,headers:headers(o)});
 const safePrice=(x:any):number|null=>{if(x==null)return null;const value=Number(x.amount??x.value??NaN),div=Number(x.divisor||1);return Number.isFinite(value)&&div>0?Math.round(value/div*100)/100:null};

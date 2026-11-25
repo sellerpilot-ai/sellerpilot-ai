@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 const src=await readFile(new URL('../js/shop-assistant.js',import.meta.url));
-const {shopSummary,filterQueue}=await import('data:text/javascript;base64,'+src.toString('base64'));
+const {shopSummary,filterQueue,issueGroups,reviewCSVCell}=await import('data:text/javascript;base64,'+src.toString('base64'));
 const issue=(heading,severity,penalty)=>({heading,severity,penalty});
 const row=(id,title,score,issues)=>({id,title,audit:{score,issues,market:'Etsy'},history:[]});
 const rows=[row('a','Bracelet',45,[issue('Description','important',18)]),row('b','Mug',80,[issue('Price','critical',16),issue('Size','minor',5)]),row('c','Art',95,[])];
@@ -17,3 +17,33 @@ assert.deepEqual(filterQueue(s.queue,'all','priority','missing'),[]);
 assert.equal(shopSummary([]).average,null);assert.equal(shopSummary([]).delta,null);
 assert.deepEqual(s.queue.map(x=>x.id),['b','a']);
 console.log('PASS: catalogue priority, critical and score filters, text search, weekly baseline, no fabricated empty-state score.');
+
+const grouped=shopSummary([row('a','A',40,[issue('Tags','important',5),issue('Tags','critical',10),issue('Description','minor',3)]),{...row('b','B',72,[issue('Tags','important',4),issue('Photos','minor',1)]),audit:{score:72,market:'Amazon',issues:[issue('Tags','important',4),issue('Photos','minor',1)]}}]);
+assert.deepEqual(issueGroups(grouped.queue)[0],{heading:'Tags',listings:2,critical:1,markets:['Amazon','Etsy']});
+assert.equal(issueGroups(grouped.queue).length,3);
+assert.deepEqual(filterQueue(grouped.queue,'all','priority','', 'Amazon').map(x=>x.id),['b']);
+assert.deepEqual(filterQueue(grouped.queue,'all','priority','description').map(x=>x.id),['a']);
+assert.equal(filterQueue(grouped.queue,'all','priority','','','Description')[0].issue.heading,'Description');
+assert.equal(filterQueue(grouped.queue,'all','priority','','Amazon','Description').length,0);
+assert.equal(grouped.queue[0].issue.heading,'Tags');
+assert.deepEqual(issueGroups([]),[]);
+assert.equal(reviewCSVCell('=2+2'),"'=2+2");
+assert.equal(reviewCSVCell('  @SUM(1)'),"'  @SUM(1)");
+assert.equal(reviewCSVCell(0),0);
+console.log('PASS V90–V94 recurring issue counts, unique listings, critical severity, marketplace and issue filters, non-primary search and safe export');
+
+ // V102 synthetic local scale test, not a production latency benchmark.
+ const large=Array.from({length:10000},(_,i)=>({...row(String(i),'Fixture '+i,i%101,[issue('Tags','important',4),issue('Description','minor',1),...(i%10===0?[issue('Price','critical',10)]:[])]),audit:{score:i%101,market:i%2?'Etsy':'Amazon',issues:[issue('Tags','important',4),issue('Description','minor',1),...(i%10===0?[issue('Price','critical',10)]:[])]}}));
+ const started=performance.now();
+ const largeSummary=shopSummary(large);
+ const largeGroups=issueGroups(largeSummary.queue);
+ const largeFilter=filterQueue(largeSummary.queue,'critical','score','','Amazon','Price');
+ const elapsed=performance.now()-started;
+ assert.equal(largeSummary.total,10000);
+ assert.equal(largeSummary.critical,1000);
+ assert.equal(largeGroups.find(g=>g.heading==='Tags').listings,10000);
+ assert.equal(largeGroups.find(g=>g.heading==='Price').critical,1000);
+ assert.equal(largeFilter.length,1000);
+ assert.ok(largeFilter.every(x=>x.issue.heading==='Price'&&x.market==='Amazon'));
+ assert.ok(elapsed<5000,'Synthetic grouping/filter runtime exceeded generous 5s guard: '+elapsed);
+ console.log('PASS V102: 10,000 synthetic listings, summary/group/filter '+elapsed.toFixed(1)+'ms; local Node fixture only');

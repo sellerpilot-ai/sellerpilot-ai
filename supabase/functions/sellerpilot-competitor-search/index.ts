@@ -2,7 +2,7 @@ import { providerAccess } from './provider-access.mjs';
 
 import {createClient} from 'npm:@supabase/supabase-js@2.57.0';
 const env=n=>(Deno.env.get(n)||'').trim();
-const cors=o=>({'Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin',...(o==='https://sellerpilot-ai.github.io'||/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o||'')?{'Access-Control-Allow-Origin':o,'Access-Control-Allow-Methods':'GET,POST,OPTIONS','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info'}:{})});
+const cors=o=>({'Content-Type':'application/json','Cache-Control':'no-store','Vary':'Origin',...(['https://sellerpilot-ai.github.io','https://sellerpilot-ai-21c.pages.dev','https://yuvilist.com'].includes(o)||/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o||'')?{'Access-Control-Allow-Origin':o,'Access-Control-Allow-Methods':'GET,POST,OPTIONS','Access-Control-Allow-Headers':'authorization,apikey,content-type,x-client-info'}:{})});
 const send=(body,status=200,o=null)=>new Response(JSON.stringify(body),{status,headers:cors(o)});
 const price=(p)=>{const x=Number(p?.value??p?.amount),div=Number(p?.divisor||1);return Number.isFinite(x)&&div>0?Math.round(x/div*100)/100:null};
 async function etsy(q){
@@ -26,7 +26,7 @@ async function ebay(q){
 Deno.serve(async req=>{
  const o=req.headers.get('Origin');
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(o)});
- if(o&&o!=='https://sellerpilot-ai.github.io'&&!/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o))return send({error:'origin_not_allowed'},403,o);
+ if(o&&!['https://sellerpilot-ai.github.io','https://sellerpilot-ai-21c.pages.dev','https://yuvilist.com'].includes(o)&&!/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(o))return send({error:'origin_not_allowed'},403,o);
  if(!['GET','POST'].includes(req.method))return send({error:'method_not_allowed'},405,o);
  const auth=req.headers.get('Authorization')||'';
  if(!auth.startsWith('Bearer '))return send({error:'sign_in_required'},401,o);

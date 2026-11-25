@@ -1,10 +1,42 @@
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdtemp, rm, readdir } from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {buildStaticPackage,packageFingerprint,checkFrontendSource} from './v115-static-package.mjs';
+import {buildCloudflarePackage,pagesHeaders,securityHeaders} from './v122-cloudflare-package.mjs';
 import { resolve, extname, sep } from 'node:path';
 import { chromium } from 'playwright';
 
-const root=process.cwd(), types={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css'};
+const packageTemp=await mkdtemp(resolve(tmpdir(),'sellerpilot-static-'));
+try{
+ const destination=resolve(packageTemp,'frontend');
+ const files=await buildStaticPackage(process.cwd(),destination);
+ assert.ok(files.includes('app.html')&&files.includes('js/supabase-client.js'));
+ assert.ok(files.includes('assets/sellerpilot-logo.svg'));
+ assert.ok(files.every(f=>!f.startsWith('tests/')&&!f.startsWith('supabase/')&&!f.startsWith('.')));
+ const top=await readdir(destination);
+ assert.ok(!top.includes('tests')&&!top.includes('supabase')&&!top.includes('.git'));
+ const entries=[];
+ for(const file of files){
+  const bytes=await readFile(resolve(destination,file));
+  assert.deepEqual(bytes,await readFile(resolve(process.cwd(),file)));
+  entries.push([file,bytes]);
+ }
+ const fingerprint=packageFingerprint(entries);
+ assert.match(fingerprint,/^[a-f0-9]{64}$/);
+ assert.equal(packageFingerprint([...entries].reverse()),fingerprint);
+ const tampered=entries.map(([path,bytes],i)=>[path,i===0?Buffer.concat([bytes,Buffer.from('changed')]):bytes]);
+ assert.notEqual(packageFingerprint(tampered),fingerprint);
+ for(const prefix of ['sk_'+'live_','sk_'+'test_','wh'+'sec_','sb_'+'secret_','sk'+'-proj-']){
+  assert.throws(()=>checkFrontendSource('synthetic.txt',prefix+'X'.repeat(40)),/Potential private credential/);
+ }
+ checkFrontendSource('public.txt','sb_'+'publishable_'+'X'.repeat(40));
+ console.log('PASS V117: deterministic package fingerprint '+fingerprint+'; tampering and synthetic credential patterns detected.');
+ await assert.rejects(()=>buildStaticPackage(process.cwd(),destination),/EEXIST/);
+ console.log('PASS V115: '+files.length+' allowlisted frontend files, byte-identical, no test/backend output, overwrite refused.');
+}finally{await rm(packageTemp,{recursive:true,force:true})}
+const root=process.cwd(), types={'.html':'text/html','.js':'text/javascript','.mjs':'text/javascript','.css':'text/css','.svg':'image/svg+xml'};
 const server=createServer(async(req,res)=>{
  try {
   const requested=new URL(req.url,'http://localhost').pathname;const path=resolve(root,'.'+(requested==='/'?'/index.html':requested));
@@ -19,15 +51,19 @@ const user={id:'mock-user',email:'fixture@example.invalid'};
 const initial={id:'fixture-product',user_id:user.id,title:'Minimalist Gold Tone Bracelet',description:'Simple bracelet for everyday wear.',tags:'bracelet,gold jewellery,bracelet',price:18.5,sku:'',attributes:{},created_at:'2026-01-01T00:00:00Z',updated_at:'2026-01-01T00:00:00Z'};
 const get=()=>JSON.parse(localStorage.getItem('test-fixture')||JSON.stringify(initial));
 export function createClient(){return{
- functions:{async invoke(name,{body}){if(name==='sellerpilot-stripe-access'){localStorage.setItem('test-v63-sandbox-requests',String(Number(localStorage.getItem('test-v63-sandbox-requests')||0)+1));if(body.action!=='dashboard')throw Error('Unexpected subscription action');const mode=localStorage.getItem('test-v54-mode')||'starter';if(mode==='delay')await new Promise(r=>setTimeout(r,600));if(mode==='error')return {error:{message:'fixture unavailable'}};const pro=mode==='professional',d={ok:true,sandbox:true,production_access:mode==='unsafe',eligible:true,plan:pro?'professional':'starter',period_end:'2026-12-24T18:58:49Z',cancel_at_period_end:true,monthly_credits:pro?100:30,daily_credits:pro?15:5,usage:{daily_used:5,monthly_used:5,daily_remaining:pro?10:0,monthly_remaining:pro?95:25,daily_resets_at:'2026-11-25T00:00:00Z',monthly_resets_at:'2026-12-01T00:00:00Z'}};if(mode==='monthly'){d.usage.monthly_used=30;d.usage.monthly_remaining=0;}if(mode==='none')return {data:{...d,eligible:false,plan:null,period_end:null,cancel_at_period_end:false,daily_credits:0,monthly_credits:0,usage:null}};return {data:d}};if(name==='sellerpilot-stripe-portal')return {data:{ok:true,sandbox:true,enabled:false,production_access:false}};if(name==='sellerpilot-stripe-checkout'){if(body.action==='status')return {data:{ok:true,sandbox:true,enabled:localStorage.getItem('test-stripe-enabled')==='true'}};if(body.action==='create_checkout'){localStorage.setItem('test-checkout-body',JSON.stringify(body));return {error:{context:{async json(){return {detail:'Fixture checkout received; no network call.'}}}}}}return {error:{message:'Unexpected fixture action'}}};if(name==='sellerpilot-stripe-test')return {data:{ok:true,sandbox:true,checkout_enabled:false,plans:[{plan:'Starter',amount:999,currency:'GBP',interval:'month'},{plan:'Professional',amount:1999,currency:'GBP',interval:'month'}]}};if(name==='sellerpilot-google-demand'){if(body.action==='discover'&&body.consent===true&&body.keywords.length===1)return {data:{ok:true,cached:false,report:{source:'Google Ads via DataForSEO',region:body.region,mode:'discover',seeds:body.keywords,retrieved_at:'2026-11-24T00:00:00Z',rows:[{keyword:'dainty gold bracelet',average_monthly_searches:80,ads_competition:'LOW',monthly:[{month:'2026-10',searches:100}]}]}}};if(body.action==='status')return {data:{ok:true,enabled:true}};if(body.action==='research'&&body.consent===true&&['UK','US'].includes(body.region))return {data:{ok:true,cached:false,report:{source:'Google Ads via DataForSEO',region:body.region,retrieved_at:'2026-11-24T00:00:00Z',rows:[{keyword:'gold bracelet',average_monthly_searches:body.region==='UK'?120:240,ads_competition:'LOW',monthly:[{month:'2026-09',searches:0},{month:'2026-10',searches:100}]},{keyword:'silver bracelet',average_monthly_searches:null,ads_competition:null,monthly:[]}]}}};throw Error('Unexpected Google demand fixture action');}if(name!=='sellerpilot-ai-copy')return {error:{message:'Mock provider unavailable'}};if(body.action==='allowance')return {data:{ok:true,enabled:true,allowance:{personal_daily_limit:3,personal_daily_remaining:2,available_requests:2,daily_reset_utc:'2026-11-25T00:00:00Z',monthly_reset_utc:'2026-12-01T00:00:00Z',monthly_exhausted:false}}};if(body.action==='status'||body.action==='image_status')return {data:{ok:true,enabled:true}};if(body.action==='image_analyse')return {data:{ok:true,review:{summary:'Product is centred.',lighting:'Soft light.',background:'Plain background.',composition:'Leave more space.',thumbnail:'Product is visible.',recommended_shots:['Detail view'],alt_text:'Product against a plain background',caveats:['Only one photo reviewed']}}};return {data:{ok:true,updated_at:get().updated_at,draft:{title:'Gold tone bracelet for everyday wear',description:'Simple bracelet for everyday wear.',tags:['bracelet','gold jewellery'],explanations:['Removed repeated tags.'],missing_facts:['Confirm dimensions.']}}}}},
- auth:{onAuthStateChange(cb){if(new URL(location.href).hash.includes('type=recovery'))queueMicrotask(()=>cb('PASSWORD_RECOVERY',{user}))},async updateUser(){localStorage.setItem('test-v64-reset','done');return{data:{user},error:null}},async getSession(){return{data:{session:{user}},error:null}},async getUser(){return{data:{user},error:null}}},
+ functions:{async invoke(name,{body}){if(name==='sellerpilot-stripe-access'){localStorage.setItem('test-v63-sandbox-requests',String(Number(localStorage.getItem('test-v63-sandbox-requests')||0)+1));if(body.action!=='dashboard')throw Error('Unexpected subscription action');const mode=localStorage.getItem('test-v54-mode')||'starter';if(mode==='delay')await new Promise(r=>setTimeout(r,600));if(mode==='error')return {error:{message:'fixture unavailable'}};const pro=mode==='professional',d={ok:true,sandbox:true,production_access:mode==='unsafe',eligible:true,plan:pro?'professional':'starter',period_end:'2026-12-24T18:58:49Z',cancel_at_period_end:true,monthly_credits:pro?100:30,daily_credits:pro?15:5,usage:{daily_used:5,monthly_used:5,daily_remaining:pro?10:0,monthly_remaining:pro?95:25,daily_resets_at:'2026-11-25T00:00:00Z',monthly_resets_at:'2026-12-01T00:00:00Z'}};if(mode==='monthly'){d.usage.monthly_used=30;d.usage.monthly_remaining=0;}if(mode==='none')return {data:{...d,eligible:false,plan:null,period_end:null,cancel_at_period_end:false,daily_credits:0,monthly_credits:0,usage:null}};return {data:d}};if(name==='sellerpilot-stripe-portal')return {data:{ok:true,sandbox:true,enabled:false,production_access:false}};if(name==='sellerpilot-stripe-checkout'){if(body.action==='status')return {data:{ok:true,sandbox:true,enabled:localStorage.getItem('test-stripe-enabled')==='true'}};if(body.action==='create_checkout'){localStorage.setItem('test-checkout-body',JSON.stringify(body));return {error:{context:{async json(){return {detail:'Fixture checkout received; no network call.'}}}}}}return {error:{message:'Unexpected fixture action'}}};if(name==='sellerpilot-stripe-test')return {data:{ok:true,sandbox:true,checkout_enabled:false,plans:[{plan:'Starter',amount:999,currency:'GBP',interval:'month'},{plan:'Professional',amount:1999,currency:'GBP',interval:'month'}]}};if(name==='sellerpilot-google-demand'){if(body.action==='discover'&&body.consent===true&&body.keywords.length===1)return {data:{ok:true,cached:false,report:{source:'Google Ads via DataForSEO',region:body.region,mode:'discover',seeds:body.keywords,retrieved_at:'2026-11-24T00:00:00Z',rows:[{keyword:'dainty gold bracelet',average_monthly_searches:80,ads_competition:'LOW',monthly:[{month:'2026-10',searches:100}]}]}}};if(body.action==='status')return {data:{ok:true,enabled:true}};if(body.action==='research'&&body.consent===true&&['UK','US'].includes(body.region))return {data:{ok:true,cached:false,report:{source:'Google Ads via DataForSEO',region:body.region,retrieved_at:'2026-11-24T00:00:00Z',rows:[{keyword:'gold bracelet',average_monthly_searches:body.region==='UK'?120:240,ads_competition:'LOW',monthly:[{month:'2026-09',searches:0},{month:'2026-10',searches:100}]},{keyword:'silver bracelet',average_monthly_searches:null,ads_competition:null,monthly:[]},{keyword:'tone bracelet',average_monthly_searches:40,ads_competition:'LOW',monthly:[]}]}}};throw Error('Unexpected Google demand fixture action');}if(name!=='sellerpilot-ai-copy')return {error:{message:'Mock provider unavailable'}};if(body.action==='allowance')return {data:{ok:true,enabled:true,allowance:{personal_daily_limit:3,personal_daily_remaining:2,available_requests:2,daily_reset_utc:'2026-11-25T00:00:00Z',monthly_reset_utc:'2026-12-01T00:00:00Z',monthly_exhausted:false}}};if(body.action==='status'||body.action==='image_status')return {data:{ok:true,enabled:true}};if(body.action==='image_analyse')return {data:{ok:true,review:{summary:'Product is centred.',lighting:'Soft light.',background:'Plain background.',composition:'Leave more space.',thumbnail:'Product is visible.',recommended_shots:['Detail view'],alt_text:'Product against a plain background',caveats:['Only one photo reviewed']}}};return {data:{ok:true,updated_at:get().updated_at,draft:{title:'Gold tone bracelet for everyday wear',description:'Simple bracelet for everyday wear.',tags:['bracelet','gold jewellery'],explanations:['Removed repeated tags.'],missing_facts:['Confirm dimensions.']}}}}},
+ auth:{onAuthStateChange(cb){if(new URL(location.href).hash.includes('type=recovery'))queueMicrotask(()=>cb('PASSWORD_RECOVERY',{user}))},async updateUser(){localStorage.setItem('test-v64-reset','done');return{data:{user},error:null}},async getSession(){return{data:{session:localStorage.getItem('test-v112-signed-out')==='yes'?null:{user}},error:null}},async getUser(){if(localStorage.getItem('test-v112-expired')==='yes')return{data:{user:null},error:{message:'Expired session fixture'}};return{data:{user},error:null}},async signOut({scope}={}){localStorage.setItem('test-v112-scope',scope||'global');if(localStorage.getItem('test-v112-fail')==='yes')return{error:{message:'Network fixture'}};localStorage.setItem('test-v112-signed-out','yes');return{error:null}}},
  from(table){let update=null,insert=null;const q={select(){return q},order(){return q},eq(){return q},update(v){update=v;return q},insert(v){insert=v;return q},async single(){return q.maybeSingle()},
- async range(){if(table!=='products')throw Error('unexpected range');return{data:[get()],error:null}},
- async maybeSingle(){if(table==='sellerpilot_workspace_v19'){if(update||insert){const v=update||insert;const saved={data:v.data,updated_at:v.updated_at||new Date().toISOString()};localStorage.setItem('test-weekly-workspace',JSON.stringify(saved));return{data:saved,error:null}}return{data:JSON.parse(localStorage.getItem('test-weekly-workspace')||'null'),error:null}};
+ async range(){if(table!=='products')throw Error('unexpected range');return{data:localStorage.getItem('test-yuvilist-empty')==='yes'?[]:localStorage.getItem('test-v113-foreign')==='yes'?[{...get(),user_id:'fixture-other-user',title:'Foreign fixture sentinel'}]:[get()],error:null}},
+ async maybeSingle(){if(table==='sellerpilot_workspace_v19'){if(update||insert){const v=update||insert;const saved={user_id:user.id,data:v.data,updated_at:v.updated_at||new Date().toISOString()};localStorage.setItem('test-weekly-workspace',JSON.stringify(saved));return{data:saved,error:null}}const saved=JSON.parse(localStorage.getItem('test-weekly-workspace')||'null');return{data:saved?{...saved,user_id:localStorage.getItem('test-foreign-workspace')==='yes'?'foreign-fixture':saved.user_id}:null,error:null}};
  if(table!=='products')throw Error('unexpected table');if(update){const p={...get(),...update};localStorage.setItem('test-fixture',JSON.stringify(p));return{data:p,error:null}}return{data:get(),error:null}}
  };return q}
 }}
 `;
+const artwork=await readFile(resolve(root,'assets/sellerpilot-logo.svg'),'utf8');
+const embedded=artwork.match(/data:image\/png;base64,([A-Za-z0-9+/=]+)"/);
+assert.ok(embedded,'Approved logo must embed the original pack PNG');
+assert.equal(createHash('sha256').update(Buffer.from(embedded[1],'base64')).digest('hex'),'f2ff3f96addc3a69a5ac36e3b7e573bc6daf3269993a42f6ae4d985774c62f7d');
 let browser;
 try {
  browser=await chromium.launch({headless:true});
@@ -36,26 +72,58 @@ try {
  page.on('pageerror',e=>errors.push(e.message));
  await page.route('**/*',async route=>{
   const url=route.request().url();
-  if(url.startsWith(origin+'/')){const u=new URL(url);if(workspacePhase&&u.pathname.startsWith('/js/')&&u.searchParams.get('v')!=='69'){staleRequests.push(u.pathname+u.search);return route.fulfill({status:200,contentType:'text/javascript',body:'export const staleCachedModule=true;'});}return route.continue();}
+  if(url.startsWith(origin+'/')){const u=new URL(url);if(workspacePhase&&u.pathname.startsWith('/js/')&&u.searchParams.get('v')!=='106'){staleRequests.push(u.pathname+u.search);return route.fulfill({status:200,contentType:'text/javascript',body:'export const staleCachedModule=true;'});}return route.continue();}
   if(url.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});
   return route.abort();
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/app.html');await ready();assert.match(await page.title(),/v69/);assert.match(await page.locator('.top-pill').innerText(),/SELLERPILOT V69/);assert.match(await page.locator('.footer-note').innerText(),/SellerPilot AI v69/);assert.match(await page.locator('.sidebar-foot').textContent(),/v69 · Listing intelligence beta/);
+ await page.goto(origin+'/app.html');await ready();assert.equal(await page.locator('.v108-mobile-brand img').isVisible(),true);assert.equal(await page.evaluate(()=>!!(document.querySelector('.v22-home-top').compareDocumentPosition(document.querySelector('#v60-assistant'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);assert.match(await page.title(),/YuviList — Seller Workspace/);assert.match(await page.locator('.top-pill').innerText(),/YUVILIST BETA/);assert.match(await page.locator('.footer-note').innerText(),/YuviList · Private beta/);assert.match(await page.locator('.sidebar-foot').textContent(),/Listing intelligence · Private beta/);assert.equal(await page.locator('#yuvilist-first-run').isHidden(),true);
+ await page.waitForFunction(()=>{const i=document.querySelector('.brand-mark img');return i?.complete&&i.naturalWidth===32;});
+ assert.equal(await page.locator('link[rel="icon"]').getAttribute('href'),'./assets/sellerpilot-logo.svg');
  assert.equal(await page.locator('#v63-operator-tools').isHidden(),true);assert.equal(await page.locator('#v55-home').isHidden(),true);assert.equal(await page.evaluate(()=>Number(localStorage.getItem('test-v63-sandbox-requests')||0)),0);
- await page.locator('[data-view="settings"]:visible').first().click();assert.equal(await page.locator('#v40-stripe-check').isHidden(),true);
+ await page.locator('[data-view="settings"]:visible').first().click();assert.equal(await page.locator('#view-settings .v19-links [data-go="keywords"]').isVisible(),true);assert.equal(await page.evaluate(()=>!!(document.querySelector('#view-settings .v19-links').compareDocumentPosition(document.querySelector('#v22-appearance'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);assert.equal(await page.locator('#v40-stripe-check').isHidden(),true);
  await page.goto(origin+'/index.html?operator=1');await ready();assert.equal(await page.locator('#v63-operator-tools').getAttribute('hidden'),null);
  assert.match(await page.locator('#v61-start-status').innerText(),/1 of 4 setup milestones/);
  await page.locator('#v61-start summary').click();assert.equal(await page.locator('#v61-checklist .v61-step').count(),4);
  await page.locator('#v61-checklist [data-v61-go="audit"]').click();assert.equal(await page.locator('#v59-plan').isVisible(),true);
  await page.locator('[data-view="overview"]:visible').first().click();
+ await page.locator('#v61-start [data-v61-go="directory"]').click();
+ assert.equal(await page.locator('#view-overview.active #v95-directory').getAttribute('open'),'');
+ assert.equal(await page.evaluate(()=>document.activeElement===document.querySelector('#v95-search')),true);
+ assert.match(await page.locator('#v95-tool-count').innerText(),/14 tools found/);
+ await page.locator('#v95-search').fill('audit');
+ await page.locator('[data-view="settings"]:visible').first().click();
+ assert.equal(await page.locator('#view-settings a[href="./help.html#support"]').isVisible(),true);await page.locator('#view-settings [data-v61-go="directory"]').click();
+ assert.equal(await page.locator('#view-overview.active #v95-directory').getAttribute('open'),'');
+ assert.equal(await page.locator('#v95-search').inputValue(),'');
+ assert.equal(await page.evaluate(()=>document.activeElement===document.querySelector('#v95-search')),true);
+ assert.equal(await page.locator('#v95-tools [data-v61-go]').count(),14);
+ await page.locator('#v95-search').fill('shop assistant');assert.equal(await page.locator('#v95-tool-count').innerText(),'1 tool found');await page.locator('#v95-tools [data-v61-go="assistant"]').click();assert.equal(await page.locator('#view-overview.active #v60-assistant').isVisible(),true);assert.equal(await page.evaluate(()=>document.activeElement===document.querySelector('#v60-assistant h2')),true);
+ await page.locator('[data-view="settings"]:visible').first().click();await page.locator('#view-settings [data-v61-go="assistant"]').click();assert.equal(await page.locator('#view-overview.active #v60-assistant').isVisible(),true);
+ await page.locator('#v95-search').fill('profit calculator');assert.equal(await page.locator('#v95-tools [data-v61-go]').count(),1);
+ await page.locator('#v95-tools [data-v61-go="profits"]').click();assert.equal(await page.locator('#view-profits').isVisible(),true);
+ await page.locator('[data-view="overview"]:visible').first().click();
+ await page.locator('#v95-search').fill('no matching tool 987');assert.match(await page.locator('#v95-tools').innerText(),/No matching tools/);
+ await page.locator('#v95-clear').click();assert.equal(await page.locator('#v95-search').inputValue(),'');assert.equal(await page.locator('#v95-tools [data-v61-go]').count(),14);assert.equal(await page.evaluate(()=>document.activeElement?.id),'v95-search');
+ assert.match(await page.locator('#v96-next').textContent(),/Review your listing quality/);
+ const toolSearch=await page.evaluate(async()=>{const {findTools}=await import('./js/beta-onboarding.js');return [findTools('PROFIT calculator').map(t=>t.id),findTools('not-a-tool').length,findTools('').length]});assert.deepEqual(toolSearch,[['profits'],0,14]);
  const setup=await page.evaluate(async()=>{const {v61Checklist}=await import('./js/beta-onboarding.js');return [v61Checklist([],null).filter(x=>x.done).length,v61Checklist([{attributes:{sellerpilot:{auditHistory:[{}]}}}],{keywords:[{}],weekly:[{}]}).filter(x=>x.done).length]});assert.deepEqual(setup,[0,4]);
 
  assert.match(await page.locator('#v60-metrics').innerText(),/51\/100/);
  assert.match(await page.locator('#v60-queue').innerText(),/Minimalist Gold Tone Bracelet/);
  await page.locator('#v60-filter').selectOption('critical');assert.match(await page.locator('#v60-queue').innerText(),/No matching findings/);
  await page.locator('#v60-filter').selectOption('all');await page.locator('#v60-search').fill('nonexistent');assert.match(await page.locator('#v60-queue').innerText(),/No matching findings/);await page.locator('#v60-search').fill('');
+ await page.locator('#v90-panel summary').click();
+ assert.ok(await page.locator('[data-v90-group]').count()>0);
+ const issueHeading=await page.locator('[data-v90-group]').first().getAttribute('data-v90-group');
+ await page.locator('[data-v90-group]').first().click();
+ assert.equal(await page.locator('#v90-issue').inputValue(),issueHeading);
+ assert.ok((await page.locator('#v60-queue article p').first().innerText()).includes(issueHeading));
+ await page.locator('#v90-market').selectOption('Etsy');assert.match(await page.locator('#v60-queue').innerText(),/Minimalist Gold Tone Bracelet/);
+ const issuesCSV=page.waitForEvent('download');await page.locator('#v94-export').click();const issuesFile=await issuesCSV;
+ assert.equal(issuesFile.suggestedFilename(),'sellerpilot-issue-summary.csv');assert.match(await readFile(await issuesFile.path(),'utf8'),/affected_listings/);
+ await page.locator('#v90-market').selectOption('');await page.locator('#v90-issue').selectOption('');
  const queueDownload=page.waitForEvent('download');await page.locator('#v60-export').click();assert.equal((await queueDownload).suggestedFilename(),'sellerpilot-review-queue.csv');
  await page.locator('#v60-queue [data-v60-review="fixture-product"]').click();assert.equal(await page.locator('#v59-plan').isVisible(),true);
  await page.locator('[data-view="overview"]:visible').first().click();
@@ -77,12 +145,60 @@ try {
  await page.locator('#v57-results [data-v60-cloud-keyword]').first().click();await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')||'{}').data?.keywords?.length===1&&!document.querySelector('[data-v60-cloud-keyword]').disabled);
  assert.equal(await page.locator('#v67-run').isDisabled(),true);
  await page.locator('#v67-status-check').click();await page.waitForFunction(()=>document.querySelector('#v67-status')?.textContent.includes('enabled for this private account'));
- await page.locator('#v67-keywords').fill('gold bracelet\nsilver bracelet');assert.equal(await page.locator('#v67-run').isDisabled(),true);
+ await page.locator('#v67-keywords').fill('x'.repeat(81));await page.locator('#v67-consent').check();assert.equal(await page.locator('#v67-run').isDisabled(),true);assert.match(await page.locator('#v75-phrase-count').innerText(),/80-character limit/);
+ await page.locator('#v67-keywords').fill('gold bracelet\nsilver bracelet');assert.equal(await page.locator('#v67-run').isDisabled(),true);assert.match(await page.locator('#v75-phrase-count').innerText(),/2 \/ 20 phrases/);
  await page.locator('#v67-consent').check();await page.locator('#v67-run').click();await page.waitForFunction(()=>document.querySelector('#v67-status')?.textContent.includes('Research ready'));
  assert.match(await page.locator('#v67-results').innerText(),/Google Ads via DataForSEO/);assert.match(await page.locator('#v67-results').innerText(),/120/);assert.match(await page.locator('#v67-results').innerText(),/Not available/);assert.equal(await page.locator('#v67-consent').isChecked(),false);
  await page.locator('#v68-product').selectOption('fixture-product');assert.match(await page.locator('#v67-results').innerText(),/Local word coverage/);
  await page.locator('#v68-sort').selectOption('alpha');await page.locator('#v68-filter').fill('gold');assert.equal(await page.locator('#v67-results article').count(),1);
  await page.locator('[data-v68-trend="gold bracelet"]').click();assert.match(await page.locator('#v68-trend').innerText(),/2026-10/);assert.match(await page.locator('#v68-trend').innerText(),/100 searches/);assert.equal(await page.locator('#v68-trend .v68-bar-row').count(),2);
+ assert.equal(await page.evaluate(()=>document.activeElement?.id),'v68-trend');
+ const googleCSV=page.waitForEvent('download');await page.locator('[data-v71-export]').click();const googleDownload=await googleCSV;assert.equal(googleDownload.suggestedFilename(),'sellerpilot-google-research.csv');
+ const googleText=await readFile(await googleDownload.path(),'utf8');assert.match(googleText,/gold bracelet/);assert.doesNotMatch(googleText,/silver bracelet/);
+ const beforePreview=await page.evaluate(()=>localStorage.getItem('test-fixture'));
+ const previewButton=page.locator('[data-v72-tag="gold bracelet"]');assert.equal(await previewButton.count(),1);
+ page.once('dialog',async d=>{await d.dismiss()});await previewButton.click();assert.equal(await page.locator('#view-keywords').isVisible(),true);
+ page.once('dialog',async d=>{await d.accept()});await previewButton.click();await page.locator('#view-intelligence').waitFor({state:'visible'});
+ assert.equal(await page.locator('#edit-tags').inputValue(),'bracelet, gold jewellery, bracelet, gold bracelet');
+ assert.equal(await page.evaluate(()=>localStorage.getItem('test-fixture')),beforePreview);
+ await page.locator('#v79-return-keywords').click();await page.locator('#view-keywords').waitFor({state:'visible'});await page.locator('#v67-results article').first().waitFor({state:'visible'});assert.equal(await page.locator('#edit-tags').inputValue(),'bracelet, gold jewellery, bracelet, gold bracelet');assert.equal(await page.evaluate(()=>localStorage.getItem('test-fixture')),beforePreview);
+ console.log('PASS V71/V72 filtered download, cancel/accept tag preview without saving; V73/V75 focus and input guard; V76 logo asset');
+ await page.locator('#v68-filter').fill('');
+ await page.locator('#v80-tag-plan summary').click();
+ assert.match(await page.locator('#v80-count').innerText(),/10 free slots/);
+ assert.equal(await page.locator('[data-v80-choice]').count(),2);
+ assert.equal(await page.locator('[data-v80-preview]').isDisabled(),true);
+ await page.locator('[data-v80-choice][value="gold bracelet"]').check();
+ await page.locator('[data-v80-choice][value="tone bracelet"]').check();
+ assert.match(await page.locator('#v80-count').innerText(),/2 selected/);
+ assert.match(await page.locator('#v80-after').innerText(),/gold bracelet, tone bracelet/);
+ assert.equal(await page.locator('[data-v88-task]').isDisabled(),false);
+ const priorTaskCount=await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.tasks.length);
+ page.once('dialog',async d=>{await d.dismiss()});await page.locator('[data-v88-task]').click();assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.tasks.length),priorTaskCount);
+ page.once('dialog',async d=>{await d.accept()});await page.locator('[data-v88-task]').click();await page.waitForFunction(n=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.tasks.length===n+1,priorTaskCount);
+ await page.waitForFunction(()=>!document.querySelector('[data-v88-task]').disabled);
+ assert.match(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.tasks[0].notes),/gold bracelet, tone bracelet/);
+ assert.equal(await page.evaluate(()=>localStorage.getItem('test-fixture')),beforePreview);
+ await page.locator('[data-v80-clear]').click();assert.equal(await page.locator('[data-v80-preview]').isDisabled(),true);
+ await page.locator('[data-v80-choice][value="gold bracelet"]').check();await page.locator('[data-v80-choice][value="tone bracelet"]').check();
+ page.once('dialog',async d=>{await d.dismiss()});await page.locator('[data-v80-preview]').click();assert.equal(await page.locator('#view-keywords').isVisible(),true);
+ page.once('dialog',async d=>{await d.accept()});await page.locator('[data-v80-preview]').click();await page.locator('#view-intelligence').waitFor({state:'visible'});
+ assert.equal(await page.locator('#edit-tags').inputValue(),'bracelet, gold jewellery, bracelet, gold bracelet, tone bracelet');
+ assert.equal(await page.evaluate(()=>localStorage.getItem('test-fixture')),beforePreview);
+ await page.locator('#v79-return-keywords').click();await page.locator('#view-keywords').waitFor({state:'visible'});
+ assert.equal(await page.locator('[data-v80-choice]:checked').count(),0);
+ console.log('PASS V80–V84 multiple tag planning, clear, cancel, explicit preview, no cloud save and reset');
+ await page.locator('#v68-filter').fill('tone bracelet');
+ const priorKeywords=await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.keywords.length);
+ // The local keyword generator may already have saved this phrase; use the known absent silver phrase.
+ await page.locator('#v68-filter').fill('silver bracelet');
+ assert.equal(await page.locator('[data-v85-save]').isDisabled(),false);
+ page.once('dialog',async d=>{await d.dismiss()});await page.locator('[data-v85-save]').click();assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.keywords.length),priorKeywords);
+ page.once('dialog',async d=>{await d.accept()});await page.locator('[data-v85-save]').click();await page.waitForFunction(n=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.keywords.length===n+1,priorKeywords);
+ await page.waitForFunction(()=>document.querySelector('[data-v85-save]').disabled);
+ assert.match(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.keywords[0].notes),/UK.*not Etsy demand/);
+ assert.equal(await page.evaluate(()=>localStorage.getItem('test-fixture')),beforePreview);
+ console.log('PASS V85–V89 cancel/save private research notes and review task, deduplication and unchanged listing');
  await page.locator('#v68-filter').fill('');await page.locator('[data-v68-prepare]').click();assert.equal(await page.locator('#v67-region').inputValue(),'US');assert.equal(await page.locator('#v67-consent').isChecked(),false);assert.equal(await page.locator('#v67-run').isDisabled(),true);
  await page.locator('#v67-consent').check();await page.locator('#v67-run').click();await page.waitForFunction(()=>document.querySelector('#v67-status')?.textContent.includes('Research ready'));assert.match(await page.locator('.v68-comparison').innerText(),/UK: 120/);assert.match(await page.locator('.v68-comparison').innerText(),/US: 240/);
  await page.locator('[data-v68-region="UK"]').click();assert.match(await page.locator('#v67-results').innerText(),/Google demand · United Kingdom/);
@@ -183,7 +299,7 @@ try {
  await page.locator('[data-view="settings"]:visible').first().click();await page.locator('#view-settings [data-go="reports"]').click();
  await page.locator('[data-v19-action="save-week"]').waitFor({state:'visible'});await page.locator('[data-v19-action="save-week"]').click();
  await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')||'{}').data?.weekly?.length===1);
- assert.match(await page.locator('#v30-history').innerText(),/1 listings/);assert.match(await page.locator('#v30-history').innerText(),/62\/100/);
+ assert.match(await page.locator('#v30-history').innerText(),/1 listings/);assert.match(await page.locator('#v30-history').innerText(),/1 below 70/);assert.equal(await page.getByText('Listings below 70',{exact:true}).isVisible(),true);assert.equal(await page.getByText('1 flag',{exact:true}).first().isVisible(),true);assert.match(await page.locator('#v30-history').innerText(),/62\/100/);
  await page.locator('[data-v19-action="save-week"]').click();await page.waitForFunction(()=>document.querySelector('#v30-week-status')?.textContent.includes('Saved for this week'));
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-weekly-workspace')).data.weekly.length),1);
  await page.reload();await ready();await page.locator('[data-view="settings"]:visible').first().click();await page.locator('#view-settings [data-go="reports"]').click();await page.locator('#v30-history').waitFor({state:'visible'});assert.match(await page.locator('#v30-history').innerText(),/62\/100/);
@@ -204,11 +320,11 @@ try {
  await page.evaluate(async()=>{const {busy,state}=await import('./js/core.js');state.ready=true;busy(false);localStorage.removeItem('test-stripe-enabled')});
  await page.locator('#v41-status-check').click();await page.waitForFunction(()=>document.querySelector('#v41-status').textContent.includes('remains disabled'));assert.equal(await page.locator('#v41-start').isDisabled(),true);
  await page.locator('#v44-check').click();await page.waitForFunction(()=>document.querySelector('#v44-status').textContent.includes('remains disabled'));assert.equal(await page.locator('#v44-open').isDisabled(),true);
- const exportEvent=page.waitForEvent('download');await page.locator('#v37-export').click();const exported=await exportEvent;assert.equal(exported.suggestedFilename(),'sellerpilot-workspace-data.json');const contents=JSON.parse(await readFile(await exported.path(),'utf8'));assert.equal(contents.account.id,'mock-user');assert.equal(contents.products[0].id,'fixture-product');assert.equal(contents.research_workspace.monitoring.enabled,false);assert.equal('session' in contents,false);
+ const exportEvent=page.waitForEvent('download');await page.locator('#v37-export').click();const exported=await exportEvent;assert.equal(exported.suggestedFilename(),'yuvilist-workspace-data.json');const contents=JSON.parse(await readFile(await exported.path(),'utf8'));assert.equal(contents.account.id,'mock-user');assert.equal(contents.products[0].id,'fixture-product');assert.equal(contents.research_workspace.monitoring.enabled,false);assert.equal('session' in contents,false);
  const blocked=await page.evaluate(async()=>{const {workspaceExport}=await import('./js/privacy-controls.js');try{workspaceExport({id:'a'},[{user_id:'b'}],{}, {},[]);return false}catch{return true}});assert.equal(blocked,true);
- await page.locator('#v37-request-type').selectOption('delete');const requestEvent=page.waitForEvent('download');await page.locator('#v37-request').click();const request=await requestEvent;assert.equal(request.suggestedFilename(),'sellerpilot-privacy-request.txt');assert.match(await readFile(await request.path(),'utf8'),/not submitted/);assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-fixture')).id),'fixture-product');
+ await page.locator('#v37-request-type').selectOption('delete');const requestEvent=page.waitForEvent('download');await page.locator('#v37-request').click();const request=await requestEvent;assert.equal(request.suggestedFilename(),'yuvilist-privacy-request.txt');const requestText=await readFile(await request.path(),'utf8');assert.match(requestText,/YuviList privacy request — not submitted/);assert.match(requestText,/support@yuvilist\.com/);assert.match(await page.locator('#v37-status').innerText(),/Nothing has been sent/);assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('test-fixture')).id),'fixture-product');
  await page.locator('#v32-notes').fill('Example test only');await page.locator('#v32-clear').click();assert.equal(await page.locator('#v32-notes').inputValue(),'');
- await page.locator('#v32-notes').fill('Example test only');const downloadEvent=page.waitForEvent('download');await page.locator('#v32-download').click();assert.equal((await downloadEvent).suggestedFilename(),'sellerpilot-beta-feedback.txt');
+ await page.locator('#v32-notes').fill('Example test only');const downloadEvent=page.waitForEvent('download');await page.locator('#v32-download').click();assert.equal((await downloadEvent).suggestedFilename(),'yuvilist-beta-feedback.txt');
  await open();assert.equal(await page.locator('#edit-currency').inputValue(),'GBP');await page.locator('#edit-currency').selectOption('USD');await page.locator('#save-product').click();await page.waitForFunction(()=>JSON.parse(localStorage.getItem('test-fixture')||'{}').attributes?.sellerpilot?.currency==='USD'&&document.querySelector('#editor-state')?.textContent==='Saved in cloud');await page.reload();await ready();await page.locator('[data-view="products"]:visible').first().click();assert.match(await page.locator('#product-mobile').innerText(),/US\$18\.50/);await open();assert.equal(await page.locator('#edit-currency').inputValue(),'USD');
  assert.equal(await page.locator('#auth-signup').isDisabled(),true);
  await page.goto(origin+'/index.html?v=54#v44-open');await ready();await page.locator('#view-settings.active').waitFor({state:'visible'});
@@ -235,26 +351,350 @@ try {
  await page.evaluate(()=>localStorage.removeItem('test-v54-mode'));
  console.log('PASS: V54 integrated status, billing navigation, Starter and Professional, errors, account reset and late response isolation.');
  await page.evaluate(async()=>{const {clearWorkspace}=await import('./js/ui.js');const {state}=await import('./js/core.js');document.querySelector('#v61-checklist').textContent='Private setup';document.querySelector('#v60-search').value='Private search';document.querySelector('#v60-queue').textContent='Private queue';document.querySelector('#v59-plan').textContent='Private action plan';document.querySelector('#v58-title').value='private competitor';document.querySelector('#v58-results').textContent='Private competitor results';document.querySelector('#v57-seed').value='private keyword';document.querySelector('#v57-extra').value='private modifier';document.querySelector('#v57-results').textContent='Private keyword results';document.querySelector('#keyword-results').textContent='Private catalogue results';document.querySelector('#ai-output').value='Private prior brief';document.querySelector('#ai-audience').value='Private audience';document.querySelector('#ai-facts').value='Private facts';state.shortlist=['private phrase'];clearWorkspace()});
- assert.equal(await page.locator('#v61-checklist').textContent(),'');assert.equal(await page.locator('#v60-search').inputValue(),'');assert.doesNotMatch(await page.locator('#v60-queue').textContent(),/Private queue/);assert.equal(await page.locator('#v59-plan').textContent(),'');assert.equal(await page.locator('#v59-plan').isVisible(),false);assert.equal(await page.locator('#v58-title').inputValue(),'');assert.doesNotMatch(await page.locator('#v58-results').textContent(),/Private competitor results/);assert.equal(await page.locator('#v67-keywords').inputValue(),'');assert.equal(await page.locator('#v67-results').textContent(),'');assert.equal(await page.locator('#v67-run').isDisabled(),true);assert.equal(await page.locator('#v57-seed').inputValue(),'');assert.equal(await page.locator('#v57-extra').inputValue(),'');assert.doesNotMatch(await page.locator('#v57-results').textContent(),/Private keyword results/);assert.doesNotMatch(await page.locator('#keyword-results').textContent(),/Private catalogue results/);assert.equal(await page.locator('#ai-output').inputValue(),'');assert.equal(await page.locator('#ai-audience').inputValue(),'');assert.equal(await page.locator('#ai-facts').inputValue(),'');assert.equal(await page.locator('#v19-content-reports').innerText(),'');assert.equal(await page.locator('#auth-signup').isDisabled(),true);
+ assert.equal(await page.locator('#v61-checklist').textContent(),'');assert.equal(await page.locator('#v95-search').inputValue(),'');assert.equal(await page.locator('#v95-tools').textContent(),'');assert.equal(await page.locator('#v96-next').textContent(),'');assert.equal(await page.locator('#v60-search').inputValue(),'');assert.equal(await page.locator('#v90-groups').textContent(),'');assert.equal(await page.locator('#v90-market').inputValue(),'');assert.equal(await page.locator('#v90-issue').inputValue(),'');assert.doesNotMatch(await page.locator('#v60-queue').textContent(),/Private queue/);assert.equal(await page.locator('#v59-plan').textContent(),'');assert.equal(await page.locator('#v59-plan').isVisible(),false);assert.equal(await page.locator('#v58-title').inputValue(),'');assert.doesNotMatch(await page.locator('#v58-results').textContent(),/Private competitor results/);assert.equal(await page.locator('#v67-keywords').inputValue(),'');assert.equal(await page.locator('#v67-results').textContent(),'');assert.equal(await page.locator('#v67-run').isDisabled(),true);assert.equal(await page.locator('#v57-seed').inputValue(),'');assert.equal(await page.locator('#v57-extra').inputValue(),'');assert.doesNotMatch(await page.locator('#v57-results').textContent(),/Private keyword results/);assert.doesNotMatch(await page.locator('#keyword-results').textContent(),/Private catalogue results/);assert.equal(await page.locator('#ai-output').inputValue(),'');assert.equal(await page.locator('#ai-audience').inputValue(),'');assert.equal(await page.locator('#ai-facts').inputValue(),'');assert.equal(await page.locator('#v19-content-reports').innerText(),'');assert.equal(await page.locator('#auth-signup').isDisabled(),true);
  const race=await page.evaluate(async()=>{const {state}=await import('./js/core.js');const {guarded}=await import('./js/supabase-client.js');const original=state.client.auth.getUser;let release,called=false;const uid=state.uid;state.client.auth.getUser=()=>new Promise(r=>{release=r});const pending=guarded(()=>{called=true});state.serial++;release({data:{user:{id:uid}},error:null});await pending;state.client.auth.getUser=original;return called});assert.equal(race,false);
- await page.goto(origin+'/index.html?v=62&refresh=1');await ready();assert.equal(new URL(page.url()).pathname,'/app.html');assert.equal(new URL(page.url()).searchParams.get('v'),'69');
- await page.goto(origin+'/#access_token=fixture-only&type=recovery');await page.locator('#reset-container').waitFor({state:'visible'});assert.equal(new URL(page.url()).pathname,'/app.html');assert.equal(await page.locator('#view-auth.active').isVisible(),true);assert.match(await page.locator('#auth-message').innerText(),/Recovery link verified/);await page.locator('#reset-password').fill('fixture-password');await page.locator('#auth-reset').click();await ready();assert.equal(await page.evaluate(()=>localStorage.getItem('test-v64-reset')),'done');assert.equal(await page.locator('#reset-container').isHidden(),true);
+ await page.goto(origin+'/index.html?v=62&refresh=1');await ready();assert.equal(new URL(page.url()).pathname,'/app.html');assert.equal(new URL(page.url()).searchParams.get('v'),'106');
+ await page.goto(origin+'/#access_token=fixture-only&type=recovery');await page.locator('#reset-container').waitFor({state:'visible'});assert.equal(new URL(page.url()).pathname,'/app.html');assert.equal(await page.locator('#view-auth.active').isVisible(),true);assert.match(await page.locator('#auth-message').innerText(),/Recovery link verified/);await page.evaluate(()=>localStorage.removeItem('test-v64-reset'));
+ assert.equal(await page.locator('#reset-password').getAttribute('minlength'),'12');
+ for(const invalid of ['Short1Ab','fixture-password','FIXTUREPASSWORD1','FixturePassword']){
+  await page.locator('#reset-password').fill(invalid);await page.locator('#auth-reset').click();
+  assert.equal(await page.evaluate(()=>localStorage.getItem('test-v64-reset')),null);
+  assert.equal(await page.locator('#view-auth.active').isVisible(),true);
+  assert.match(await page.locator('#toast').innerText(),/at least 12 characters/);
+ }
+ await page.locator('#reset-password').fill('FixturePassword12');await page.locator('#auth-reset').click();await ready();assert.equal(await page.evaluate(()=>localStorage.getItem('test-v64-reset')),'done');assert.equal(await page.locator('#reset-container').isHidden(),true);
  assert.deepEqual(staleRequests,[]);workspacePhase=false;
- const demoPage=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true});const demoRequests=[],demoErrors=[];demoPage.on('pageerror',e=>demoErrors.push(e.message));await demoPage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin!==origin){demoRequests.push(u.origin);return route.abort()}if(u.pathname.startsWith('/js/')&&u.searchParams.get('v')!=='69'){demoRequests.push(u.pathname+u.search);return route.abort()}return route.continue()});
- await demoPage.goto(origin+'/demo.html');await demoPage.locator('#demo-fix').waitFor({state:'visible'});assert.match(await demoPage.locator('#demo-score').innerText(),/51\/100/);await demoPage.locator('#demo-fix').click();assert.match(await demoPage.locator('#demo-delta').innerText(),/Change \+11/);await demoPage.locator('#demo-undo').click();assert.match(await demoPage.locator('#demo-score').innerText(),/51\/100/);await demoPage.locator('#demo-keywords').click();assert.match(await demoPage.locator('#demo-ideas').innerText(),/local relevance/);assert.equal(await demoPage.evaluate(()=>localStorage.length),0);assert.deepEqual(demoRequests,[]);assert.deepEqual(demoErrors,[]);await demoPage.close();
+ const demoPage=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true});const demoRequests=[],demoErrors=[];demoPage.on('pageerror',e=>demoErrors.push(e.message));await demoPage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin!==origin){demoRequests.push(u.origin);return route.abort()}if(u.pathname.startsWith('/js/')&&u.searchParams.get('v')!=='106'){demoRequests.push(u.pathname+u.search);return route.abort()}return route.continue()});
+ await demoPage.goto(origin+'/demo.html');await demoPage.locator('#demo-fix').waitFor({state:'visible'});assert.match(await demoPage.locator('#demo-details').innerText(),/Fictional product/);assert.equal(await demoPage.locator('#demo-list .demo-thumb').count(),3);assert.equal(await demoPage.locator('#demo-details .demo-thumb').count(),1);assert.equal(await demoPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await demoPage.locator('[data-demo-id="1"]').click();assert.match(await demoPage.locator('#demo-details').innerText(),/£12\.00/);await demoPage.locator('[data-demo-id="0"]').click();assert.match(await demoPage.locator('#demo-details').innerText(),/£18\.50/);assert.match(await demoPage.locator('#demo-details').innerText(),/Simple bracelet for everyday wear/);assert.match(await demoPage.locator('#demo-score').innerText(),/51\/100/);await demoPage.locator('#demo-fix').click();assert.match(await demoPage.locator('#demo-delta').innerText(),/Change \+11/);await demoPage.locator('#demo-undo').click();assert.match(await demoPage.locator('#demo-score').innerText(),/51\/100/);await demoPage.locator('#demo-keywords').click();assert.match(await demoPage.locator('#demo-ideas').innerText(),/local relevance/);assert.match(await demoPage.locator('#demo-import-status').innerText(),/2 selected · 1 duplicate · 1 invalid/);assert.equal(await demoPage.locator('#demo-import-rows input:disabled').count(),2);await demoPage.locator('#demo-import-review').click();assert.match(await demoPage.locator('#demo-import-status').innerText(),/Review 2 fictional items/);await demoPage.locator('#demo-import-confirm').click();assert.match(await demoPage.locator('#demo-import-status').innerText(),/Simulation complete: 2 fictional items/);await demoPage.locator('#demo-import-reset').click();assert.equal(await demoPage.locator('#demo-import-rows input:checked').count(),2);assert.equal(await demoPage.evaluate(()=>localStorage.length),0);assert.deepEqual(demoRequests,[]);assert.deepEqual(demoErrors,[]);await demoPage.close();
  await page.goto(origin+'/demo.html');await page.locator('#demo-fix').waitFor({state:'visible'});assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
  await page.locator('#demo-fix').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/62\/100/);await page.locator('#demo-reset').click();assert.match(await page.locator('#demo-panel .demo-score').innerText(),/51\/100/);
- await page.goto(origin+'/help.html');assert.match(await page.locator('h1').innerText(),/Help & tutorials/);await page.locator('summary').filter({hasText:'Discover keywords'}).click();assert.equal(await page.locator('details').filter({hasText:'4. Discover keywords'}).getAttribute('open'),'');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+ await page.goto(origin+'/help.html');assert.match(await page.locator('h1').innerText(),/Help & tutorials/);await page.locator('#sample-import summary').click();assert.match(await page.locator('#sample-import').innerText(),/No listing, cloud record or Etsy account is changed/);await page.locator('#etsy-preview-help summary').click();assert.match(await page.locator('#etsy-preview-help').innerText(),/not a general beta feature/);await page.locator('summary').filter({hasText:'Discover keywords'}).click();assert.equal(await page.locator('details').filter({hasText:'4. Discover keywords'}).getAttribute('open'),'');assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
+ await page.locator('.help-nav a[href="#support"]').click();assert.equal(new URL(page.url()).hash,'#support');
+ for(const [id,expected] of [['save-troubleshooting','Save product to cloud'],['score-troubleshooting','below 70'],['signin-troubleshooting','Forgot password?']]){
+  const topic=page.locator('#'+id);await topic.locator('summary').focus();await page.keyboard.press('Enter');assert.equal(await topic.getAttribute('open'),'');assert.ok((await topic.innerText()).includes(expected));await page.keyboard.press('Enter');assert.equal(await topic.getAttribute('open'),null);
+ }
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
  await page.setViewportSize({width:1280,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);await page.setViewportSize({width:393,height:852});
- await page.goto(origin+'/');assert.match(await page.locator('h1').innerText(),/Know what to improve/);assert.equal(await page.locator('#view-auth').count(),0);assert.equal(await page.locator('.hero a[href="./app.html"]').count(),1);await page.goto(origin+'/home.html');assert.match(await page.locator('h1').innerText(),/Know what to improve/);await page.locator('.hero a[href="./beta.html"]').click();assert.match(await page.locator('h1').innerText(),/Join the private beta/);assert.match(await page.locator('main').innerText(),/not accepting applications online/);await page.locator('#beta-prepare input').first().check();const invitation=page.waitForEvent('download');await page.locator('#beta-download').click();assert.equal((await invitation).suggestedFilename(),'sellerpilot-beta-checklist.txt');assert.match(await page.locator('#beta-status').innerText(),/No information was sent/);
+ await page.goto(origin+'/');await page.waitForFunction(()=>{const i=document.querySelector('.public-brand img');return i?.complete&&i.naturalWidth===32;});assert.match(await page.locator('h1').innerText(),/Know what to improve/);assert.equal(await page.locator('#view-auth').count(),0);assert.equal(await page.locator('.hero a[href="./app.html"]').count(),1);assert.equal(await page.locator('#pricing .plan-features').count(),3);assert.match(await page.locator('#plan-conditions').innerText(),/not an entitlement or offer/);assert.equal(await page.locator('#pricing input, #pricing button').count(),0);assert.equal(await page.locator('#pricing a').count(),1);assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true);await page.goto(origin+'/home.html');assert.match(await page.locator('h1').innerText(),/Know what to improve/);await page.locator('.hero a[href="./beta.html"]').click();assert.match(await page.locator('h1').innerText(),/Join the private beta/);assert.match(await page.locator('main').innerText(),/not accepting applications online/);assert.match(await page.locator('main').innerText(),/restricted to the authorised operator/);assert.match(await page.locator('main').innerText(),/Suggested first session/);assert.equal(await page.locator('a[href="mailto:support@yuvilist.com"]').count(),1);await page.locator('#beta-prepare input').first().check();const invitation=page.waitForEvent('download');await page.locator('#beta-download').click();assert.equal((await invitation).suggestedFilename(),'sellerpilot-beta-checklist.txt');assert.match(await page.locator('#beta-status').innerText(),/No information was sent/);
  assert.equal(await page.locator('a[href="./demo.html"]').count()>0,true);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
  await page.locator('a[href="./privacy.html"]').first().click();assert.match(await page.locator('.notice').innerText(),/Not a final privacy notice/);
  await page.locator('a[href="./terms.html"]').first().click();assert.match(await page.locator('.notice').innerText(),/Not final commercial terms/);
  assert.deepEqual(errors,[]);
+ // V101/V103/V104: independent desktop and narrow-mobile sessions, fixture network only.
+ for(const viewport of [{width:1440,height:900},{width:390,height:844}]){
+  const desktop=viewport.width>1000;
+  const acceptance=await browser.newPage({viewport,isMobile:!desktop,hasTouch:!desktop,reducedMotion:'reduce'});
+  const blocked=[],acceptErrors=[];
+  acceptance.on('pageerror',e=>acceptErrors.push(e.message));
+  await acceptance.route('**/*',async route=>{
+   const u=new URL(route.request().url());
+   if(u.origin===origin)return route.continue();
+   if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});
+   blocked.push(u.origin);return route.abort();
+  });
+  const fits=async()=>assert.equal(await acceptance.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth+2),true,'Horizontal page overflow at '+viewport.width);
+  await acceptance.goto(origin+'/app.html');
+  await acceptance.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
+  await fits();
+  await acceptance.locator('#v95-directory summary').focus();await acceptance.keyboard.press('Enter');
+  assert.equal(await acceptance.locator('#v95-directory').getAttribute('open'),'');
+  await acceptance.locator('#v95-search').fill('profit calculator');
+  assert.equal(await acceptance.locator('#v95-tools [data-v61-go]').count(),1);
+  await acceptance.locator('#v95-tools [data-v61-go="profits"]').focus();await acceptance.keyboard.press('Enter');
+  assert.equal(await acceptance.locator('#view-profits').isVisible(),true);await fits();
+  await acceptance.locator('[data-view="overview"]:visible').first().click();
+  await acceptance.locator('#v95-search').fill('keyword lab');
+  await acceptance.locator('#v95-tools [data-v61-go="keywords"]').click();
+  assert.equal(await acceptance.locator('#view-keywords').isVisible(),true);await fits();
+  assert.equal(await acceptance.locator('#v67-run').isDisabled(),true);
+  assert.equal(await acceptance.locator('#v67-consent').isChecked(),false);
+  assert.equal(await acceptance.evaluate(()=>localStorage.getItem('test-fixture')),null);
+  assert.equal(await acceptance.evaluate(()=>localStorage.getItem('test-weekly-workspace')),null);
+  assert.equal(await acceptance.evaluate(()=>Number(localStorage.getItem('test-v63-sandbox-requests')||0)),0);
+  await acceptance.evaluate(async()=>{const {clearWorkspace}=await import('./js/ui.js?v=106');clearWorkspace()});
+  assert.equal(await acceptance.locator('#view-auth').isVisible(),true);
+  assert.equal(await acceptance.locator('#v95-tools').textContent(),'');
+  assert.equal(await acceptance.locator('#v67-results').textContent(),'');
+  assert.deepEqual(blocked,[]);assert.deepEqual(acceptErrors,[]);
+  await acceptance.close();
+  console.log('PASS V101/V103/V104: '+viewport.width+'px viewport, keyboard tool navigation, overflow, explicit consent and private-state reset (mock only)');
+ }
+ // YuviList new-account onboarding: three choices, no saved draft or paid invocation.
+ const firstRun=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true});
+ await firstRun.addInitScript(()=>localStorage.setItem('test-yuvilist-empty','yes'));
+ const firstExternal=[];
+ await firstRun.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin)return route.continue();if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});firstExternal.push(u.origin);return route.abort()});
+ await firstRun.goto(origin+'/app.html');await firstRun.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced · 0 private products'));
+ assert.equal(await firstRun.locator('#yuvilist-first-run').isVisible(),true);
+ assert.equal(await firstRun.locator('#yuvilist-first-run a').getAttribute('href'),'./demo.html');
+ await firstRun.locator('#yuvilist-first-run [data-v61-go="products"]').click();assert.equal(await firstRun.locator('#view-products').isVisible(),true);
+ await firstRun.locator('[data-view="overview"]:visible').first().click();
+ await firstRun.locator('#yuvilist-first-run [data-v61-go="new-listing"]').click();assert.equal(await firstRun.locator('#view-intelligence').isVisible(),true);
+ assert.equal(await firstRun.locator('#edit-title').inputValue(),'');
+ assert.equal(await firstRun.evaluate(()=>localStorage.getItem('test-fixture')),null);
+ assert.equal(await firstRun.evaluate(()=>Number(localStorage.getItem('test-v63-sandbox-requests')||0)),0);
+ await firstRun.evaluate(()=>{localStorage.setItem('test-weekly-workspace',JSON.stringify({user_id:'mock-user',updated_at:'2026-11-25T00:00:00Z',data:{keywords:[{phrase:'Foreign research sentinel'}]}}));localStorage.setItem('test-foreign-workspace','yes')});
+ await firstRun.reload();await firstRun.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
+ assert.match(await firstRun.locator('#v61-start-status').innerText(),/Research sync unavailable/);
+ await firstRun.locator('#v95-directory summary').click();
+ await firstRun.locator('#v95-search').fill('research hub');
+ await firstRun.locator('#v95-tools [data-v61-go="research"]').click();
+ assert.match(await firstRun.locator('#v19-content-research').innerText(),/Research workspace owner verification failed/);
+ assert.doesNotMatch(await firstRun.locator('#v19-content-research').innerText(),/Foreign research sentinel/);
+ await firstRun.locator('[data-view="settings"]:visible').first().click();
+ await firstRun.locator('#v37-export').click();await firstRun.waitForFunction(()=>document.querySelector('#v37-status')?.textContent.includes('Refresh your catalogue'));
+ console.log('PASS YuviList research owner verification and fail-closed privacy export.');
+ assert.deepEqual(firstExternal,[]);await firstRun.close();
+ console.log('PASS YuviList: empty catalogue starting choices; no automatic product save or provider call.');
+ // V112: isolated fixture context, no live account or auth request.
+ const logoutPage=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true});
+ const logoutExternal=[];
+ logoutPage.on('dialog',d=>d.accept());
+ await logoutPage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin)return route.continue();if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});logoutExternal.push(u.origin);return route.abort()});
+ await logoutPage.goto(origin+'/app.html');
+ await logoutPage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
+ await logoutPage.locator('[data-view="settings"]:visible').first().click();
+ await logoutPage.evaluate(()=>{localStorage.setItem('test-v112-expired','yes');localStorage.setItem('test-v112-fail','yes')});
+ await logoutPage.locator('#settings-logout-top').click();
+ await logoutPage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Sign-out could not be confirmed'));
+ assert.equal(await logoutPage.locator('#view-settings').isVisible(),true);
+ assert.equal(await logoutPage.locator('#settings-logout-top').isEnabled(),true);assert.equal(await logoutPage.locator('#settings-logout').isEnabled(),true);
+ assert.equal(await logoutPage.evaluate(()=>localStorage.getItem('test-v112-scope')),'local');
+ await logoutPage.evaluate(()=>localStorage.removeItem('test-v112-fail'));
+ await logoutPage.locator('#settings-logout').click();
+ await logoutPage.locator('#view-auth.active').waitFor({state:'visible'});
+ assert.equal(await logoutPage.locator('#account-chip').textContent(),'Sign in required');
+ assert.equal(await logoutPage.evaluate(()=>localStorage.getItem('test-v112-signed-out')),'yes');
+ await logoutPage.reload();
+ await logoutPage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Ready for secure sign in'));
+ assert.equal(await logoutPage.locator('#view-auth.active').isVisible(),true);
+ assert.deepEqual(logoutExternal,[]);
+ await logoutPage.close();
+ console.log('PASS V112: local sign-out bypasses expired user preflight; network failure honest and retryable; sign-in screen persists after reload (mock only).');
+ // V113: a deliberately corrupted API fixture must not populate the private catalogue.
+ const isolationPage=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true});
+ const isolationExternal=[];
+ await isolationPage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin)return route.continue();if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});isolationExternal.push(u.origin);return route.abort()});
+ await isolationPage.goto(origin+'/app.html');
+ await isolationPage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
+ const foreignResult=await isolationPage.evaluate(async()=>{const {state}=await import('./js/core.js?v=106');const {editProduct,saveProduct,deleteProduct,duplicateProduct}=await import('./js/product-editor.js?v=106');const own=state.products[0];state.products.push({...own,id:'foreign-fixture',user_id:'other-user',title:'Foreign fixture sentinel'});editProduct(own.id);editProduct('foreign-fixture');const opened=state.editing==='foreign-fixture';state.editing='foreign-fixture';let requests=0;const from=state.client.from;state.client.from=(...args)=>{requests++;return from.apply(state.client,args)};try{await saveProduct();await deleteProduct('foreign-fixture');await duplicateProduct('foreign-fixture')}finally{state.client.from=from}return {opened,requests,mutation:localStorage.getItem('test-fixture')}}); 
+ assert.equal(foreignResult.opened,false);assert.equal(foreignResult.requests,0);assert.equal(foreignResult.mutation,null);
+ await isolationPage.evaluate(()=>localStorage.setItem('test-v113-foreign','yes'));
+ await isolationPage.reload();
+ await isolationPage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Account data isolation check failed'));
+ assert.equal(await isolationPage.locator('#view-auth.active').isVisible(),true);
+ assert.equal(await isolationPage.evaluate(async()=>{const {state}=await import('./js/core.js?v=106');return state.products.length}),0);
+ assert.deepEqual(isolationExternal,[]);
+ await isolationPage.close();
+ console.log('PASS V113: rejected foreign catalogue response and foreign editor/save/delete/duplicate targets (mock only).');
+ // V118: verify a response initiated before sign-out cannot reopen the previous editor.
+ for(const outcome of ['success','error']){
+  const stalePage=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true});
+  const external=[];
+  await stalePage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin)return route.continue();if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});external.push(u.origin);return route.abort()});
+  await stalePage.goto(origin+'/app.html');
+  await stalePage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
+  const result=await stalePage.evaluate(async outcome=>{
+   const {state}=await import('./js/core.js?v=106');
+   const {editProduct,saveProduct}=await import('./js/product-editor.js?v=106');
+   const {accountIdentity}=await import('./js/supabase-client.js?v=106');
+   const own=state.products[0];editProduct(own.id);
+   let release,started;
+   const pending=new Promise(r=>{release=r}),entered=new Promise(r=>{started=r});
+   const original=state.client.from;
+   let requests=0;
+   state.client.from=(...args)=>{
+    requests++;
+    const query={update(){return query},eq(){return query},select(){return query},async maybeSingle(){started();await pending;if(outcome==='error')throw Error('Old account private fixture error');return{data:{...own,title:'Stale response sentinel'},error:null}}};
+    return query;
+   };
+   try{
+    const saving=saveProduct();await entered;accountIdentity(null);
+    release();await saving;
+    return {requests,uid:state.uid,editing:state.editing,products:state.products.length,banner:document.querySelector('#cloud-status').textContent,editor:document.querySelector('#edit-title').value,ready:state.ready};
+   }finally{state.client.from=original;release()}
+  },outcome);
+  assert.equal(result.requests,1);assert.equal(result.uid,null);assert.equal(result.editing,null);assert.equal(result.products,0);assert.equal(result.ready,false);assert.equal(result.editor,'');
+  assert.match(result.banner,/Sign in to access/);
+  assert.equal(await stalePage.locator('#view-auth.active').isVisible(),true);
+  assert.deepEqual(external,[]);await stalePage.close();
+ }
+ console.log('PASS V118: late success and thrown error from prior account generation do not reopen editor, expose data or overwrite sign-in status (mock only).');
+ // V181: a prior account's workspace fetch must not reset or poison a newer session.
+ for(const outcome of ['success','error','reject']){
+  const workspacePage=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true});
+  const external=[];
+  await workspacePage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin)return route.continue();if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});external.push(u.origin);return route.abort()});
+  await workspacePage.goto(origin+'/app.html');
+  await workspacePage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
+  const result=await workspacePage.evaluate(async outcome=>{
+   const {state}=await import('./js/core.js?v=106');
+   const {v19Load,v19Store,v19Defaults}=await import('./js/workspace.js?v=106');
+   const {accountIdentity}=await import('./js/supabase-client.js?v=106');
+   const oldUid=state.uid,oldSerial=state.serial;
+   let release,started,requests=0;
+   const pending=new Promise(r=>{release=r}),entered=new Promise(r=>{started=r});
+   const original=state.client.from;
+   state.client.from=()=>{requests++;const query={select(){return query},eq(){return query},async maybeSingle(){started();await pending;if(outcome==='reject')throw Error('Previous private workspace error');if(outcome==='error')return {data:null,error:{message:'Previous private workspace error'}};return {data:{data:{notes:'Previous private workspace sentinel'},updated_at:'2026-01-01T00:00:00Z'},error:null}}};return query;};
+   try{
+    const loading=v19Load(oldUid,oldSerial);await entered;accountIdentity(null);
+    // Seed a fictional second session in memory only; this is not a live login.
+    state.uid='fixture-second-session';state.serial++;state.ready=true;
+    Object.assign(v19Store,{loaded:true,updatedAt:'2026-02-01T00:00:00Z',error:'',data:{...v19Defaults(),notes:'Current session marker'}});
+    document.querySelector('#toast').textContent='Current session notification';
+    release();await loading;
+    const afterLate={loaded:v19Store.loaded,error:v19Store.error,notes:v19Store.data.notes,updatedAt:v19Store.updatedAt,toast:document.querySelector('#toast').textContent};
+    await v19Load(oldUid,oldSerial);
+    return {afterLate,afterStale:{loaded:v19Store.loaded,error:v19Store.error,notes:v19Store.data.notes,updatedAt:v19Store.updatedAt,toast:document.querySelector('#toast').textContent},requests};
+   }finally{state.client.from=original;release()}
+  },outcome);
+  const expected={loaded:true,error:'',notes:'Current session marker',updatedAt:'2026-02-01T00:00:00Z',toast:'Current session notification'};
+  assert.deepEqual(result.afterLate,expected);assert.deepEqual(result.afterStale,expected);assert.equal(result.requests,1);
+  assert.deepEqual(external,[]);await workspacePage.close();
+ }
+ console.log('PASS V181: stale workspace success, returned error, rejection and stale invocation cannot overwrite newer session state (mock only).');
+ // V187: validate returned Etsy authorization URLs for both exact canonical app hosts.
+ const etsyUrlPage=await browser.newPage();
+ await etsyUrlPage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin)return route.continue();if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});return route.abort()});
+ await etsyUrlPage.goto(origin+'/app.html');
+ await etsyUrlPage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
+ const etsyChecks=await etsyUrlPage.evaluate(async()=>{
+  const {etsyCallbackFor,validateEtsyAuthorization}=await import('./js/etsy-preview.js?v=106');
+  const old='https://sellerpilot-ai.github.io/sellerpilot-ai/',next='https://sellerpilot-ai-21c.pages.dev/';
+  const make=base=>{const u=new URL('https://www.etsy.com/oauth/connect');u.search=new URLSearchParams({response_type:'code',scope:'listings_r',redirect_uri:base+'etsy-return.html',code_challenge_method:'S256',state:'a'.repeat(64),code_challenge:'a'.repeat(43),client_id:'fixture'});return u};
+  const rejected=(url,host)=>{try{validateEtsyAuthorization(url,host);return false}catch{return true}};
+  const duplicate=make(next);duplicate.searchParams.append('scope','listings_w');
+  const forged=make(next);forged.hostname='www.etsy.com.evil.invalid';
+  const wrongScope=make(next);wrongScope.searchParams.set('scope','listings_w');
+  const fragment=make(next);fragment.hash='bad';
+  const wrongState=make(next);wrongState.searchParams.set('state','bad');
+  const badChallenge=make(next);badChallenge.searchParams.set('code_challenge','bad');
+  return [validateEtsyAuthorization(make(old).href,old+'app.html').origin==='https://www.etsy.com',validateEtsyAuthorization(make(next).href,next+'app').origin==='https://www.etsy.com',etsyCallbackFor('https://preview.sellerpilot-ai-21c.pages.dev/')===null,rejected(make(old).href,next),rejected(duplicate.href,next),rejected(forged.href,next),rejected(wrongScope.href,next),rejected(fragment.href,next),rejected(wrongState.href,next),rejected(badChallenge.href,next)];
+ });
+ assert.deepEqual(etsyChecks,Array(10).fill(true));
+ const selectionChecks=await etsyUrlPage.evaluate(async()=>{
+  const {renderEtsySelection,etsyCallbackFor}=await import('./js/etsy-preview.js?v=106');
+  const root=document.createElement('div');
+  const rows=[{listing_id:'1',title:'<img src=x onerror=alert(1)>',state:'active'},{listing_id:'2',title:'Fixture bracelet',state:'active'}];
+  const data={shop_name:'Fixture shop',listings:rows,total:2,retrieved_at:'2026-01-01T00:00:00Z'};
+  const status=()=>root.querySelector('[role=status]')?.textContent||'';
+  renderEtsySelection(root,data);
+  const start=status().startsWith('0 of 2')&&root.querySelectorAll('input[type=checkbox]').length===2&&!root.querySelector('img');
+  const check=root.querySelector('input[type=checkbox]');check.checked=true;check.dispatchEvent(new Event('change'));
+  const individual=status().startsWith('1 of 2');
+  root.querySelectorAll('button')[0].click();const all=status().startsWith('2 of 2');
+  root.querySelectorAll('button')[1].click();const cleared=status().startsWith('0 of 2');const search=root.querySelector('input[type=search]');search.value='bracelet';search.dispatchEvent(new Event('input'));root.querySelectorAll('button')[0].click();const filtered=status().startsWith('1 of 2')&&status().includes('1 shown');root.querySelectorAll('button')[2].click();const reviewed=status().includes('1 shown')&&root.querySelectorAll('button')[2].getAttribute('aria-pressed')==='true';root.querySelectorAll('button')[2].click();const sort=root.querySelector('select');sort.value='za';sort.dispatchEvent(new Event('change'));const sorted=root.querySelector('.etsy-preview-row b').textContent==='Fixture bracelet'&&status().startsWith('1 of 2');sort.value='latest';sort.dispatchEvent(new Event('change'));const restored=root.querySelector('.etsy-preview-row b').textContent===rows[0].title;
+  renderEtsySelection(root,{...data,listings:[],total:0});const empty=root.textContent==='No active listings returned.'&&!root.querySelector('input');
+  let rejected=false;try{renderEtsySelection(root,{...data,listings:[rows[0],rows[0]]})}catch{rejected=true}
+  return [start,individual,all,cleared,filtered,reviewed,sorted,restored,empty,rejected,etsyCallbackFor('https://yuvilist.com/app')==='https://yuvilist.com/etsy-return.html'];
+ });
+ assert.deepEqual(selectionChecks,Array(11).fill(true));await etsyUrlPage.close();
+ console.log('PASS Etsy temporary manual selection, safe text rendering, clear, empty, duplicate rejection and canonical YuviList callback.');
+ console.log('PASS V187: Etsy authorization address validation for both hosts and malicious/mismatched URLs.');
+ // V120: explicit recovery origins only; never send real email.
+ const redirectPage=await browser.newPage();
+ await redirectPage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===origin)return route.continue();if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});return route.abort()});
+ await redirectPage.goto(origin+'/app.html');
+ await redirectPage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
+ const recoveryCases=await redirectPage.evaluate(async()=>{const {recoveryRedirectFor}=await import('./js/supabase-client.js?v=106');return [
+  'https://sellerpilot-ai.github.io/sellerpilot-ai/app.html?v=106',
+  'https://sellerpilot-ai-21c.pages.dev/app',
+  'https://sellerpilot-ai-21c.pages.dev/',
+  'https://sellerpilot-ai-21c.pages.dev.evil.invalid/app',
+  'https://preview.sellerpilot-ai-21c.pages.dev/app',
+  'https://sellerpilot-ai.github.io/other/app.html',
+  'http://sellerpilot-ai-21c.pages.dev/app',
+  'https://fake@sellerpilot-ai-21c.pages.dev/app',
+  'https://yuvilist.com/',
+  'https://yuvilist.com/app.html?v=106',
+  'https://yuvilist.com/app',
+  'https://yuvilist.com.evil.invalid/app',
+  'https://www.yuvilist.com/app',
+  'http://yuvilist.com/app',
+  'https://fake@yuvilist.com/app',
+  'https://yuvilist.com/other',
+  'https://yuvilist.com:8443/app',
+  location.href
+ ].map(recoveryRedirectFor)});
+ assert.deepEqual(recoveryCases,['https://sellerpilot-ai.github.io/sellerpilot-ai/','https://sellerpilot-ai-21c.pages.dev/','https://sellerpilot-ai-21c.pages.dev/',null,null,null,null,null,'https://yuvilist.com/','https://yuvilist.com/','https://yuvilist.com/',null,null,null,null,null,null,null]);
+ const catalogueCases=await redirectPage.evaluate(async()=>{
+  const {loadCataloguePages}=await import('./js/supabase-client.js?v=106');
+  const make=(n)=>Array.from({length:n},(_,i)=>({id:'fixture-'+i,user_id:'fixture-owner'}));
+  const run=async(n,mutate)=>{const rows=make(n);if(mutate)mutate(rows);let calls=0;try{const result=await loadCataloguePages(async(a,b)=>{calls++;return {data:rows.slice(a,b+1)}},'fixture-owner');return {length:result.length,calls}}catch(e){return {error:e.message,calls}}};
+  const results=[];
+  for(const n of [0,249,250,1999,2000,2001])results.push(await run(n));
+  results.push(await run(251,rows=>{rows[250].user_id='fixture-other'}));
+  results.push(await run(251,rows=>{rows[250].id=rows[0].id}));
+  let active=true;
+  const stale=await loadCataloguePages(async()=>{active=false;return {data:make(1)}},'fixture-owner',()=>active);
+  return {results,stale};
+ });
+ assert.deepEqual(catalogueCases,{results:[{length:0,calls:1},{length:249,calls:1},{length:250,calls:2},{length:1999,calls:8},{length:2000,calls:9},{error:'The 2,000-product beta limit has been reached.',calls:9},{error:'Account data isolation check failed.',calls:2},{error:'Catalogue changed while loading. Refresh to retry.',calls:2}],stale:null});
+ console.log('PASS YuviList catalogue pagination: exact limit, bounded overflow, owner isolation, duplicate and stale-session rejection.');
+ await redirectPage.close();
+ console.log('PASS V120: exact recovery origin and path selection; unrelated, preview, HTTP and credential-bearing URLs denied; no real email.');
+ // V116: serve only the static output, on a distinct local origin, with all external services mocked.
+ const runtimeTemp=await mkdtemp(resolve(tmpdir(),'sellerpilot-hosting-'));
+ let packageServer,packagePage;
+ try{
+  const destination=resolve(runtimeTemp,'frontend');
+  const files=new Set(await buildCloudflarePackage(process.cwd(),destination));
+  assert.equal(files.size,55);
+  assert.equal(await readFile(resolve(destination,'_headers'),'utf8'),pagesHeaders);
+  packageServer=createServer(async(req,res)=>{
+   try{
+    const pathname=new URL(req.url,'http://localhost').pathname;
+    if(pathname!=='/404.html'&&pathname.endsWith('.html')&&files.has(pathname.slice(1))){
+     const u=new URL(req.url,'http://localhost');u.pathname=pathname==='/index.html'?'/':pathname.slice(0,-5);
+     res.writeHead(308,{Location:u.pathname+u.search}).end();return;
+    }
+    const raw=pathname==='/'?'index.html':pathname.slice(1);
+    const relative=files.has(raw)?raw:files.has(raw+'.html')?raw+'.html':'404.html';
+    const absent=relative==='404.html'||relative==='_headers';
+    const served=absent?'404.html':relative;
+    const bytes=await readFile(resolve(destination,served));
+    res.writeHead(absent?404:200,{'Content-Type':types[extname(served)],...securityHeaders}).end(bytes);
+   }catch{if(!res.headersSent)res.writeHead(500).end()}
+  });
+  await new Promise(r=>packageServer.listen(0,'127.0.0.1',r));
+  const packageOrigin='http://127.0.0.1:'+packageServer.address().port;
+  packagePage=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true});
+  const external=[],errors=[],missing=[];
+  packagePage.on('pageerror',e=>errors.push(e.message));
+  packagePage.on('response',r=>{if(r.url().startsWith(packageOrigin+'/')&&r.status()>=400)missing.push(r.url())});
+  await packagePage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===packageOrigin)return route.continue();if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});external.push(u.origin);return route.abort()});
+  await packagePage.goto(packageOrigin+'/');
+  assert.match(await packagePage.title(),/YuviList/);
+  await packagePage.goto(packageOrigin+'/app.html?v=106');
+  assert.equal(new URL(packagePage.url()).pathname,'/app');
+  assert.equal(new URL(packagePage.url()).searchParams.get('v'),'106');
+  // Locator wait avoids Playwright waitForFunction's in-page eval under enforced CSP.
+  await packagePage.locator('#cloud-status').filter({hasText:'Cloud synced'}).waitFor({state:'visible',timeout:15000});
+  await packagePage.locator('[data-view="products"]:visible').first().click();
+  assert.match(await packagePage.locator('#product-mobile').innerText(),/Minimalist Gold Tone Bracelet/);
+  await packagePage.locator('#view-products [data-edit="fixture-product"]:visible').first().click();
+  await packagePage.locator('#v23-guide').waitFor({state:'visible'});
+  assert.equal(await packagePage.locator('#edit-title').inputValue(),'Minimalist Gold Tone Bracelet');
+  assert.deepEqual(external,[]);assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
+  for(const privatePath of ['/tests/v24-browser.mjs','/supabase/config.toml','/.git/config','/.env','/README.md','/_headers','/no-such-page']){
+   const response=await fetch(packageOrigin+privatePath);assert.equal(response.status,404);const missingBody=await response.text();assert.match(missingBody,/Page not found/);assert.match(missingBody,/Return to YuviList/);
+  }
+  const publicResponse=await fetch(packageOrigin+'/');for(const [key,value] of Object.entries(securityHeaders))assert.equal(publicResponse.headers.get(key),value);
+  console.log('PASS V122: 55-file Cloudflare package, clean URL and query preservation, security headers and explicit 404 in local simulation.');
+  const cspResult=await packagePage.evaluate(async()=>{
+   const violation=new Promise(resolve=>{const listener=e=>{if(e.effectiveDirective==='connect-src'&&e.blockedURI.startsWith('https://unapproved.invalid')){document.removeEventListener('securitypolicyviolation',listener);resolve(e.effectiveDirective)}};document.addEventListener('securitypolicyviolation',listener)});
+   let denied=false;try{await fetch('https://unapproved.invalid/fixture')}catch{denied=true}
+   return {denied,directive:await Promise.race([violation,new Promise(r=>setTimeout(()=>r('missing'),1500))])};
+  });
+  assert.deepEqual(cspResult,{denied:true,directive:'connect-src'});
+  assert.deepEqual(external,[]);
+  console.log('PASS V123: browser CSP blocks an unapproved connection without external network traffic; existing mock workspace loads.');
+  console.log('PASS V116: packaged frontend startup, catalogue and editor on independent local origin; private paths absent; zero external requests (mock only).');
+ }finally{if(packagePage)await packagePage.close();if(packageServer)await new Promise(r=>packageServer.close(r));await rm(runtimeTemp,{recursive:true,force:true})}
  const failurePage=await browser.newPage();
  await failurePage.route('**/*',async route=>{const url=new URL(route.request().url());if(url.pathname.endsWith('/keyword-discovery.js'))return route.abort();if(url.origin===origin)return route.continue();return route.abort()});
- await failurePage.goto(origin+'/app.html?v=69');await failurePage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Workspace startup failed'));
+ await failurePage.goto(origin+'/app.html?v=106');await failurePage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Workspace startup failed'));
  assert.equal(await failurePage.locator('#account-chip').textContent(),'Connection unavailable');await failurePage.close();
  console.log('PASS: one version for all local workspace modules; simulated stale cache cannot supply outdated modules; failed module startup is visible.');
  console.log('PASS: module startup, mocked authentication, mobile navigation, guided apply, immediate score refresh, undo, mocked save and reload. No real cloud requests.');

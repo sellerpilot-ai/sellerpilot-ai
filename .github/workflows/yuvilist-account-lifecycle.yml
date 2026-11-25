@@ -1,0 +1,65 @@
+name: YuviList disposable account lifecycle
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  lifecycle-model:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Test model in fresh runner database only
+        run: |
+          set -euo pipefail
+          sudo systemctl start postgresql
+          sudo -u postgres createdb yuvilist_lifecycle_fixture
+          fixture_dir=$(mktemp -d /tmp/yuvilist-lifecycle.XXXXXX)
+          trap 'sudo -u postgres dropdb --if-exists yuvilist_lifecycle_fixture; rm -rf "$fixture_dir"' EXIT
+          chmod 0755 "$fixture_dir"
+          install -m 0644 "$GITHUB_WORKSPACE/tests/yuvilist-account-lifecycle.sql" "$fixture_dir/lifecycle.sql"
+          sudo -u postgres psql -X -v ON_ERROR_STOP=1 -d yuvilist_lifecycle_fixture -f "$fixture_dir/lifecycle.sql"
+
+      - name: Exercise backup and restore in two disposable local databases
+        run: |
+          set -euo pipefail
+          sudo systemctl start postgresql
+          src=yuvilist_backup_fixture
+          dst=yuvilist_restore_fixture
+          work=$(mktemp -d /tmp/yuvilist-backup.XXXXXX)
+          trap 'sudo -u postgres dropdb --if-exists "$dst"; sudo -u postgres dropdb --if-exists "$src"; rm -rf "$work"' EXIT
+          chmod 0700 "$work"
+          sudo -u postgres createdb "$src"
+          sudo -u postgres createdb "$dst"
+          sudo -u postgres psql -X -v ON_ERROR_STOP=1 -d "$src" <<'SQL'
+          CREATE TABLE accounts(id integer PRIMARY KEY);
+          CREATE TABLE products(id integer PRIMARY KEY, user_id integer NOT NULL REFERENCES accounts(id) ON DELETE CASCADE, payload jsonb NOT NULL);
+          CREATE TABLE research(user_id integer PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE, payload jsonb NOT NULL);
+          ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+          CREATE POLICY owner_only ON products USING (user_id = nullif(current_setting('fixture.owner',true),'')::integer) WITH CHECK (user_id = nullif(current_setting('fixture.owner',true),'')::integer);
+          INSERT INTO accounts VALUES (1),(2);
+          INSERT INTO products VALUES (1,1,'{"title":"fixture A"}'),(2,1,'{"title":"fixture B"}'),(3,2,'{"title":"fixture C"}');
+          INSERT INTO research VALUES (1,'{"keywords":["fixture"]}');
+          SQL
+          sudo -u postgres pg_dump --format=custom --no-owner --no-acl "$src" > "$work/fixture.dump"
+          test -s "$work/fixture.dump"
+          sha256sum "$work/fixture.dump" > "$work/fixture.sha256"
+          sha256sum -c "$work/fixture.sha256"
+          sudo -u postgres pg_restore --exit-on-error --no-owner --no-acl -d "$dst" < "$work/fixture.dump"
+          sudo -u postgres psql -X -v ON_ERROR_STOP=1 -d "$dst" <<'SQL'
+          DO $$ BEGIN
+            IF (SELECT count(*) FROM accounts) <> 2 OR (SELECT count(*) FROM products) <> 3 OR (SELECT count(*) FROM research) <> 1 THEN RAISE EXCEPTION 'Restored counts differ'; END IF;
+            IF (SELECT count(*) FROM products WHERE user_id=1) <> 2 OR NOT EXISTS (SELECT 1 FROM products WHERE user_id=2 AND payload->>'title'='fixture C') THEN RAISE EXCEPTION 'Restored ownership or payload differs'; END IF;
+            IF NOT EXISTS (SELECT 1 FROM research WHERE user_id=1 AND payload->'keywords'='["fixture"]'::jsonb) THEN RAISE EXCEPTION 'Restored research differs'; END IF;
+            IF NOT EXISTS (SELECT 1 FROM pg_class WHERE oid='public.products'::regclass AND relrowsecurity) OR NOT EXISTS (SELECT 1 FROM pg_policies WHERE schemaname='public' AND tablename='products' AND policyname='owner_only') THEN RAISE EXCEPTION 'Restored RLS differs'; END IF;
+          END $$;
+          DELETE FROM accounts WHERE id=1;
+          DO $$ BEGIN
+            IF EXISTS (SELECT 1 FROM products WHERE user_id=1) OR EXISTS(SELECT 1 FROM research WHERE user_id=1) OR (SELECT count(*) FROM products WHERE user_id=2)<>1 THEN RAISE EXCEPTION 'Restored cascade differs'; END IF;
+          END $$;
+          SQL
+          test "$(sudo -u postgres psql -X -At -d "$src" -c 'SELECT count(*) FROM products')" = 3
+          echo "PASS: synthetic local backup and restore, counts, payloads, ownership, RLS metadata, cascade and source isolation. Not a live Supabase backup."

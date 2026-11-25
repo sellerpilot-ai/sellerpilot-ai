@@ -33,3 +33,17 @@ for(const [fields,expected] of [[{cancel_at:end,cancel_at_period_end:false},true
 dbFail=false;change={cancel_at:end,cancel_at_period_end:false};assert.equal((await call(updated)).status,200);assert.equal(rows.get(updated.id).cancel_at_period_end,true);
 change={cancel_at:null,cancel_at_period_end:false};assert.equal((await call({...updated,id:'evt_fixtureResume'})).status,200);assert.equal(rows.get('evt_fixtureResume').cancel_at_period_end,false);assert.equal(rows.get(updated.id).cancel_at_period_end,true);
 console.log('PASS: scheduled cancellation via matching cancel_at, reversal and append-only history.');
+
+// Explicit renewal failure, retry and recovery sequence; observations never confer entitlements.
+const failedRenewal={...evt,id:'evt_fixtureRenewalFailed',type:'invoice.payment_failed'};
+change={status:'past_due',latest_invoice:{...sub.latest_invoice,status:'open',amount_paid:0}};
+assert.equal((await call(failedRenewal)).status,200);
+assert.equal(rows.get(failedRenewal.id).subscription_status,'past_due');
+assert.equal(rows.get(failedRenewal.id).latest_invoice_paid,false);
+const beforeRetry=rows.size;assert.equal((await call(failedRenewal)).status,200);assert.equal(rows.size,beforeRetry);
+const recovered={...evt,id:'evt_fixtureRenewalRecovered',type:'invoice.paid'};
+change={};assert.equal((await call(recovered)).status,200);assert.equal(rows.get(recovered.id).latest_invoice_paid,true);
+assert.equal(rows.get(recovered.id).subscription_status,'active');
+assert.equal(rows.get(failedRenewal.id).latest_invoice_paid,false);
+assert.ok([...rows.values()].every(r=>!('access_granted' in r)&&r.sandbox===true));
+console.log('PASS YuviList: failed renewal, duplicate event, successful recovery and immutable sandbox observations.');

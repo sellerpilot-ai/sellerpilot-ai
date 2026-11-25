@@ -5,9 +5,10 @@ const cfg={SUPABASE_URL:'https://example.invalid',SUPABASE_ANON_KEY:'fixture',SU
 const sub={object:'subscription',id:sid,customer,livemode:false,status:'past_due',metadata:{sellerpilot_mode:'sandbox',sellerpilot_user_id:uid,sellerpilot_plan:'starter'},items:{has_more:false,data:[{quantity:1,price:{id:price,livemode:false,currency:'gbp',unit_amount:999,recurring:{interval:'month',interval_count:1}}}]}};
 const config={object:'billing_portal.configuration',id:cid,livemode:false,active:true,login_page:{enabled:false},features:{invoice_history:{enabled:true},payment_method_update:{enabled:true},subscription_cancel:{enabled:true,mode:'at_period_end',proration_behavior:'none'},subscription_update:{enabled:false},customer_update:{enabled:false}}};
 const session={object:'billing_portal.session',customer,configuration:cid,livemode:false,return_url:ret,url};
+let expectedReturn=ret;
 let calls=[],user=uid,mapping=customer,list={object:'list',data:[sub],has_more:false},conf=config,response=session;
-const mock=async(u,init)=>{calls.push([u,init.method||'GET']);if(u.endsWith('/auth/v1/user'))return Response.json({id:user,email_confirmed_at:'2026-01-01'});if(u.endsWith('/sellerpilot_v44_unique_customer')){assert.deepEqual(JSON.parse(init.body),{p_user_id:uid});return Response.json(mapping)}if(u.includes('/subscriptions?')){assert.equal(new URL(u).searchParams.get('customer'),customer);assert.equal(new URL(u).searchParams.get('status'),'all');return Response.json(list)}if(u.endsWith('/configurations/'+cid))return Response.json(conf);assert.ok(u.endsWith('/billing_portal/sessions'));assert.equal(init.method,'POST');assert.equal(init.body.get('customer'),customer);assert.equal(init.body.get('configuration'),cid);assert.equal(init.body.get('return_url'),ret);return Response.json(response)};
-const call=(body={action:'status'},env=cfg)=>createHandler(k=>env[k]||'',mock)(new Request('https://example.invalid/f',{method:'POST',headers:{origin:'https://sellerpilot-ai.github.io',authorization:'Bearer fixture'},body:JSON.stringify(body)}));
+const mock=async(u,init)=>{calls.push([u,init.method||'GET']);if(u.endsWith('/auth/v1/user'))return Response.json({id:user,email_confirmed_at:'2026-01-01'});if(u.endsWith('/sellerpilot_v44_unique_customer')){assert.deepEqual(JSON.parse(init.body),{p_user_id:uid});return Response.json(mapping)}if(u.includes('/subscriptions?')){assert.equal(new URL(u).searchParams.get('customer'),customer);assert.equal(new URL(u).searchParams.get('status'),'all');return Response.json(list)}if(u.endsWith('/configurations/'+cid))return Response.json(conf);assert.ok(u.endsWith('/billing_portal/sessions'));assert.equal(init.method,'POST');assert.equal(init.body.get('customer'),customer);assert.equal(init.body.get('configuration'),cid);assert.equal(init.body.get('return_url'),expectedReturn);return Response.json(response)};
+const call=(body={action:'status'},env=cfg,origin='https://sellerpilot-ai.github.io')=>createHandler(k=>env[k]||'',mock)(new Request('https://example.invalid/f',{method:'POST',headers:{origin,authorization:'Bearer fixture'},body:JSON.stringify(body)}));
 const open={action:'open_portal',consent:true};
 let res=await call();assert.equal((await res.json()).enabled,true);assert.ok(!calls.some(x=>x[0].endsWith('/billing_portal/sessions')));
 calls=[];res=await call(open);assert.equal(res.status,200);assert.deepEqual(await res.json(),{ok:true,sandbox:true,production_access:false,url});assert.equal(calls.filter(x=>x[0].endsWith('/billing_portal/sessions')).length,1);
@@ -29,3 +30,16 @@ response={...session,url:opaque};res=await call(open);assert.equal(res.status,20
 for(const bad of ['http://billing.stripe.com/p/session/test_fixture123456789','https://billing.stripe.com:444/p/session/test_fixture123456789','https://user@billing.stripe.com/p/session/test_fixture123456789','https://billing.stripe.com/','https://billing.stripe.com.evil.invalid/p/session/test_fixture123456789','https://billing.stripe.com/p/session/live_fixture123456789','javascript:alert(1)','https://billing.stripe.com/p/\nfixture','https://billing.stripe.com/p/\\fixture']){assert.equal(safePortalURL(bad),false);response={...session,url:bad};res=await call(open);assert.equal(res.status,502);assert.match((await res.json()).detail,/hosted URL/)}
 for(const [field,value,category] of [['configuration','bpc_wrong','configuration'],['return_url','https://evil.invalid','return URL'],['livemode',true,'sandbox mode'],['customer','cus_wrong','customer']]){response={...session,[field]:value};res=await call(open);assert.equal(res.status,502);assert.ok((await res.json()).detail.includes(category))}
 response=session;console.log('PASS: opaque Stripe-hosted portal URL and safe diagnostic categories.');
+
+// Cloudflare sandbox return is fixed server-side; no provider requests.
+expectedReturn='https://sellerpilot-ai-21c.pages.dev/?v=44&billing=portal-return';
+response={...session,return_url:expectedReturn};
+res=await call(open,cfg,'https://sellerpilot-ai-21c.pages.dev');assert.equal(res.status,200);
+response={...session,return_url:ret};res=await call(open,cfg,'https://sellerpilot-ai-21c.pages.dev');assert.equal(res.status,502);
+console.log('PASS V121: Cloudflare portal return pinned to approved origin.');
+
+expectedReturn='https://yuvilist.com/?v=44&billing=portal-return';
+response={...session,return_url:expectedReturn};
+res=await call(open,cfg,'https://yuvilist.com');assert.equal(res.status,200);
+response={...session,return_url:ret};res=await call(open,cfg,'https://yuvilist.com');assert.equal(res.status,502);
+console.log('PASS: YuviList sandbox portal return pinned to exact origin.');

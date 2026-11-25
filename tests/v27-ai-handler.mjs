@@ -42,3 +42,11 @@ env.SELLERPILOT_AI_BETA_USER_IDS='';calls=[];snapshot=await call({action:'allowa
 assert.deepEqual(await snapshot.json(),{ok:true,enabled:false});assert.equal(calls.length,1);
 env.SELLERPILOT_AI_BETA_USER_IDS=id;allowance={...allowance,available_requests:2};snapshot=await call({action:'allowance'});assert.equal(snapshot.status,503);
 console.log('PASS: own read-only AI allowance, exhausted quota, disabled account, malformed response, no paid request or reservation.');
+
+// Invalid or out-of-range request caps fail closed even with a valid beta account.
+providerError=0;responseDraft=draft;
+for(const [name,invalid] of [['SELLERPILOT_AI_DAILY_CAP','11'],['SELLERPILOT_AI_MONTHLY_CAP','101'],['SELLERPILOT_AI_USER_DAILY_CAP','4'],['SELLERPILOT_AI_DAILY_CAP','0'],['SELLERPILOT_AI_MONTHLY_CAP','-1'],['SELLERPILOT_AI_USER_DAILY_CAP','1.5']]){
+ const prior=env[name];env[name]=invalid;calls=[];assert.equal((await call(req)).status,503,name);assert.ok(!calls.some(x=>x.includes('reserve_ai_request')||x.includes('api.openai.com')),name);env[name]=prior;
+}
+quota=false;calls=[];assert.equal((await call(req,true,'https://yuvilist.com')).status,429);assert.ok(!calls.includes('https://api.openai.com/v1/responses'));quota=true;
+console.log('PASS YuviList: invalid caps and exhausted reservation fail closed on the new domain.');
