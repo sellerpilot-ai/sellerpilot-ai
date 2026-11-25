@@ -78,7 +78,7 @@ try {
  });
  const ready=()=>page.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  const open=async()=>{await page.locator('[data-view="products"]:visible').first().click();await page.locator('#view-products [data-edit="fixture-product"]:visible').first().click();await page.locator('#v23-guide').waitFor({state:'visible'})};
- await page.goto(origin+'/app.html');await ready();assert.equal(await page.locator('.v108-mobile-brand img').isVisible(),true);assert.equal(await page.evaluate(()=>!!(document.querySelector('.v22-home-top').compareDocumentPosition(document.querySelector('#v60-assistant'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);assert.match(await page.title(),/v106/);assert.match(await page.locator('.top-pill').innerText(),/SELLERPILOT V106/);assert.match(await page.locator('.footer-note').innerText(),/YuviList v106/);assert.match(await page.locator('.sidebar-foot').textContent(),/v106 · Listing intelligence beta/);
+ await page.goto(origin+'/app.html');await ready();assert.equal(await page.locator('.v108-mobile-brand img').isVisible(),true);assert.equal(await page.evaluate(()=>!!(document.querySelector('.v22-home-top').compareDocumentPosition(document.querySelector('#v60-assistant'))&Node.DOCUMENT_POSITION_FOLLOWING)),true);assert.match(await page.title(),/YuviList — Seller Workspace/);assert.match(await page.locator('.top-pill').innerText(),/YUVILIST BETA/);assert.match(await page.locator('.footer-note').innerText(),/YuviList · Private beta/);assert.match(await page.locator('.sidebar-foot').textContent(),/Listing intelligence · Private beta/);assert.equal(await page.locator('#yuvilist-first-run').isHidden(),true);
  await page.waitForFunction(()=>{const i=document.querySelector('.brand-mark img');return i?.complete&&i.naturalWidth===32;});
  assert.equal(await page.locator('link[rel="icon"]').getAttribute('href'),'./assets/sellerpilot-logo.svg');
  assert.equal(await page.locator('#v63-operator-tools').isHidden(),true);assert.equal(await page.locator('#v55-home').isHidden(),true);assert.equal(await page.evaluate(()=>Number(localStorage.getItem('test-v63-sandbox-requests')||0)),0);
@@ -375,7 +375,7 @@ try {
  }
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
  await page.setViewportSize({width:1280,height:900});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);await page.setViewportSize({width:393,height:852});
- await page.goto(origin+'/');await page.waitForFunction(()=>{const i=document.querySelector('.public-brand img');return i?.complete&&i.naturalWidth===32;});assert.match(await page.locator('h1').innerText(),/Know what to improve/);assert.equal(await page.locator('#view-auth').count(),0);assert.equal(await page.locator('.hero a[href="./app.html"]').count(),1);await page.goto(origin+'/home.html');assert.match(await page.locator('h1').innerText(),/Know what to improve/);await page.locator('.hero a[href="./beta.html"]').click();assert.match(await page.locator('h1').innerText(),/Join the private beta/);assert.match(await page.locator('main').innerText(),/not accepting applications online/);await page.locator('#beta-prepare input').first().check();const invitation=page.waitForEvent('download');await page.locator('#beta-download').click();assert.equal((await invitation).suggestedFilename(),'sellerpilot-beta-checklist.txt');assert.match(await page.locator('#beta-status').innerText(),/No information was sent/);
+ await page.goto(origin+'/');await page.waitForFunction(()=>{const i=document.querySelector('.public-brand img');return i?.complete&&i.naturalWidth===32;});assert.match(await page.locator('h1').innerText(),/Know what to improve/);assert.equal(await page.locator('#view-auth').count(),0);assert.equal(await page.locator('.hero a[href="./app.html"]').count(),1);await page.goto(origin+'/home.html');assert.match(await page.locator('h1').innerText(),/Know what to improve/);await page.locator('.hero a[href="./beta.html"]').click();assert.match(await page.locator('h1').innerText(),/Join the private beta/);assert.match(await page.locator('main').innerText(),/not accepting applications online/);assert.equal(await page.locator('a[href="mailto:support@yuvilist.com"]').count(),1);await page.locator('#beta-prepare input').first().check();const invitation=page.waitForEvent('download');await page.locator('#beta-download').click();assert.equal((await invitation).suggestedFilename(),'sellerpilot-beta-checklist.txt');assert.match(await page.locator('#beta-status').innerText(),/No information was sent/);
  assert.equal(await page.locator('a[href="./demo.html"]').count()>0,true);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth),true);
  await page.locator('a[href="./privacy.html"]').first().click();assert.match(await page.locator('.notice').innerText(),/Not a final privacy notice/);
@@ -429,10 +429,10 @@ try {
  await logoutPage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
  await logoutPage.locator('[data-view="settings"]:visible').first().click();
  await logoutPage.evaluate(()=>{localStorage.setItem('test-v112-expired','yes');localStorage.setItem('test-v112-fail','yes')});
- await logoutPage.locator('#settings-logout').click();
+ await logoutPage.locator('#settings-logout-top').click();
  await logoutPage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Sign-out could not be confirmed'));
  assert.equal(await logoutPage.locator('#view-settings').isVisible(),true);
- assert.equal(await logoutPage.locator('#settings-logout').isEnabled(),true);
+ assert.equal(await logoutPage.locator('#settings-logout-top').isEnabled(),true);assert.equal(await logoutPage.locator('#settings-logout').isEnabled(),true);
  assert.equal(await logoutPage.evaluate(()=>localStorage.getItem('test-v112-scope')),'local');
  await logoutPage.evaluate(()=>localStorage.removeItem('test-v112-fail'));
  await logoutPage.locator('#settings-logout').click();
