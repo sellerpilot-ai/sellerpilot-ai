@@ -20,3 +20,15 @@ assert.equal(validCallback(p,'user-a',p.state,601000),false);
 assert.throws(()=>authorizationUrl(p,'mock-client','http://example.invalid/callback'));
 assert.throws(()=>createPendingAuthorization('',1000));
 console.log('PASS V73 offline OAuth fixtures');
+
+const {createMockStateStore}=await import('../server/etsy-oauth-primitives.mjs');
+const store=createMockStateStore(1);
+const issued=store.issue('user-a',1000);
+assert.equal(store.consume('user-b',issued.state,1001),null);
+assert.throws(()=>store.issue('user-b',1001));
+assert.equal(store.consume('user-a',issued.state,1002).verifier,issued.verifier);
+assert.equal(store.consume('user-a',issued.state,1003),null);
+const expired=store.issue('user-a',2000);
+assert.equal(store.consume('user-a',expired.state,602000),null);
+assert.ok(store.issue('user-b',602000));
+console.log('PASS V73 single-use state fixtures');
