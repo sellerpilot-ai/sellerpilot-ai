@@ -26,3 +26,6 @@ The existing six-cascade lifecycle model passed. Live disposable account creatio
 - Policy/processor review; confirm legal operator, terms, privacy and retention. Disposable active database closure rehearsal passed.
 - Confirm current release ID and retain private release ZIP.
 - Keep registration closed and billing test-only. External invitations and commercial launch are separate approvals.
+
+## Later Etsy acceptance — 25 November 2026
+Commercial access dashboard and canonical callback registration confirmed. Owner approved isolated authorization migration, cleanup schedule, disabled deployment and private activation. Live UI showed disabled and then available status; two real shop previews succeeded (empty 0/0 and populated 24/24). Database readback retained two accounts, five products, one workspace; no pending authorization state after two attempts. Five successful cleanup runs, zero failures. Details and caveats in v196-etsy-installation-review.md. No listing import, analytics, AI, real payments or public invitation. Additional Etsy usage and monetization permissions remain unresolved.

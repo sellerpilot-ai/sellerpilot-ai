@@ -572,7 +572,25 @@ try {
   const badChallenge=make(next);badChallenge.searchParams.set('code_challenge','bad');
   return [validateEtsyAuthorization(make(old).href,old+'app.html').origin==='https://www.etsy.com',validateEtsyAuthorization(make(next).href,next+'app').origin==='https://www.etsy.com',etsyCallbackFor('https://preview.sellerpilot-ai-21c.pages.dev/')===null,rejected(make(old).href,next),rejected(duplicate.href,next),rejected(forged.href,next),rejected(wrongScope.href,next),rejected(fragment.href,next),rejected(wrongState.href,next),rejected(badChallenge.href,next)];
  });
- assert.deepEqual(etsyChecks,Array(10).fill(true));await etsyUrlPage.close();
+ assert.deepEqual(etsyChecks,Array(10).fill(true));
+ const selectionChecks=await etsyUrlPage.evaluate(async()=>{
+  const {renderEtsySelection,etsyCallbackFor}=await import('./js/etsy-preview.js?v=106');
+  const root=document.createElement('div');
+  const rows=[{listing_id:'1',title:'<img src=x onerror=alert(1)>',state:'active'},{listing_id:'2',title:'Fixture bracelet',state:'active'}];
+  const data={shop_name:'Fixture shop',listings:rows,total:2,retrieved_at:'2026-01-01T00:00:00Z'};
+  const status=()=>root.querySelector('[role=status]')?.textContent||'';
+  renderEtsySelection(root,data);
+  const start=status().startsWith('0 of 2')&&root.querySelectorAll('input').length===2&&!root.querySelector('img');
+  const check=root.querySelector('input');check.checked=true;check.dispatchEvent(new Event('change'));
+  const individual=status().startsWith('1 of 2');
+  root.querySelectorAll('button')[0].click();const all=status().startsWith('2 of 2');
+  root.querySelectorAll('button')[1].click();const cleared=status().startsWith('0 of 2');
+  renderEtsySelection(root,{...data,listings:[],total:0});const empty=root.textContent==='No active listings returned.'&&!root.querySelector('input');
+  let rejected=false;try{renderEtsySelection(root,{...data,listings:[rows[0],rows[0]]})}catch{rejected=true}
+  return [start,individual,all,cleared,empty,rejected,etsyCallbackFor('https://yuvilist.com/app')==='https://yuvilist.com/etsy-return.html'];
+ });
+ assert.deepEqual(selectionChecks,Array(7).fill(true));await etsyUrlPage.close();
+ console.log('PASS Etsy temporary manual selection, safe text rendering, clear, empty, duplicate rejection and canonical YuviList callback.');
  console.log('PASS V187: Etsy authorization address validation for both hosts and malicious/mismatched URLs.');
  // V120: explicit recovery origins only; never send real email.
  const redirectPage=await browser.newPage();

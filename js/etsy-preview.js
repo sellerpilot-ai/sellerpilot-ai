@@ -1,4 +1,4 @@
-import {$,state,esc} from './core.js';
+import {$,state} from './core.js';
 import {verifiedUser} from './supabase-client.js';
 let request=0,available=false,busy=false;
 const key='sellerpilot-etsy-return';
@@ -31,6 +31,30 @@ export function validatePreview(d){
  if(typeof d.shop_name!=='string'||!d.shop_name.trim()||d.shop_name.length>120||!Array.isArray(d.listings)||d.listings.length>50||!Number.isFinite(Date.parse(d.retrieved_at))||!(d.total===null||Number.isSafeInteger(d.total)&&d.total>=d.listings.length))throw Error('Invalid preview response. Nothing was saved.');
  const ids=new Set();for(const x of d.listings){if(!/^[1-9]\d{0,18}$/.test(x?.listing_id||'')||ids.has(x.listing_id)||typeof x.title!=='string'||!x.title.trim()||x.title.length>250||x.state!=='active')throw Error('Invalid listing preview. Nothing was saved.');ids.add(x.listing_id)}return d;
 }
+// Manual selection is display-only. No import, analysis, persistence or provider calls.
+export function renderEtsySelection(root,preview){
+ const d=validatePreview(preview);
+ root.replaceChildren();
+ if(!d.listings.length){const empty=document.createElement('p');empty.className='mini';empty.textContent='No active listings returned.';root.append(empty);return}
+ const tools=document.createElement('div');tools.className='form-actions';
+ const all=document.createElement('button');all.type='button';all.className='button secondary';all.textContent='Select all shown';
+ const clear=document.createElement('button');clear.type='button';clear.className='button ghost';clear.textContent='Clear selection';
+ const status=document.createElement('p');status.className='mini';status.setAttribute('role','status');
+ const checks=[];
+ const update=()=>{const n=checks.filter(c=>c.checked).length;status.textContent=n+' of '+checks.length+' selected · Preview only; not saved or analysed.';all.disabled=n===checks.length;clear.disabled=n===0};
+ tools.append(all,clear);root.append(tools,status);
+ for(const x of d.listings){
+  const row=document.createElement('label');row.className='list-card';
+  const c=document.createElement('input');c.type='checkbox';c.setAttribute('aria-label','Select '+x.title);c.addEventListener('change',update);checks.push(c);
+  const detail=document.createElement('span');detail.className='detail';
+  const title=document.createElement('b');title.textContent=x.title;
+  const meta=document.createElement('span');meta.textContent='Listing '+x.listing_id+' · Active';
+  detail.append(title,meta);row.append(c,detail);root.append(row);
+ }
+ all.onclick=()=>{checks.forEach(c=>c.checked=true);update()};
+ clear.onclick=()=>{checks.forEach(c=>c.checked=false);update()};
+ update();
+}
 export function v31Reset(){request++;available=false;busy=false;clearResults();if($('v31-consent'))$('v31-consent').checked=false;output('Not verified. Check availability.');controls()}
 export function v31Init(){
  const panel=document.createElement('div');panel.className='card';panel.style.marginBottom='18px';panel.innerHTML='<div class="eyebrow">Marketplace connection</div><h2>Connect your Etsy shop</h2><p class="mini">Read-only authorisation preview of up to 50 latest active listings. Etsy approval and backend activation are required. No automatic publishing, import, recurring sync, AI processing or retained Etsy tokens.</p><div class="note"><b>Connection readiness</b><p class="mini">1. Approved developer access · 2. Secure backend activation · 3. Seller consent on Etsy. A successful connection does not grant analytics or AI data permission.</p><a href="https://www.etsy.com/developers/your-apps" target="_blank" rel="noopener noreferrer">Etsy developer dashboard</a> · <a href="https://www.etsy.com/legal/api/" target="_blank" rel="noopener noreferrer">API terms</a></div><label class="checkbox-line"><input id="v31-consent" type="checkbox" disabled> I agree to request read-only access to my Etsy listings.</label><div class="form-actions"><button class="button secondary" id="v31-check" type="button">Check availability</button><button class="button" id="v31-start" type="button" disabled>Authorise on Etsy</button><button class="button ghost" id="v31-finish" type="button" disabled>Finish returned authorisation</button><button type="button" class="button ghost" data-go="products">Use my own listings / CSV</button></div><p class="mini" id="v31-status" role="status">Not verified. Check availability.</p><div class="stack" id="v31-results"></div>';
@@ -39,6 +63,6 @@ export function v31Init(){
  $('v31-consent').onchange=controls;
  $('v31-check').onclick=()=>run(async current=>{available=false;clearResults();$('v31-consent').checked=false;output('Checking secure preview availability…');const d=await invoke({action:'status'});if(!current())return;if(typeof d.enabled!=='boolean')throw Error('Invalid availability response.');available=d.enabled===true;output(available?'Read-only preview available. Confirm consent to continue.':'Not enabled. Etsy approval and backend activation required. Use CSV import instead.')});
  $('v31-start').onclick=()=>run(async current=>{if(!available){output('Check availability first.');return}if(!$('v31-consent').checked){output('Confirm read-only access first.');return}output('Preparing secure Etsy authorisation…');const d=await invoke({action:'begin',consent:true});if(!current())return;const u=validateEtsyAuthorization(d.authorization_url,location.href);sessionStorage.removeItem(key);location.assign(u.href)});
- $('v31-finish').onclick=()=>run(async current=>{const p=pending();if(!p){output('No recent Etsy authorisation.');return}sessionStorage.removeItem(key);clearResults();if(p.cancelled){output('Authorisation was cancelled.');return}output('Verifying your shop and active listings…');const d=validatePreview(await invoke({action:'finish',state:p.state,code:p.code}));if(!current())return;output('Verified shop: '+d.shop_name+' · '+d.listings.length+(d.total===null?'':' of '+d.total)+' active listings shown · Retrieved '+new Date(d.retrieved_at).toLocaleString('en-GB',{timeZone:'UTC'})+' UTC. Preview only; nothing saved.');$('v31-results').innerHTML=d.listings.map(x=>'<div class="list-card"><span class="detail"><b>'+esc(x.title)+'</b><span>Listing '+esc(x.listing_id)+' · Active</span></span></div>').join('')||'<p class="mini">No active listings returned.</p>'});
+ $('v31-finish').onclick=()=>run(async current=>{const p=pending();if(!p){output('No recent Etsy authorisation.');return}sessionStorage.removeItem(key);clearResults();if(p.cancelled){output('Authorisation was cancelled.');return}output('Verifying your shop and active listings…');const d=validatePreview(await invoke({action:'finish',state:p.state,code:p.code}));if(!current())return;output('Verified shop: '+d.shop_name+' · '+d.listings.length+(d.total===null?'':' of '+d.total)+' active listings shown · Retrieved '+new Date(d.retrieved_at).toLocaleString('en-GB',{timeZone:'UTC'})+' UTC. Preview only; nothing saved.');renderEtsySelection($('v31-results'),d)});
  controls();
 }
