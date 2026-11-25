@@ -5,11 +5,11 @@ const words=x=>[...new Set(normal(x).split(' ').filter(w=>w&&!stop.has(w)))];
 const number=x=>Number.isSafeInteger(x)&&x>=0?x:null;
 const monthPattern=/^\d{4}-(0[1-9]|1[0-2])$/;
 export function validateReport(r){
- if(r?.source!=='Google Ads via DataForSEO'||!['UK','US'].includes(r.region)||!Number.isFinite(Date.parse(r.retrieved_at))||!Array.isArray(r.rows)||(!r.rows.length&&r.mode!=='discover')||r.rows.length>20)throw Error('Invalid Google demand report.');
- if(r.mode!==undefined&&(r.mode!=='discover'||!Array.isArray(r.seeds)||r.seeds.length!==1||typeof r.seeds[0]!=='string'||!r.seeds[0].trim()||r.seeds[0].length>80))throw Error('Invalid discovery report.');
+ if(r?.source!=='Google Ads via DataForSEO'||!['UK','US'].includes(r.region)||typeof r.retrieved_at!=='string'||!Number.isFinite(Date.parse(r.retrieved_at))||!Array.isArray(r.rows)||(!r.rows.length&&r.mode!=='discover')||r.rows.length>20)throw Error('Invalid Google demand report.');
+ if(r.mode!==undefined&&(r.mode!=='discover'||!Array.isArray(r.seeds)||r.seeds.length!==1||typeof r.seeds[0]!=='string'||!r.seeds[0].trim()||/[\u0000-\u001f\u007f]/u.test(r.seeds[0])||r.seeds[0].length>80))throw Error('Invalid discovery report.');
  const seen=new Set();
  return {source:r.source,region:r.region,retrieved_at:r.retrieved_at,...(r.mode==='discover'?{mode:r.mode,seeds:r.seeds.slice()}:{}),rows:r.rows.map(x=>{
-  if(typeof x?.keyword!=='string'||!x.keyword.trim()||x.keyword.length>80||seen.has(x.keyword)||!Array.isArray(x.monthly)||x.monthly.length>12)throw Error('Invalid Google demand row.');
+  if(typeof x?.keyword!=='string'||!x.keyword.trim()||/[\u0000-\u001f\u007f]/u.test(x.keyword)||x.keyword.length>80||seen.has(x.keyword)||!Array.isArray(x.monthly)||x.monthly.length>12)throw Error('Invalid Google demand row.');
   seen.add(x.keyword);const months=new Map();
   for(const m of x.monthly)if(typeof m?.month==='string'&&monthPattern.test(m.month))months.set(m.month,number(m.searches));
   return {keyword:x.keyword,average_monthly_searches:number(x.average_monthly_searches),ads_competition:['LOW','MEDIUM','HIGH'].includes(x.ads_competition)?x.ads_competition:null,monthly:[...months].sort((a,b)=>a[0].localeCompare(b[0])).map(([month,searches])=>({month,searches}))};
