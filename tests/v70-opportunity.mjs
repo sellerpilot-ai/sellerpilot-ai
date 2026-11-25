@@ -79,3 +79,6 @@ assert.equal(researchTagPlan({...product,tags:Array.from({length:13},(_,i)=>'tag
 assert.equal(researchTagPlan({...product,attributes:{sellerpilot:{market:'Amazon'}}},planRows),null);
 assert.equal(researchTagPlan(null,planRows),null);
 console.log('PASS V80–V84 multi-tag plan, eligibility, slot count, duplicates, immutable original and all-or-nothing validation');
+
+assert.equal(researchTagPlan(product,planRows,Array(14).fill('gold bracelet')).valid,false);
+assert.equal(researchTagPlan(product,planRows,Array(21).fill('gold bracelet')),null);
