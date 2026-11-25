@@ -4,6 +4,7 @@ import { createServer } from 'node:http';
 import { readFile, mkdtemp, rm, readdir } from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {buildStaticPackage,packageFingerprint,checkFrontendSource} from './v115-static-package.mjs';
+import {buildCloudflarePackage,pagesHeaders,securityHeaders} from './v122-cloudflare-package.mjs';
 import { resolve, extname, sep } from 'node:path';
 import { chromium } from 'playwright';
 
@@ -501,14 +502,22 @@ try {
  let packageServer,packagePage;
  try{
   const destination=resolve(runtimeTemp,'frontend');
-  const files=new Set(await buildStaticPackage(process.cwd(),destination));
+  const files=new Set(await buildCloudflarePackage(process.cwd(),destination));
+  assert.equal(files.size,54);
+  assert.equal(await readFile(resolve(destination,'_headers'),'utf8'),pagesHeaders);
   packageServer=createServer(async(req,res)=>{
    try{
     const pathname=new URL(req.url,'http://localhost').pathname;
-    const relative=pathname==='/'?'index.html':pathname.slice(1);
-    if(!files.has(relative)){res.writeHead(404).end();return}
-    const bytes=await readFile(resolve(destination,relative));
-    res.writeHead(200,{'Content-Type':types[extname(relative)],'X-Content-Type-Options':'nosniff'}).end(bytes);
+    if(pathname!=='/404.html'&&pathname.endsWith('.html')&&files.has(pathname.slice(1))){
+     const u=new URL(req.url,'http://localhost');u.pathname=pathname==='/index.html'?'/':pathname.slice(0,-5);
+     res.writeHead(308,{Location:u.pathname+u.search}).end();return;
+    }
+    const raw=pathname==='/'?'index.html':pathname.slice(1);
+    const relative=files.has(raw)?raw:files.has(raw+'.html')?raw+'.html':'404.html';
+    const absent=relative==='404.html'||relative==='_headers';
+    const served=absent?'404.html':relative;
+    const bytes=await readFile(resolve(destination,served));
+    res.writeHead(absent?404:200,{'Content-Type':types[extname(served)],...securityHeaders}).end(bytes);
    }catch{if(!res.headersSent)res.writeHead(500).end()}
   });
   await new Promise(r=>packageServer.listen(0,'127.0.0.1',r));
@@ -520,7 +529,9 @@ try {
   await packagePage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===packageOrigin)return route.continue();if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});external.push(u.origin);return route.abort()});
   await packagePage.goto(packageOrigin+'/');
   assert.match(await packagePage.title(),/SellerPilot AI/);
-  await packagePage.goto(packageOrigin+'/app.html');
+  await packagePage.goto(packageOrigin+'/app.html?v=106');
+  assert.equal(new URL(packagePage.url()).pathname,'/app');
+  assert.equal(new URL(packagePage.url()).searchParams.get('v'),'106');
   await packagePage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
   await packagePage.locator('[data-view="products"]:visible').first().click();
   assert.match(await packagePage.locator('#product-mobile').innerText(),/Minimalist Gold Tone Bracelet/);
@@ -528,9 +539,11 @@ try {
   await packagePage.locator('#v23-guide').waitFor({state:'visible'});
   assert.equal(await packagePage.locator('#edit-title').inputValue(),'Minimalist Gold Tone Bracelet');
   assert.deepEqual(external,[]);assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
-  for(const privatePath of ['/tests/v24-browser.mjs','/supabase/config.toml','/.git/config','/.env','/README.md']){
-   const response=await fetch(packageOrigin+privatePath);assert.equal(response.status,404);
+  for(const privatePath of ['/tests/v24-browser.mjs','/supabase/config.toml','/.git/config','/.env','/README.md','/_headers','/no-such-page']){
+   const response=await fetch(packageOrigin+privatePath);assert.equal(response.status,404);assert.match(await response.text(),/Page not found/);
   }
+  const publicResponse=await fetch(packageOrigin+'/');for(const [key,value] of Object.entries(securityHeaders))assert.equal(publicResponse.headers.get(key),value);
+  console.log('PASS V122: 54-file Cloudflare package, clean URL and query preservation, security headers and explicit 404 in local simulation.');
   console.log('PASS V116: packaged frontend startup, catalogue and editor on independent local origin; private paths absent; zero external requests (mock only).');
  }finally{if(packagePage)await packagePage.close();if(packageServer)await new Promise(r=>packageServer.close(r));await rm(runtimeTemp,{recursive:true,force:true})}
  const failurePage=await browser.newPage();
