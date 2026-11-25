@@ -22,12 +22,12 @@ export function v22RenderHome(){
  const old=select.value;select.replaceChildren();
  if(!state.ready){const o=new Option('Sign in to see your products','');select.add(o);select.disabled=true;document.getElementById('v22-saved-status').textContent='Sign in to view your private products.';document.getElementById('v22-next-text').textContent='Your saved products appear here after sign in.';return}
  select.disabled=!state.products.length;
- const list=[...state.products].sort((a,b)=>productQuality(a).score-productQuality(b).score);
- if(!list.length){select.add(new Option('No saved listings yet',''));document.getElementById('v22-saved-status').textContent='Create a listing or import a CSV to start.';document.getElementById('v22-next-text').textContent='Create your first cloud product to see a recommendation.';return}
+ const ranked=state.products.map(p=>({p,a:productQuality(p)})).sort((x,y)=>x.a.score-y.a.score);const list=ranked.map(x=>x.p);
+ if(!list.length){select.add(new Option('No saved listings yet',''));document.getElementById('v22-saved-status').textContent='Create a listing or import a CSV to start.';document.getElementById('v22-next-text').textContent='Add an authorised listing or try the fictional sample first. No marketplace connection is required.';return}
  for(const p of list){const o=new Option(p.title,p.id);select.add(o)}
  select.value=list.some(x=>x.id===old)?old:list[0].id;
  document.getElementById('v22-saved-status').textContent=list.length+' private listing'+(list.length===1?'':'s')+' ready to review · Rule-based checks, not marketplace ranking.';
- const most=list[0],a=productQuality(most);
+ const {p:most,a}=ranked[0];
  document.getElementById('v22-next-text').innerHTML='<strong>'+esc(most.title)+'</strong><span class="mini">'+a.score+'/100 · '+esc(a.issues[0]?.heading||'No basic issues flagged')+'</span>';
 }
 export function v22GoToShopListings(){chosenView('shop');const el=document.getElementById('v21-cloud-list');if(el)el.scrollIntoView({block:'center',behavior:'smooth'})}
