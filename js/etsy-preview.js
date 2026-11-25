@@ -36,7 +36,7 @@ export function renderEtsySelection(root,preview){
  const d=validatePreview(preview);
  root.replaceChildren();
  if(!d.listings.length){const empty=document.createElement('p');empty.className='mini';empty.textContent='No active listings returned.';root.append(empty);return}
- const tools=document.createElement('div');tools.className='form-actions';
+ const tools=document.createElement('div');tools.className='form-actions etsy-preview-actions';
  const all=document.createElement('button');all.type='button';all.className='button secondary';all.textContent='Select all shown';
  const clear=document.createElement('button');clear.type='button';clear.className='button ghost';clear.textContent='Clear selection';
  const status=document.createElement('p');status.className='mini';status.setAttribute('role','status');
@@ -44,7 +44,7 @@ export function renderEtsySelection(root,preview){
  const update=()=>{const n=checks.filter(c=>c.checked).length;status.textContent=n+' of '+checks.length+' selected · Preview only; not saved or analysed.';all.disabled=n===checks.length;clear.disabled=n===0};
  tools.append(all,clear);root.append(tools,status);
  for(const x of d.listings){
-  const row=document.createElement('label');row.className='list-card';
+  const row=document.createElement('label');row.className='list-card etsy-preview-row';
   const c=document.createElement('input');c.type='checkbox';c.setAttribute('aria-label','Select '+x.title);c.addEventListener('change',update);checks.push(c);
   const detail=document.createElement('span');detail.className='detail';
   const title=document.createElement('b');title.textContent=x.title;
