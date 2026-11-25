@@ -66,3 +66,8 @@ export function opportunity(row,product,maximum){
 export function filterOpportunities(rows, mode='all') {
  return rows.filter(r=>mode==='long'?r.opportunity.longTail:mode==='seasonal'?r.opportunity.seasonalSignal:mode==='warnings'?r.opportunity.warnings.length>0:mode==='candidates'?r.opportunity.reviewCandidate:true);
 }
+
+export function researchExportRows(report,rows){
+ const safe=v=>typeof v==='string'&&/^[\s\u0000-\u001f]*[=+\-@]|^[\t\r\n]/u.test(v)?"'"+v:v??'';
+ return rows.map(r=>[r.keyword,report.source,report.region,report.retrieved_at,r.average_monthly_searches,r.ads_competition,r.relevance?.score,r.opportunity.score,r.opportunity.seasonalSignal,r.opportunity.warnings.join('; ')].map(safe));
+}
