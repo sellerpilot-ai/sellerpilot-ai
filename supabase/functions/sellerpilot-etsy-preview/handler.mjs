@@ -1,6 +1,9 @@
 /* Deployment candidate. Off until explicitly enabled after Etsy approval.
  * One-time read-only preview. No Etsy access or refresh tokens retained. */
-const origin="https://sellerpilot-ai.github.io",redirect=origin+"/sellerpilot-ai/etsy-return.html";
+const callbacks=new Map([
+ ["https://sellerpilot-ai.github.io","https://sellerpilot-ai.github.io/sellerpilot-ai/etsy-return.html"],
+ ["https://sellerpilot-ai-21c.pages.dev","https://sellerpilot-ai-21c.pages.dev/etsy-return.html"]
+]);
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const random=()=>Array.from(crypto.getRandomValues(new Uint8Array(32)),v=>v.toString(16).padStart(2,"0")).join("");
 const hash=async s=>new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(s)));
@@ -10,9 +13,9 @@ const tidy=(v,n)=>typeof v==="string"?v.slice(0,n):"";
 const digits=v=>/^[1-9]\d{0,18}$/.test(String(v));
 export function createHandler(env,fetcher){
  return async req=>{
-  const incoming=req.headers.get("origin"),headers={"Content-Type":"application/json","Cache-Control":"no-store","Vary":"Origin",...(incoming===origin?{"Access-Control-Allow-Origin":origin,"Access-Control-Allow-Headers":"authorization,apikey,content-type,x-client-info","Access-Control-Allow-Methods":"POST,OPTIONS"}:{})};
+  const incoming=req.headers.get("origin"),originAllowed=callbacks.has(incoming),headers={"Content-Type":"application/json","Cache-Control":"no-store","Vary":"Origin",...(originAllowed?{"Access-Control-Allow-Origin":incoming,"Access-Control-Allow-Headers":"authorization,apikey,content-type,x-client-info","Access-Control-Allow-Methods":"POST,OPTIONS"}:{})};
   const reply=(s,b)=>new Response(JSON.stringify(b),{status:s,headers}),fail=(s,detail)=>reply(s,{ok:false,detail});
-  if(incoming&&incoming!==origin)return fail(403,"Origin not permitted.");
+  if(!originAllowed)return fail(403,"Origin not permitted.");
   if(req.method==="OPTIONS")return new Response(null,{status:204,headers});
   if(req.method!=="POST")return fail(405,"POST required.");
   const auth=req.headers.get("authorization")||"",url=env("SUPABASE_URL"),anon=env("SUPABASE_ANON_KEY"),service=env("SUPABASE_SERVICE_ROLE_KEY");
@@ -25,7 +28,8 @@ export function createHandler(env,fetcher){
    let body;try{const reader=req.body?.getReader();if(!reader)return fail(400,"Invalid request.");let n=0,s="",decoder=new TextDecoder();while(true){const {done,value}=await reader.read();if(done)break;n+=value.byteLength;if(n>8192){await reader.cancel();return fail(413,"Request too large.")}s+=decoder.decode(value,{stream:true})}body=JSON.parse(s+decoder.decode())}catch{return fail(400,"Invalid request.")}
    const key=env("SELLERPILOT_ETSY_KEYSTRING"),secret=env("SELLERPILOT_ETSY_SHARED_SECRET");
    const allowed=String(env("SELLERPILOT_MARKETPLACE_BETA_USER_IDS")||"").split(",").map(x=>x.trim()).includes(user.id);
-   const enabled=allowed&&env("SELLERPILOT_ETSY_APPROVED")==="true"&&env("SELLERPILOT_ETSY_PREVIEW_ENABLED")==="true"&&!!key&&!!secret&&!!service;
+   const redirect=callbacks.get(incoming),configuredRedirect=env("SELLERPILOT_ETSY_PREVIEW_REDIRECT_URI");
+   const enabled=redirect===configuredRedirect&&allowed&&env("SELLERPILOT_ETSY_APPROVED")==="true"&&env("SELLERPILOT_ETSY_PREVIEW_ENABLED")==="true"&&!!key&&!!secret&&!!service;
    if(body?.action==="status")return reply(200,{ok:true,enabled});
    if(!enabled)return fail(503,"Etsy authorisation is not enabled. CSV import remains available.");
    const admin={apikey:service,Authorization:"Bearer "+service,"Content-Type":"application/json"};
