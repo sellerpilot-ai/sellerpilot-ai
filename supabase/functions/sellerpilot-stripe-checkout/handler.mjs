@@ -1,7 +1,8 @@
 // Private test-only hosted checkout. No production entitlements or live mode.
 const origin='https://sellerpilot-ai.github.io';
 const cloudOrigin='https://sellerpilot-ai-21c.pages.dev';
-const allowedOrigin=from=>from===origin||from===cloudOrigin;
+const yuviOrigin='https://yuvilist.com';
+const allowedOrigin=from=>from===origin||from===cloudOrigin||from===yuviOrigin;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const priceId=/^price_[A-Za-z0-9]{8,100}$/;
 function publishable(env){try{const k=JSON.parse(env('SUPABASE_PUBLISHABLE_KEYS')||'{}').default;if(typeof k==='string'&&k)return k}catch{}return env('SUPABASE_ANON_KEY')}
@@ -71,7 +72,7 @@ export function createHandler(env,fetcher){return async req=>{
    const p=await res.json();if(!validPrice(p,id,amount,name))return fail(409,plan+' does not match the expected active GBP monthly sandbox price.');
   }
   const selected=plans.find(p=>p[0]===planKey);
-  const home=from===cloudOrigin?cloudOrigin+'/':origin+'/sellerpilot-ai/';
+  const home=from===yuviOrigin?yuviOrigin+'/':from===cloudOrigin?cloudOrigin+'/':origin+'/sellerpilot-ai/';
   const form=new URLSearchParams({mode:'subscription','line_items[0][price]':selected[1],'line_items[0][quantity]':'1','allowed_payment_method_types[0]':'card','managed_payments[enabled]':'false','adaptive_pricing[enabled]':'false','automatic_tax[enabled]':'false',client_reference_id:user.id,success_url:home+'?v=41&billing=test-return&session_id={CHECKOUT_SESSION_ID}',cancel_url:home+'?v=41&billing=test-cancel','metadata[sellerpilot_user_id]':user.id,'metadata[sellerpilot_mode]':'sandbox','metadata[sellerpilot_plan]':input.plan,'subscription_data[metadata][sellerpilot_user_id]':user.id,'subscription_data[metadata][sellerpilot_mode]':'sandbox','subscription_data[metadata][sellerpilot_plan]':input.plan});
   const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode('sellerpilot-v48-unmanaged-sandbox:'+user.id+':'+input.request_id));
   const idem=Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');
