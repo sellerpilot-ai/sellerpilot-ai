@@ -71,3 +71,11 @@ export function researchExportRows(report,rows){
  const safe=v=>typeof v==='string'&&/^[\s\u0000-\u001f]*[=+\-@]|^[\t\r\n]/u.test(v)?"'"+v:v??'';
  return rows.map(r=>[r.keyword,report.source,report.region,report.retrieved_at,r.average_monthly_searches,r.ads_competition,r.relevance?.score,r.opportunity.score,r.opportunity.seasonalSignal,r.opportunity.warnings.join('; ')].map(safe));
 }
+
+export function previewResearchTag(product,phrase){
+ if(!product||typeof phrase!=='string'||!phrase.trim()||phrase.includes(','))return null;
+ const candidate=phrase.trim();
+ const tags=String(product.tags||'').split(',').map(t=>t.trim()).filter(Boolean);
+ if(tags.length>=13||!opportunity({keyword:candidate,average_monthly_searches:null,monthly:[]},product,0).reviewCandidate)return null;
+ return {before:String(product.tags||''),after:[...tags,candidate].join(', '),candidate};
+}
