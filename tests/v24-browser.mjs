@@ -429,6 +429,43 @@ try {
  assert.deepEqual(isolationExternal,[]);
  await isolationPage.close();
  console.log('PASS V113: rejected foreign catalogue response and foreign editor/save/delete/duplicate targets (mock only).');
+ // V116: serve only the static output, on a distinct local origin, with all external services mocked.
+ const runtimeTemp=await mkdtemp(resolve(tmpdir(),'sellerpilot-hosting-'));
+ let packageServer,packagePage;
+ try{
+  const destination=resolve(runtimeTemp,'frontend');
+  const files=new Set(await buildStaticPackage(process.cwd(),destination));
+  packageServer=createServer(async(req,res)=>{
+   try{
+    const pathname=new URL(req.url,'http://localhost').pathname;
+    const relative=pathname==='/'?'index.html':pathname.slice(1);
+    if(!files.has(relative)){res.writeHead(404).end();return}
+    const bytes=await readFile(resolve(destination,relative));
+    res.writeHead(200,{'Content-Type':types[extname(relative)],'X-Content-Type-Options':'nosniff'}).end(bytes);
+   }catch{if(!res.headersSent)res.writeHead(500).end()}
+  });
+  await new Promise(r=>packageServer.listen(0,'127.0.0.1',r));
+  const packageOrigin='http://127.0.0.1:'+packageServer.address().port;
+  packagePage=await browser.newPage({viewport:{width:393,height:852},isMobile:true,hasTouch:true});
+  const external=[],errors=[],missing=[];
+  packagePage.on('pageerror',e=>errors.push(e.message));
+  packagePage.on('response',r=>{if(r.url().startsWith(packageOrigin+'/')&&r.status()>=400)missing.push(r.url())});
+  await packagePage.route('**/*',async route=>{const u=new URL(route.request().url());if(u.origin===packageOrigin)return route.continue();if(u.href.startsWith('https://esm.sh/@supabase/supabase-js@'))return route.fulfill({status:200,contentType:'application/javascript',headers:{'access-control-allow-origin':'*'},body:mock});external.push(u.origin);return route.abort()});
+  await packagePage.goto(packageOrigin+'/');
+  assert.match(await packagePage.title(),/SellerPilot AI/);
+  await packagePage.goto(packageOrigin+'/app.html');
+  await packagePage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Cloud synced'));
+  await packagePage.locator('[data-view="products"]:visible').first().click();
+  assert.match(await packagePage.locator('#product-mobile').innerText(),/Minimalist Gold Tone Bracelet/);
+  await packagePage.locator('#view-products [data-edit="fixture-product"]:visible').first().click();
+  await packagePage.locator('#v23-guide').waitFor({state:'visible'});
+  assert.equal(await packagePage.locator('#edit-title').inputValue(),'Minimalist Gold Tone Bracelet');
+  assert.deepEqual(external,[]);assert.deepEqual(errors,[]);assert.deepEqual(missing,[]);
+  for(const privatePath of ['/tests/v24-browser.mjs','/supabase/config.toml','/.git/config','/.env','/README.md']){
+   const response=await fetch(packageOrigin+privatePath);assert.equal(response.status,404);
+  }
+  console.log('PASS V116: packaged frontend startup, catalogue and editor on independent local origin; private paths absent; zero external requests (mock only).');
+ }finally{if(packagePage)await packagePage.close();if(packageServer)await new Promise(r=>packageServer.close(r));await rm(runtimeTemp,{recursive:true,force:true})}
  const failurePage=await browser.newPage();
  await failurePage.route('**/*',async route=>{const url=new URL(route.request().url());if(url.pathname.endsWith('/keyword-discovery.js'))return route.abort();if(url.origin===origin)return route.continue();return route.abort()});
  await failurePage.goto(origin+'/app.html?v=106');await failurePage.waitForFunction(()=>document.querySelector('#cloud-status')?.textContent.includes('Workspace startup failed'));
