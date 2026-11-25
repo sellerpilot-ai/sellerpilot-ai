@@ -88,3 +88,24 @@ export function researchActionKeyword(report,dataset){
  const keyword=dataset[values[0]];
  return typeof keyword==='string'&&report?.rows?.some(r=>r.keyword===keyword)?keyword:null;
 }
+
+// V80–V84: review several already-researched tag candidates together, never publish.
+// Every candidate is evaluated against the original listing, not other suggested wording.
+export function researchTagPlan(product,rows,selected=[]){
+ if(!product||!Array.isArray(rows)||rows.length>20||!Array.isArray(selected)||selected.length>13)return null;
+ const market=product.attributes?.sellerpilot?.market;
+ if(market&&market!=='Etsy')return null;
+ const before=String(product.tags||''),tags=before.split(',').map(t=>t.trim()).filter(Boolean);
+ const remaining=Math.max(0,13-tags.length);
+ const candidates=[],seen=new Set();
+ for(const row of rows){
+  if(typeof row?.keyword!=='string')continue;
+  const p=previewResearchTag(product,row.keyword);
+  if(!p||seen.has(normal(p.candidate)))continue;
+  seen.add(normal(p.candidate));candidates.push({keyword:row.keyword,tag:p.candidate});
+ }
+ const lookup=new Map(candidates.map(c=>[c.keyword,c.tag]));
+ const valid=selected.length<=remaining&&new Set(selected).size===selected.length&&selected.every(k=>typeof k==='string'&&lookup.has(k));
+ const additions=valid?selected.map(k=>lookup.get(k)):[];
+ return {before,existingCount:tags.length,remaining,candidates,valid,additions,after:valid&&additions.length?[...tags,...additions].join(', '):before};
+}
