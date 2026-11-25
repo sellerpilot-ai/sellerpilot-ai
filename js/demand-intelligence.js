@@ -34,7 +34,7 @@ export function sortRows(rows,sort,product=null,filter=''){
  const maximum=Math.max(0,...rows.map(r=>number(r.average_monthly_searches)??0));
  const term=normal(filter),arr=rows.filter(r=>!term||normal(r.keyword).includes(term)).map(row=>({...row,season:seasonal(row.monthly),relevance:relevance(product,row.keyword),opportunity:opportunity(row,product,maximum)}));
  const descending=(a,b)=>a===null?b===null?0:1:b===null?-1:b-a;
- return arr.sort((a,b)=>(sort==='alpha'?0:sort==='peak'?descending(a.season.peak,b.season.peak):sort==='relevance'?descending(a.relevance?.score??null,b.relevance?.score??null)||descending(a.average_monthly_searches,b.average_monthly_searches):descending(a.average_monthly_searches,b.average_monthly_searches))||a.keyword.localeCompare(b.keyword));
+ return arr.sort((a,b)=>(sort==='alpha'?0:sort==='opportunity'?descending(a.opportunity.score,b.opportunity.score):sort==='peak'?descending(a.season.peak,b.season.peak):sort==='relevance'?descending(a.relevance?.score??null,b.relevance?.score??null)||descending(a.average_monthly_searches,b.average_monthly_searches):descending(a.average_monthly_searches,b.average_monthly_searches))||a.keyword.localeCompare(b.keyword));
 }
 export function compareReports(a,b){
  if(!a||!b||a.region===b.region||a.mode!==b.mode||a.mode==='discover'&&JSON.stringify(a.seeds)!==JSON.stringify(b.seeds))return [];
@@ -61,4 +61,8 @@ export function opportunity(row,product,maximum){
  const mean=known.length?known.reduce((s,m)=>s+m.searches,0)/known.length:0;
  const seasonalSignal=known.length>=6&&mean>0&&Math.max(...known.map(m=>m.searches))>=1.5*mean;
  return {score,demand,warnings,longTail:words(row.keyword).length>=3,seasonalSignal,reviewCandidate:!!(coverage&&coverage.score===100&&!coverage.exactTag&&coverage.tagEligible&&!warnings.length)};
+}
+
+export function filterOpportunities(rows, mode='all') {
+ return rows.filter(r=>mode==='long'?r.opportunity.longTail:mode==='seasonal'?r.opportunity.seasonalSignal:mode==='warnings'?r.opportunity.warnings.length>0:mode==='candidates'?r.opportunity.reviewCandidate:true);
 }
