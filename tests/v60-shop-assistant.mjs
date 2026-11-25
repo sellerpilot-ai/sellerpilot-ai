@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 const src=await readFile(new URL('../js/shop-assistant.js',import.meta.url));
-const {shopSummary,filterQueue}=await import('data:text/javascript;base64,'+src.toString('base64'));
+const {shopSummary,filterQueue,issueGroups,reviewCSVCell}=await import('data:text/javascript;base64,'+src.toString('base64'));
 const issue=(heading,severity,penalty)=>({heading,severity,penalty});
 const row=(id,title,score,issues)=>({id,title,audit:{score,issues,market:'Etsy'},history:[]});
 const rows=[row('a','Bracelet',45,[issue('Description','important',18)]),row('b','Mug',80,[issue('Price','critical',16),issue('Size','minor',5)]),row('c','Art',95,[])];
@@ -17,3 +17,17 @@ assert.deepEqual(filterQueue(s.queue,'all','priority','missing'),[]);
 assert.equal(shopSummary([]).average,null);assert.equal(shopSummary([]).delta,null);
 assert.deepEqual(s.queue.map(x=>x.id),['b','a']);
 console.log('PASS: catalogue priority, critical and score filters, text search, weekly baseline, no fabricated empty-state score.');
+
+const grouped=shopSummary([row('a','A',40,[issue('Tags','important',5),issue('Tags','critical',10),issue('Description','minor',3)]),{...row('b','B',72,[issue('Tags','important',4),issue('Photos','minor',1)]),audit:{score:72,market:'Amazon',issues:[issue('Tags','important',4),issue('Photos','minor',1)]}}]);
+assert.deepEqual(issueGroups(grouped.queue)[0],{heading:'Tags',listings:2,critical:1,markets:['Amazon','Etsy']});
+assert.equal(issueGroups(grouped.queue).length,3);
+assert.deepEqual(filterQueue(grouped.queue,'all','priority','', 'Amazon').map(x=>x.id),['b']);
+assert.deepEqual(filterQueue(grouped.queue,'all','priority','description').map(x=>x.id),['a']);
+assert.equal(filterQueue(grouped.queue,'all','priority','','','Description')[0].issue.heading,'Description');
+assert.equal(filterQueue(grouped.queue,'all','priority','','Amazon','Description').length,0);
+assert.equal(grouped.queue[0].issue.heading,'Tags');
+assert.deepEqual(issueGroups([]),[]);
+assert.equal(reviewCSVCell('=2+2'),"'=2+2");
+assert.equal(reviewCSVCell('  @SUM(1)'),"'  @SUM(1)");
+assert.equal(reviewCSVCell(0),0);
+console.log('PASS V90–V94 recurring issue counts, unique listings, critical severity, marketplace and issue filters, non-primary search and safe export');
