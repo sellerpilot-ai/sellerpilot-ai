@@ -40,7 +40,7 @@ const setup=[
 ].join('\n');
 const notice='<div id="preview-notice" role="note" style="position:sticky;top:0;z-index:9999;background:#173b35;color:white;padding:9px 12px;font:600 13px/1.4 system-ui;text-align:center">V109 OFFLINE TEST COPY — fictional data only. No live login, payments or API calls. Reload resets changes. <button id="preview-restart" type="button" style="font:inherit;padding:3px 8px">Restart sample</button><span id="preview-status" role="status"></span></div>';
 let html=app.replace('<meta charset="utf-8">','<meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="'+csp+'">')
- .replace('<title>SellerPilot AI — Seller Workspace v106</title>','<title>SellerPilot AI — V109 offline test copy</title>')
+ .replace('<title>YuviList — Seller Workspace</title>','<title>YuviList — offline test copy</title>')
  .replace('<h1>Cloud Products</h1>','<h1>Sample Products</h1>')
  .replace('Manage your actual private products and open a full intelligence audit.','Practise with fictional products. Saves are simulated in memory.')
  .replace('<b style="font-size:13px">Supabase</b><div class="pill green" style="margin-top:8px">Connected</div><p class="mini">Authenticated cloud catalogue</p>','<b style="font-size:13px">Offline catalogue</b><div class="pill amber" style="margin-top:8px">Simulated</div><p class="mini">No live database connection</p>')
